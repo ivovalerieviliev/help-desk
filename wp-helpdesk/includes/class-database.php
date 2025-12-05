@@ -1,0 +1,290 @@
+<?php
+/**
+ * Database Handler
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class WPHD_Database {
+    
+    private static $instance = null;
+    
+    public static function instance() {
+        if (is_null(self::$instance)) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    public function __construct() {
+        add_action('plugins_loaded', array($this, 'check_db_update'));
+    }
+    
+    public function check_db_update() {
+        $current_version = get_option('wphd_db_version', '0');
+        if (version_compare($current_version, WPHD_VERSION, '<')) {
+            WPHD_Activator::activate();
+        }
+    }
+    
+    public static function get_comments($ticket_id, $include_internal = true) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_comments';
+        
+        $sql = $wpdb->prepare("SELECT * FROM $table WHERE ticket_id = %d", $ticket_id);
+        if (!$include_internal) {
+            $sql .= " AND is_internal = 0";
+        }
+        $sql .= " ORDER BY created_at ASC";
+        
+        return $wpdb->get_results($sql);
+    }
+    
+    public static function add_comment($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_comments';
+        
+        $result = $wpdb->insert($table, array(
+            'ticket_id' => $data['ticket_id'],
+            'user_id' => get_current_user_id(),
+            'content' => $data['content'],
+            'is_internal' => isset($data['is_internal']) ? $data['is_internal'] : 0,
+            'attachments' => isset($data['attachments']) ? maybe_serialize($data['attachments']) : ''
+        ));
+        
+        if ($result) {
+            do_action('wphd_comment_added', $wpdb->insert_id, $data);
+            return $wpdb->insert_id;
+        }
+        return false;
+    }
+    
+    public static function update_comment($id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_comments';
+        
+        return $wpdb->update($table, array(
+            'content' => $data['content'],
+            'is_internal' => isset($data['is_internal']) ? $data['is_internal'] : 0
+        ), array('id' => $id));
+    }
+    
+    public static function delete_comment($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_comments';
+        return $wpdb->delete($table, array('id' => $id));
+    }
+    
+    public static function get_history($ticket_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_history';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE ticket_id = %d ORDER BY created_at DESC",
+            $ticket_id
+        ));
+    }
+    
+    public static function add_history($ticket_id, $field, $old_value, $new_value) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_history';
+        
+        return $wpdb->insert($table, array(
+            'ticket_id' => $ticket_id,
+            'user_id' => get_current_user_id(),
+            'field_name' => $field,
+            'old_value' => $old_value,
+            'new_value' => $new_value
+        ));
+    }
+    
+    public static function get_action_items($ticket_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_action_items';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE ticket_id = %d ORDER BY created_at ASC",
+            $ticket_id
+        ));
+    }
+    
+    public static function add_action_item($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_action_items';
+        
+        $result = $wpdb->insert($table, array(
+            'ticket_id' => $data['ticket_id'],
+            'title' => $data['title'],
+            'description' => isset($data['description']) ? $data['description'] : '',
+            'assigned_to' => isset($data['assigned_to']) ? $data['assigned_to'] : null,
+            'due_date' => isset($data['due_date']) ? $data['due_date'] : null,
+            'created_by' => get_current_user_id()
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    public static function update_action_item($id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_action_items';
+        
+        $update_data = array();
+        if (isset($data['title'])) $update_data['title'] = $data['title'];
+        if (isset($data['description'])) $update_data['description'] = $data['description'];
+        if (isset($data['assigned_to'])) $update_data['assigned_to'] = $data['assigned_to'];
+        if (isset($data['due_date'])) $update_data['due_date'] = $data['due_date'];
+        if (isset($data['is_completed'])) {
+            $update_data['is_completed'] = $data['is_completed'];
+            if ($data['is_completed']) {
+                $update_data['completed_at'] = current_time('mysql');
+                $update_data['completed_by'] = get_current_user_id();
+            }
+        }
+        
+        return $wpdb->update($table, $update_data, array('id' => $id));
+    }
+    
+    public static function delete_action_item($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_action_items';
+        return $wpdb->delete($table, array('id' => $id));
+    }
+    
+    public static function get_sla($ticket_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_sla_log';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE ticket_id = %d",
+            $ticket_id
+        ));
+    }
+    
+    public static function create_sla($ticket_id, $first_response_due, $resolution_due) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_sla_log';
+        
+        return $wpdb->insert($table, array(
+            'ticket_id' => $ticket_id,
+            'first_response_due' => $first_response_due,
+            'resolution_due' => $resolution_due
+        ));
+    }
+    
+    public static function update_sla($ticket_id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_sla_log';
+        
+        return $wpdb->update($table, $data, array('ticket_id' => $ticket_id));
+    }
+    
+    public static function get_handovers($args = array()) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handovers';
+        
+        $defaults = array(
+            'status' => '',
+            'created_by' => 0,
+            'date_from' => '',
+            'date_to' => '',
+            'limit' => 20,
+            'offset' => 0
+        );
+        
+        $args = wp_parse_args($args, $defaults);
+        
+        $sql = "SELECT * FROM $table WHERE 1=1";
+        
+        if ($args['status']) {
+            $sql .= $wpdb->prepare(" AND status = %s", $args['status']);
+        }
+        if ($args['created_by']) {
+            $sql .= $wpdb->prepare(" AND created_by = %d", $args['created_by']);
+        }
+        if ($args['date_from']) {
+            $sql .= $wpdb->prepare(" AND created_at >= %s", $args['date_from']);
+        }
+        if ($args['date_to']) {
+            $sql .= $wpdb->prepare(" AND created_at <= %s", $args['date_to']);
+        }
+        
+        $sql .= " ORDER BY created_at DESC";
+        $sql .= $wpdb->prepare(" LIMIT %d OFFSET %d", $args['limit'], $args['offset']);
+        
+        return $wpdb->get_results($sql);
+    }
+    
+    public static function get_handover($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handovers';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $id
+        ));
+    }
+    
+    public static function create_handover($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handovers';
+        
+        $result = $wpdb->insert($table, array(
+            'title' => $data['title'],
+            'shift_name' => isset($data['shift_name']) ? $data['shift_name'] : '',
+            'shift_start' => isset($data['shift_start']) ? $data['shift_start'] : null,
+            'shift_end' => isset($data['shift_end']) ? $data['shift_end'] : null,
+            'notes' => isset($data['notes']) ? $data['notes'] : '',
+            'status' => isset($data['status']) ? $data['status'] : 'draft',
+            'created_by' => get_current_user_id()
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    public static function update_handover($id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handovers';
+        
+        return $wpdb->update($table, $data, array('id' => $id));
+    }
+    
+    public static function delete_handover($id) {
+        global $wpdb;
+        $wpdb->delete($wpdb->prefix . 'wphd_handover_tickets', array('handover_id' => $id));
+        return $wpdb->delete($wpdb->prefix . 'wphd_handovers', array('id' => $id));
+    }
+    
+    public static function get_handover_tickets($handover_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_tickets';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE handover_id = %d ORDER BY sort_order ASC",
+            $handover_id
+        ));
+    }
+    
+    public static function add_handover_ticket($handover_id, $ticket_id, $notes = '', $order = 0) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_tickets';
+        
+        return $wpdb->insert($table, array(
+            'handover_id' => $handover_id,
+            'ticket_id' => $ticket_id,
+            'notes' => $notes,
+            'sort_order' => $order
+        ));
+    }
+    
+    public static function remove_handover_ticket($handover_id, $ticket_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_tickets';
+        
+        return $wpdb->delete($table, array(
+            'handover_id' => $handover_id,
+            'ticket_id' => $ticket_id
+        ));
+    }
+}
