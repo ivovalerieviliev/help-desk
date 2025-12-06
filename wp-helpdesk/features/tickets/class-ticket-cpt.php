@@ -49,13 +49,14 @@ class WPHD_Ticket_CPT {
             'rewrite' => array('slug' => 'ticket'),
             'capability_type' => 'post',
             'capabilities' => array(
-                'create_posts' => 'create_wphd_tickets',
-                'edit_posts' => 'edit_wphd_tickets',
-                'edit_others_posts' => 'manage_wphd_tickets',
-                'delete_posts' => 'delete_wphd_tickets',
-                'publish_posts' => 'create_wphd_tickets',
-                'read_private_posts' => 'manage_wphd_tickets'
+                'create_posts' => 'manage_options',
+                'edit_posts' => 'manage_options',
+                'edit_others_posts' => 'manage_options',
+                'delete_posts' => 'manage_options',
+                'publish_posts' => 'manage_options',
+                'read_private_posts' => 'manage_options'
             ),
+            'map_meta_cap' => true,
             'has_archive' => false,
             'hierarchical' => false,
             'menu_position' => null,
@@ -85,6 +86,26 @@ class WPHD_Ticket_CPT {
             'show_admin_column' => true,
             'query_var' => true,
             'rewrite' => array('slug' => 'ticket-tag'),
+            'show_in_rest' => true
+        ));
+
+        register_taxonomy('wphd_category', 'wphd_ticket', array(
+            'labels' => array(
+                'name' => __('Ticket Categories', 'wp-helpdesk'),
+                'singular_name' => __('Category', 'wp-helpdesk'),
+                'search_items' => __('Search Categories', 'wp-helpdesk'),
+                'all_items' => __('All Categories', 'wp-helpdesk'),
+                'edit_item' => __('Edit Category', 'wp-helpdesk'),
+                'update_item' => __('Update Category', 'wp-helpdesk'),
+                'add_new_item' => __('Add New Category', 'wp-helpdesk'),
+                'new_item_name' => __('New Category Name', 'wp-helpdesk'),
+                'menu_name' => __('Categories', 'wp-helpdesk')
+            ),
+            'hierarchical' => true,
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'query_var' => true,
+            'rewrite' => array('slug' => 'ticket-category'),
             'show_in_rest' => true
         ));
     }
