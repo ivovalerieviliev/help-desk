@@ -140,6 +140,26 @@ class WPHD_Admin_Menu {
             array( $this, 'render_categories_page' )
         );
 
+        // Statuses submenu.
+        add_submenu_page(
+            $this->menu_slug,
+            __( 'Statuses', 'wp-helpdesk' ),
+            __( 'Statuses', 'wp-helpdesk' ),
+            $this->capability,
+            $this->menu_slug . '-statuses',
+            array( $this, 'render_statuses_page' )
+        );
+
+        // Priorities submenu.
+        add_submenu_page(
+            $this->menu_slug,
+            __( 'Priorities', 'wp-helpdesk' ),
+            __( 'Priorities', 'wp-helpdesk' ),
+            $this->capability,
+            $this->menu_slug . '-priorities',
+            array( $this, 'render_priorities_page' )
+        );
+
         // Settings submenu.
         add_submenu_page(
             $this->menu_slug,
@@ -939,11 +959,28 @@ class WPHD_Admin_Menu {
      */
     public function render_categories_page() {
         // Handle form submissions
-        if ( isset( $_POST['action'] ) && 'save_categories' === $_POST['action'] ) {
-            $this->handle_save_categories();
+        if ( isset( $_POST['action'] ) ) {
+            if ( 'save_category' === $_POST['action'] ) {
+                $this->handle_save_categories();
+            } elseif ( 'edit_category' === $_POST['action'] ) {
+                $this->handle_edit_category();
+            } elseif ( 'delete_category' === $_POST['action'] ) {
+                $this->handle_delete_category();
+            }
         }
 
         $categories = get_option( 'wphd_categories', array() );
+        $editing_slug = isset( $_GET['edit'] ) ? sanitize_text_field( $_GET['edit'] ) : '';
+        $editing_category = null;
+        
+        if ( $editing_slug ) {
+            foreach ( $categories as $cat ) {
+                if ( $cat['slug'] === $editing_slug ) {
+                    $editing_category = $cat;
+                    break;
+                }
+            }
+        }
         ?>
         <div class="wrap wp-helpdesk-wrap">
             <h1><?php esc_html_e( 'Ticket Categories', 'wp-helpdesk' ); ?></h1>
@@ -960,6 +997,7 @@ class WPHD_Admin_Menu {
                                     <th><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></th>
                                     <th><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></th>
                                     <th><?php esc_html_e( 'Icon', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -975,6 +1013,17 @@ class WPHD_Admin_Menu {
                                             <span class="dashicons <?php echo esc_attr( $category['icon'] ); ?>"></span>
                                             <code><?php echo esc_html( $category['icon'] ); ?></code>
                                         </td>
+                                        <td>
+                                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-categories&edit=' . $category['slug'] ) ); ?>" class="button button-small">
+                                                <?php esc_html_e( 'Edit', 'wp-helpdesk' ); ?>
+                                            </a>
+                                            <form method="post" style="display: inline-block;" onsubmit="return confirm('<?php echo esc_js( __( 'Are you sure you want to delete this category?', 'wp-helpdesk' ) ); ?>');">
+                                                <?php wp_nonce_field( 'wp_helpdesk_delete_category', 'wp_helpdesk_delete_nonce' ); ?>
+                                                <input type="hidden" name="action" value="delete_category">
+                                                <input type="hidden" name="category_slug" value="<?php echo esc_attr( $category['slug'] ); ?>">
+                                                <button type="submit" class="button button-small button-link-delete"><?php esc_html_e( 'Delete', 'wp-helpdesk' ); ?></button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -987,34 +1036,42 @@ class WPHD_Admin_Menu {
                 <div style="flex: 1;">
                     <div class="postbox">
                         <div class="inside">
-                            <h2><?php esc_html_e( 'Add New Category', 'wp-helpdesk' ); ?></h2>
+                            <h2><?php echo $editing_category ? esc_html__( 'Edit Category', 'wp-helpdesk' ) : esc_html__( 'Add New Category', 'wp-helpdesk' ); ?></h2>
                             <form method="post">
-                                <?php wp_nonce_field( 'wp_helpdesk_save_categories', 'wp_helpdesk_categories_nonce' ); ?>
-                                <input type="hidden" name="action" value="save_categories">
+                                <?php wp_nonce_field( $editing_category ? 'wp_helpdesk_edit_category' : 'wp_helpdesk_save_categories', $editing_category ? 'wp_helpdesk_edit_nonce' : 'wp_helpdesk_categories_nonce' ); ?>
+                                <input type="hidden" name="action" value="<?php echo $editing_category ? 'edit_category' : 'save_category'; ?>">
+                                <?php if ( $editing_category ) : ?>
+                                    <input type="hidden" name="old_category_slug" value="<?php echo esc_attr( $editing_category['slug'] ); ?>">
+                                <?php endif; ?>
                                 
                                 <p>
                                     <label for="category_slug"><strong><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></strong></label><br>
-                                    <input type="text" name="category_slug" id="category_slug" class="widefat" required pattern="[a-z0-9\-]+" title="<?php esc_attr_e( 'Only lowercase letters, numbers, and hyphens', 'wp-helpdesk' ); ?>">
+                                    <input type="text" name="category_slug" id="category_slug" class="widefat" required pattern="[a-z0-9\-]+" title="<?php esc_attr_e( 'Only lowercase letters, numbers, and hyphens', 'wp-helpdesk' ); ?>" value="<?php echo $editing_category ? esc_attr( $editing_category['slug'] ) : ''; ?>" <?php echo $editing_category ? 'readonly' : ''; ?>>
                                     <small><?php esc_html_e( 'Lowercase letters, numbers, and hyphens only', 'wp-helpdesk' ); ?></small>
                                 </p>
                                 
                                 <p>
                                     <label for="category_name"><strong><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></strong></label><br>
-                                    <input type="text" name="category_name" id="category_name" class="widefat" required>
+                                    <input type="text" name="category_name" id="category_name" class="widefat" required value="<?php echo $editing_category ? esc_attr( $editing_category['name'] ) : ''; ?>">
                                 </p>
                                 
                                 <p>
                                     <label for="category_color"><strong><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></strong></label><br>
-                                    <input type="color" name="category_color" id="category_color" value="#3498db">
+                                    <input type="color" name="category_color" id="category_color" value="<?php echo $editing_category ? esc_attr( $editing_category['color'] ) : '#3498db'; ?>">
                                 </p>
                                 
                                 <p>
                                     <label for="category_icon"><strong><?php esc_html_e( 'Icon (Dashicon)', 'wp-helpdesk' ); ?></strong></label><br>
-                                    <input type="text" name="category_icon" id="category_icon" class="widefat" value="dashicons-admin-generic">
+                                    <input type="text" name="category_icon" id="category_icon" class="widefat" value="<?php echo $editing_category ? esc_attr( $editing_category['icon'] ) : 'dashicons-admin-generic'; ?>">
                                     <small><?php esc_html_e( 'e.g., dashicons-admin-generic', 'wp-helpdesk' ); ?></small>
                                 </p>
                                 
-                                <?php submit_button( __( 'Add Category', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                <?php if ( $editing_category ) : ?>
+                                    <?php submit_button( __( 'Update Category', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-categories' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?></a>
+                                <?php else : ?>
+                                    <?php submit_button( __( 'Add Category', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                <?php endif; ?>
                             </form>
                         </div>
                     </div>
@@ -1083,6 +1140,116 @@ class WPHD_Admin_Menu {
             __( 'Category added successfully.', 'wp-helpdesk' ),
             'success'
         );
+    }
+
+    /**
+     * Handle edit category.
+     *
+     * @since 1.0.0
+     */
+    private function handle_edit_category() {
+        if ( ! isset( $_POST['wp_helpdesk_edit_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_edit_nonce'], 'wp_helpdesk_edit_category' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $old_slug = isset( $_POST['old_category_slug'] ) ? sanitize_title( $_POST['old_category_slug'] ) : '';
+        $name     = isset( $_POST['category_name'] ) ? sanitize_text_field( $_POST['category_name'] ) : '';
+        $color    = isset( $_POST['category_color'] ) ? sanitize_hex_color( $_POST['category_color'] ) : '#3498db';
+        $icon     = isset( $_POST['category_icon'] ) ? sanitize_text_field( $_POST['category_icon'] ) : 'dashicons-admin-generic';
+
+        if ( empty( $old_slug ) || empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_categories',
+                'missing_fields',
+                __( 'Name is required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $categories = get_option( 'wphd_categories', array() );
+        $found = false;
+
+        foreach ( $categories as $key => $category ) {
+            if ( $category['slug'] === $old_slug ) {
+                $categories[ $key ] = array(
+                    'slug'  => $old_slug,
+                    'name'  => $name,
+                    'color' => $color,
+                    'icon'  => $icon,
+                );
+                $found = true;
+                break;
+            }
+        }
+
+        if ( ! $found ) {
+            add_settings_error(
+                'wp_helpdesk_categories',
+                'category_not_found',
+                __( 'Category not found.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        update_option( 'wphd_categories', $categories );
+
+        add_settings_error(
+            'wp_helpdesk_categories',
+            'category_updated',
+            __( 'Category updated successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-categories' ) );
+        exit;
+    }
+
+    /**
+     * Handle delete category.
+     *
+     * @since 1.0.0
+     */
+    private function handle_delete_category() {
+        if ( ! isset( $_POST['wp_helpdesk_delete_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_delete_nonce'], 'wp_helpdesk_delete_category' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $slug = isset( $_POST['category_slug'] ) ? sanitize_title( $_POST['category_slug'] ) : '';
+
+        if ( empty( $slug ) ) {
+            return;
+        }
+
+        $categories = get_option( 'wphd_categories', array() );
+        $new_categories = array();
+
+        foreach ( $categories as $category ) {
+            if ( $category['slug'] !== $slug ) {
+                $new_categories[] = $category;
+            }
+        }
+
+        update_option( 'wphd_categories', $new_categories );
+
+        add_settings_error(
+            'wp_helpdesk_categories',
+            'category_deleted',
+            __( 'Category deleted successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-categories' ) );
+        exit;
     }
 
     /**
@@ -1395,6 +1562,276 @@ class WPHD_Admin_Menu {
     }
 
     /**
+     * Render the statuses page.
+     *
+     * @since 1.0.0
+     */
+    public function render_statuses_page() {
+        // Handle form submissions
+        if ( isset( $_POST['action'] ) ) {
+            if ( 'save_status' === $_POST['action'] ) {
+                $this->handle_save_status();
+            } elseif ( 'edit_status' === $_POST['action'] ) {
+                $this->handle_edit_status();
+            } elseif ( 'delete_status' === $_POST['action'] ) {
+                $this->handle_delete_status();
+            }
+        }
+
+        $statuses = get_option( 'wphd_statuses', array() );
+        $editing_slug = isset( $_GET['edit'] ) ? sanitize_text_field( $_GET['edit'] ) : '';
+        $editing_status = null;
+        
+        if ( $editing_slug ) {
+            foreach ( $statuses as $status ) {
+                if ( $status['slug'] === $editing_slug ) {
+                    $editing_status = $status;
+                    break;
+                }
+            }
+        }
+        ?>
+        <div class="wrap wp-helpdesk-wrap">
+            <h1><?php esc_html_e( 'Ticket Statuses', 'wp-helpdesk' ); ?></h1>
+            <?php settings_errors( 'wp_helpdesk_statuses' ); ?>
+            
+            <div style="display: flex; gap: 20px; margin-top: 20px;">
+                <div style="flex: 2;">
+                    <h2><?php esc_html_e( 'Existing Statuses', 'wp-helpdesk' ); ?></h2>
+                    <?php if ( ! empty( $statuses ) ) : ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Order', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $statuses as $status ) : ?>
+                                    <tr>
+                                        <td><code><?php echo esc_html( $status['slug'] ); ?></code></td>
+                                        <td><?php echo esc_html( $status['name'] ); ?></td>
+                                        <td>
+                                            <span class="wphd-status-badge" style="background-color: <?php echo esc_attr( $status['color'] ); ?>; color: #fff; padding: 5px 10px; border-radius: 3px;">
+                                                <?php echo esc_html( $status['name'] ); ?>
+                                            </span>
+                                            <code><?php echo esc_html( $status['color'] ); ?></code>
+                                        </td>
+                                        <td><?php echo esc_html( $status['order'] ); ?></td>
+                                        <td>
+                                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-statuses&edit=' . $status['slug'] ) ); ?>" class="button button-small">
+                                                <?php esc_html_e( 'Edit', 'wp-helpdesk' ); ?>
+                                            </a>
+                                            <form method="post" style="display: inline-block;" onsubmit="return confirm('<?php echo esc_js( __( 'Are you sure you want to delete this status?', 'wp-helpdesk' ) ); ?>');">
+                                                <?php wp_nonce_field( 'wp_helpdesk_delete_status', 'wp_helpdesk_delete_nonce' ); ?>
+                                                <input type="hidden" name="action" value="delete_status">
+                                                <input type="hidden" name="status_slug" value="<?php echo esc_attr( $status['slug'] ); ?>">
+                                                <button type="submit" class="button button-small button-link-delete"><?php esc_html_e( 'Delete', 'wp-helpdesk' ); ?></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else : ?>
+                        <p><?php esc_html_e( 'No statuses found.', 'wp-helpdesk' ); ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <div style="flex: 1;">
+                    <div class="postbox">
+                        <div class="inside">
+                            <h2><?php echo $editing_status ? esc_html__( 'Edit Status', 'wp-helpdesk' ) : esc_html__( 'Add New Status', 'wp-helpdesk' ); ?></h2>
+                            <form method="post">
+                                <?php wp_nonce_field( $editing_status ? 'wp_helpdesk_edit_status' : 'wp_helpdesk_save_status', $editing_status ? 'wp_helpdesk_edit_nonce' : 'wp_helpdesk_status_nonce' ); ?>
+                                <input type="hidden" name="action" value="<?php echo $editing_status ? 'edit_status' : 'save_status'; ?>">
+                                <?php if ( $editing_status ) : ?>
+                                    <input type="hidden" name="old_status_slug" value="<?php echo esc_attr( $editing_status['slug'] ); ?>">
+                                <?php endif; ?>
+                                
+                                <p>
+                                    <label for="status_slug"><strong><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="text" name="status_slug" id="status_slug" class="widefat" required pattern="[a-z0-9\-]+" title="<?php esc_attr_e( 'Only lowercase letters, numbers, and hyphens', 'wp-helpdesk' ); ?>" value="<?php echo $editing_status ? esc_attr( $editing_status['slug'] ) : ''; ?>" <?php echo $editing_status ? 'readonly' : ''; ?>>
+                                    <small><?php esc_html_e( 'Lowercase letters, numbers, and hyphens only', 'wp-helpdesk' ); ?></small>
+                                </p>
+                                
+                                <p>
+                                    <label for="status_name"><strong><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="text" name="status_name" id="status_name" class="widefat" required value="<?php echo $editing_status ? esc_attr( $editing_status['name'] ) : ''; ?>">
+                                </p>
+                                
+                                <p>
+                                    <label for="status_color"><strong><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="color" name="status_color" id="status_color" value="<?php echo $editing_status ? esc_attr( $editing_status['color'] ) : '#3498db'; ?>">
+                                </p>
+                                
+                                <p>
+                                    <label for="status_order"><strong><?php esc_html_e( 'Order', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="number" name="status_order" id="status_order" class="widefat" min="1" value="<?php echo $editing_status ? esc_attr( $editing_status['order'] ) : '1'; ?>">
+                                    <small><?php esc_html_e( 'Lower numbers appear first', 'wp-helpdesk' ); ?></small>
+                                </p>
+                                
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="status_is_default" value="1" <?php checked( ! empty( $editing_status['is_default'] ) ); ?>>
+                                        <?php esc_html_e( 'Default status for new tickets', 'wp-helpdesk' ); ?>
+                                    </label>
+                                </p>
+                                
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="status_is_closed" value="1" <?php checked( ! empty( $editing_status['is_closed'] ) ); ?>>
+                                        <?php esc_html_e( 'This is a closed/resolved status', 'wp-helpdesk' ); ?>
+                                    </label>
+                                </p>
+                                
+                                <?php if ( $editing_status ) : ?>
+                                    <?php submit_button( __( 'Update Status', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-statuses' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?></a>
+                                <?php else : ?>
+                                    <?php submit_button( __( 'Add Status', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the priorities page.
+     *
+     * @since 1.0.0
+     */
+    public function render_priorities_page() {
+        // Handle form submissions
+        if ( isset( $_POST['action'] ) ) {
+            if ( 'save_priority' === $_POST['action'] ) {
+                $this->handle_save_priority();
+            } elseif ( 'edit_priority' === $_POST['action'] ) {
+                $this->handle_edit_priority();
+            } elseif ( 'delete_priority' === $_POST['action'] ) {
+                $this->handle_delete_priority();
+            }
+        }
+
+        $priorities = get_option( 'wphd_priorities', array() );
+        $editing_slug = isset( $_GET['edit'] ) ? sanitize_text_field( $_GET['edit'] ) : '';
+        $editing_priority = null;
+        
+        if ( $editing_slug ) {
+            foreach ( $priorities as $priority ) {
+                if ( $priority['slug'] === $editing_slug ) {
+                    $editing_priority = $priority;
+                    break;
+                }
+            }
+        }
+        ?>
+        <div class="wrap wp-helpdesk-wrap">
+            <h1><?php esc_html_e( 'Ticket Priorities', 'wp-helpdesk' ); ?></h1>
+            <?php settings_errors( 'wp_helpdesk_priorities' ); ?>
+            
+            <div style="display: flex; gap: 20px; margin-top: 20px;">
+                <div style="flex: 2;">
+                    <h2><?php esc_html_e( 'Existing Priorities', 'wp-helpdesk' ); ?></h2>
+                    <?php if ( ! empty( $priorities ) ) : ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Order', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $priorities as $priority ) : ?>
+                                    <tr>
+                                        <td><code><?php echo esc_html( $priority['slug'] ); ?></code></td>
+                                        <td><?php echo esc_html( $priority['name'] ); ?></td>
+                                        <td>
+                                            <span class="wphd-priority-badge" style="background-color: <?php echo esc_attr( $priority['color'] ); ?>; color: #fff; padding: 5px 10px; border-radius: 3px;">
+                                                <?php echo esc_html( $priority['name'] ); ?>
+                                            </span>
+                                            <code><?php echo esc_html( $priority['color'] ); ?></code>
+                                        </td>
+                                        <td><?php echo esc_html( $priority['order'] ); ?></td>
+                                        <td>
+                                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities&edit=' . $priority['slug'] ) ); ?>" class="button button-small">
+                                                <?php esc_html_e( 'Edit', 'wp-helpdesk' ); ?>
+                                            </a>
+                                            <form method="post" style="display: inline-block;" onsubmit="return confirm('<?php echo esc_js( __( 'Are you sure you want to delete this priority?', 'wp-helpdesk' ) ); ?>');">
+                                                <?php wp_nonce_field( 'wp_helpdesk_delete_priority', 'wp_helpdesk_delete_nonce' ); ?>
+                                                <input type="hidden" name="action" value="delete_priority">
+                                                <input type="hidden" name="priority_slug" value="<?php echo esc_attr( $priority['slug'] ); ?>">
+                                                <button type="submit" class="button button-small button-link-delete"><?php esc_html_e( 'Delete', 'wp-helpdesk' ); ?></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else : ?>
+                        <p><?php esc_html_e( 'No priorities found.', 'wp-helpdesk' ); ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <div style="flex: 1;">
+                    <div class="postbox">
+                        <div class="inside">
+                            <h2><?php echo $editing_priority ? esc_html__( 'Edit Priority', 'wp-helpdesk' ) : esc_html__( 'Add New Priority', 'wp-helpdesk' ); ?></h2>
+                            <form method="post">
+                                <?php wp_nonce_field( $editing_priority ? 'wp_helpdesk_edit_priority' : 'wp_helpdesk_save_priority', $editing_priority ? 'wp_helpdesk_edit_nonce' : 'wp_helpdesk_priority_nonce' ); ?>
+                                <input type="hidden" name="action" value="<?php echo $editing_priority ? 'edit_priority' : 'save_priority'; ?>">
+                                <?php if ( $editing_priority ) : ?>
+                                    <input type="hidden" name="old_priority_slug" value="<?php echo esc_attr( $editing_priority['slug'] ); ?>">
+                                <?php endif; ?>
+                                
+                                <p>
+                                    <label for="priority_slug"><strong><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="text" name="priority_slug" id="priority_slug" class="widefat" required pattern="[a-z0-9\-]+" title="<?php esc_attr_e( 'Only lowercase letters, numbers, and hyphens', 'wp-helpdesk' ); ?>" value="<?php echo $editing_priority ? esc_attr( $editing_priority['slug'] ) : ''; ?>" <?php echo $editing_priority ? 'readonly' : ''; ?>>
+                                    <small><?php esc_html_e( 'Lowercase letters, numbers, and hyphens only', 'wp-helpdesk' ); ?></small>
+                                </p>
+                                
+                                <p>
+                                    <label for="priority_name"><strong><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="text" name="priority_name" id="priority_name" class="widefat" required value="<?php echo $editing_priority ? esc_attr( $editing_priority['name'] ) : ''; ?>">
+                                </p>
+                                
+                                <p>
+                                    <label for="priority_color"><strong><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="color" name="priority_color" id="priority_color" value="<?php echo $editing_priority ? esc_attr( $editing_priority['color'] ) : '#f39c12'; ?>">
+                                </p>
+                                
+                                <p>
+                                    <label for="priority_order"><strong><?php esc_html_e( 'Order/Level', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <input type="number" name="priority_order" id="priority_order" class="widefat" min="1" value="<?php echo $editing_priority ? esc_attr( $editing_priority['order'] ) : '1'; ?>">
+                                    <small><?php esc_html_e( 'Lower numbers = higher priority', 'wp-helpdesk' ); ?></small>
+                                </p>
+                                
+                                <?php if ( $editing_priority ) : ?>
+                                    <?php submit_button( __( 'Update Priority', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?></a>
+                                <?php else : ?>
+                                    <?php submit_button( __( 'Add Priority', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
      * Get the menu slug.
      *
      * @since  1.0.0
@@ -1628,6 +2065,364 @@ class WPHD_Admin_Menu {
         }
 
         wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) );
+        exit;
+    }
+
+    /**
+     * Handle save status.
+     *
+     * @since 1.0.0
+     */
+    private function handle_save_status() {
+        if ( ! isset( $_POST['wp_helpdesk_status_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_status_nonce'], 'wp_helpdesk_save_status' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $slug       = isset( $_POST['status_slug'] ) ? sanitize_title( $_POST['status_slug'] ) : '';
+        $name       = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
+        $color      = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
+        $order      = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $is_default = isset( $_POST['status_is_default'] ) ? true : false;
+        $is_closed  = isset( $_POST['status_is_closed'] ) ? true : false;
+
+        if ( empty( $slug ) || empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_statuses',
+                'missing_fields',
+                __( 'Slug and name are required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $statuses = get_option( 'wphd_statuses', array() );
+
+        // Check if slug already exists
+        foreach ( $statuses as $status ) {
+            if ( $status['slug'] === $slug ) {
+                add_settings_error(
+                    'wp_helpdesk_statuses',
+                    'duplicate_slug',
+                    __( 'A status with this slug already exists.', 'wp-helpdesk' ),
+                    'error'
+                );
+                return;
+            }
+        }
+
+        // If setting as default, unset other defaults
+        if ( $is_default ) {
+            foreach ( $statuses as $key => $status ) {
+                $statuses[ $key ]['is_default'] = false;
+            }
+        }
+
+        $statuses[] = array(
+            'slug'       => $slug,
+            'name'       => $name,
+            'color'      => $color,
+            'order'      => $order,
+            'is_default' => $is_default,
+            'is_closed'  => $is_closed,
+        );
+
+        update_option( 'wphd_statuses', $statuses );
+
+        add_settings_error(
+            'wp_helpdesk_statuses',
+            'status_added',
+            __( 'Status added successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+    }
+
+    /**
+     * Handle edit status.
+     *
+     * @since 1.0.0
+     */
+    private function handle_edit_status() {
+        if ( ! isset( $_POST['wp_helpdesk_edit_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_edit_nonce'], 'wp_helpdesk_edit_status' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $old_slug   = isset( $_POST['old_status_slug'] ) ? sanitize_title( $_POST['old_status_slug'] ) : '';
+        $name       = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
+        $color      = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
+        $order      = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $is_default = isset( $_POST['status_is_default'] ) ? true : false;
+        $is_closed  = isset( $_POST['status_is_closed'] ) ? true : false;
+
+        if ( empty( $old_slug ) || empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_statuses',
+                'missing_fields',
+                __( 'Name is required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $statuses = get_option( 'wphd_statuses', array() );
+        $found = false;
+
+        // If setting as default, unset other defaults
+        if ( $is_default ) {
+            foreach ( $statuses as $key => $status ) {
+                $statuses[ $key ]['is_default'] = false;
+            }
+        }
+
+        foreach ( $statuses as $key => $status ) {
+            if ( $status['slug'] === $old_slug ) {
+                $statuses[ $key ]['name']       = $name;
+                $statuses[ $key ]['color']      = $color;
+                $statuses[ $key ]['order']      = $order;
+                $statuses[ $key ]['is_default'] = $is_default;
+                $statuses[ $key ]['is_closed']  = $is_closed;
+                $found = true;
+                break;
+            }
+        }
+
+        if ( ! $found ) {
+            add_settings_error(
+                'wp_helpdesk_statuses',
+                'status_not_found',
+                __( 'Status not found.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        update_option( 'wphd_statuses', $statuses );
+
+        add_settings_error(
+            'wp_helpdesk_statuses',
+            'status_updated',
+            __( 'Status updated successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-statuses' ) );
+        exit;
+    }
+
+    /**
+     * Handle delete status.
+     *
+     * @since 1.0.0
+     */
+    private function handle_delete_status() {
+        if ( ! isset( $_POST['wp_helpdesk_delete_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_delete_nonce'], 'wp_helpdesk_delete_status' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $slug = isset( $_POST['status_slug'] ) ? sanitize_title( $_POST['status_slug'] ) : '';
+
+        if ( empty( $slug ) ) {
+            return;
+        }
+
+        $statuses = get_option( 'wphd_statuses', array() );
+        $new_statuses = array();
+
+        foreach ( $statuses as $status ) {
+            if ( $status['slug'] !== $slug ) {
+                $new_statuses[] = $status;
+            }
+        }
+
+        update_option( 'wphd_statuses', $new_statuses );
+
+        add_settings_error(
+            'wp_helpdesk_statuses',
+            'status_deleted',
+            __( 'Status deleted successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-statuses' ) );
+        exit;
+    }
+
+    /**
+     * Handle save priority.
+     *
+     * @since 1.0.0
+     */
+    private function handle_save_priority() {
+        if ( ! isset( $_POST['wp_helpdesk_priority_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_priority_nonce'], 'wp_helpdesk_save_priority' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $slug  = isset( $_POST['priority_slug'] ) ? sanitize_title( $_POST['priority_slug'] ) : '';
+        $name  = isset( $_POST['priority_name'] ) ? sanitize_text_field( $_POST['priority_name'] ) : '';
+        $color = isset( $_POST['priority_color'] ) ? sanitize_hex_color( $_POST['priority_color'] ) : '#f39c12';
+        $order = isset( $_POST['priority_order'] ) ? intval( $_POST['priority_order'] ) : 1;
+
+        if ( empty( $slug ) || empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_priorities',
+                'missing_fields',
+                __( 'Slug and name are required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $priorities = get_option( 'wphd_priorities', array() );
+
+        // Check if slug already exists
+        foreach ( $priorities as $priority ) {
+            if ( $priority['slug'] === $slug ) {
+                add_settings_error(
+                    'wp_helpdesk_priorities',
+                    'duplicate_slug',
+                    __( 'A priority with this slug already exists.', 'wp-helpdesk' ),
+                    'error'
+                );
+                return;
+            }
+        }
+
+        $priorities[] = array(
+            'slug'  => $slug,
+            'name'  => $name,
+            'color' => $color,
+            'order' => $order,
+        );
+
+        update_option( 'wphd_priorities', $priorities );
+
+        add_settings_error(
+            'wp_helpdesk_priorities',
+            'priority_added',
+            __( 'Priority added successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+    }
+
+    /**
+     * Handle edit priority.
+     *
+     * @since 1.0.0
+     */
+    private function handle_edit_priority() {
+        if ( ! isset( $_POST['wp_helpdesk_edit_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_edit_nonce'], 'wp_helpdesk_edit_priority' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $old_slug = isset( $_POST['old_priority_slug'] ) ? sanitize_title( $_POST['old_priority_slug'] ) : '';
+        $name     = isset( $_POST['priority_name'] ) ? sanitize_text_field( $_POST['priority_name'] ) : '';
+        $color    = isset( $_POST['priority_color'] ) ? sanitize_hex_color( $_POST['priority_color'] ) : '#f39c12';
+        $order    = isset( $_POST['priority_order'] ) ? intval( $_POST['priority_order'] ) : 1;
+
+        if ( empty( $old_slug ) || empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_priorities',
+                'missing_fields',
+                __( 'Name is required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $priorities = get_option( 'wphd_priorities', array() );
+        $found = false;
+
+        foreach ( $priorities as $key => $priority ) {
+            if ( $priority['slug'] === $old_slug ) {
+                $priorities[ $key ]['name'] = $name;
+                $priorities[ $key ]['color'] = $color;
+                $priorities[ $key ]['order'] = $order;
+                $found = true;
+                break;
+            }
+        }
+
+        if ( ! $found ) {
+            add_settings_error(
+                'wp_helpdesk_priorities',
+                'priority_not_found',
+                __( 'Priority not found.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        update_option( 'wphd_priorities', $priorities );
+
+        add_settings_error(
+            'wp_helpdesk_priorities',
+            'priority_updated',
+            __( 'Priority updated successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities' ) );
+        exit;
+    }
+
+    /**
+     * Handle delete priority.
+     *
+     * @since 1.0.0
+     */
+    private function handle_delete_priority() {
+        if ( ! isset( $_POST['wp_helpdesk_delete_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_delete_nonce'], 'wp_helpdesk_delete_priority' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $slug = isset( $_POST['priority_slug'] ) ? sanitize_title( $_POST['priority_slug'] ) : '';
+
+        if ( empty( $slug ) ) {
+            return;
+        }
+
+        $priorities = get_option( 'wphd_priorities', array() );
+        $new_priorities = array();
+
+        foreach ( $priorities as $priority ) {
+            if ( $priority['slug'] !== $slug ) {
+                $new_priorities[] = $priority;
+            }
+        }
+
+        update_option( 'wphd_priorities', $new_priorities );
+
+        add_settings_error(
+            'wp_helpdesk_priorities',
+            'priority_deleted',
+            __( 'Priority deleted successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities' ) );
         exit;
     }
 }
