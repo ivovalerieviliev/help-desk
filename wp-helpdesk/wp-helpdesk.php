@@ -65,6 +65,7 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-page.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-statuses.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-categories.php';
+        require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-priorities.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-sla.php';
         
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-menu.php';
@@ -106,6 +107,7 @@ final class WP_HelpDesk {
         WPHD_Settings_Page::instance();
         WPHD_Settings_Statuses::instance();
         WPHD_Settings_Categories::instance();
+        WPHD_Settings_Priorities::instance();
         WPHD_Settings_SLA::instance();
         
         if (is_admin()) {
