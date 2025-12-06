@@ -9,6 +9,15 @@ if (!defined('ABSPATH')) {
 
 class WPHD_Analytics_Queries {
     
+    private static $instance = null;
+    
+    public static function instance() {
+        if (is_null(self::$instance)) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
     public static function get_dashboard_data($period = 'week') {
         $date_range = self::get_date_range($period);
         
@@ -102,6 +111,14 @@ class WPHD_Analytics_Queries {
     public static function get_sla_performance($date_range) {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_sla_log';
+        
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+            return array(
+                'total' => 0,
+                'first_response_rate' => 0,
+                'resolution_rate' => 0
+            );
+        }
         
         $total = $wpdb->get_var("SELECT COUNT(*) FROM $table");
         
