@@ -355,6 +355,10 @@ class WPHD_Admin_Menu {
     public function render_tickets_page() {
         // Check if viewing a single ticket
         if ( isset( $_GET['ticket_id'] ) && ! empty( $_GET['ticket_id'] ) ) {
+            // Verify user has permission
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( esc_html__( 'You do not have permission to view this ticket.', 'wp-helpdesk' ) );
+            }
             $this->render_ticket_details_page( intval( $_GET['ticket_id'] ) );
             return;
         }
@@ -380,9 +384,19 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     private function render_tickets_table() {
-        $status_filter   = isset( $_GET['status'] ) ? sanitize_text_field( $_GET['status'] ) : '';
-        $priority_filter = isset( $_GET['priority'] ) ? sanitize_text_field( $_GET['priority'] ) : '';
-        $category_filter = isset( $_GET['category'] ) ? sanitize_text_field( $_GET['category'] ) : '';
+        $statuses   = get_option( 'wphd_statuses', array() );
+        $priorities = get_option( 'wphd_priorities', array() );
+        $categories = get_option( 'wphd_categories', array() );
+
+        // Get valid slugs
+        $valid_statuses   = wp_list_pluck( $statuses, 'slug' );
+        $valid_priorities = wp_list_pluck( $priorities, 'slug' );
+        $valid_categories = wp_list_pluck( $categories, 'slug' );
+
+        // Validate filters
+        $status_filter   = isset( $_GET['status'] ) && in_array( $_GET['status'], $valid_statuses, true ) ? sanitize_text_field( $_GET['status'] ) : '';
+        $priority_filter = isset( $_GET['priority'] ) && in_array( $_GET['priority'], $valid_priorities, true ) ? sanitize_text_field( $_GET['priority'] ) : '';
+        $category_filter = isset( $_GET['category'] ) && in_array( $_GET['category'], $valid_categories, true ) ? sanitize_text_field( $_GET['category'] ) : '';
 
         $args = array(
             'post_type'      => 'wphd_ticket',
@@ -451,7 +465,14 @@ class WPHD_Admin_Menu {
                         $status_info   = $this->get_status_label( $status );
                         $priority_info = $this->get_priority_label( $priority );
                         $category_info = $this->get_category_label( $category );
-                        $assignee_name = $assignee ? get_userdata( $assignee )->display_name : __( 'Unassigned', 'wp-helpdesk' );
+                        
+                        $assignee_name = __( 'Unassigned', 'wp-helpdesk' );
+                        if ( $assignee ) {
+                            $user_data = get_userdata( $assignee );
+                            if ( $user_data ) {
+                                $assignee_name = $user_data->display_name;
+                            }
+                        }
                         ?>
                         <tr>
                             <td><strong>#<?php echo esc_html( $ticket_id ); ?></strong></td>
@@ -1075,8 +1096,9 @@ class WPHD_Admin_Menu {
             $this->handle_save_settings();
         }
 
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
-        $settings   = get_option( 'wphd_settings', array() );
+        $allowed_tabs = array( 'general', 'email', 'sla' );
+        $active_tab   = isset( $_GET['tab'] ) && in_array( $_GET['tab'], $allowed_tabs, true ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
+        $settings     = get_option( 'wphd_settings', array() );
         ?>
         <div class="wrap wp-helpdesk-wrap">
             <h1><?php esc_html_e( 'Help Desk Settings', 'wp-helpdesk' ); ?></h1>
@@ -1411,7 +1433,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'create_wphd_tickets' ) && ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
@@ -1508,7 +1530,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'edit_wphd_tickets' ) && ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
@@ -1517,6 +1539,14 @@ class WPHD_Admin_Menu {
         if ( ! $ticket_id ) {
             return;
         }
+
+        // Field name mapping for history
+        $field_mapping = array(
+            'ticket_status'   => 'status',
+            'ticket_priority' => 'priority',
+            'ticket_category' => 'category',
+            'ticket_assignee' => 'assignee',
+        );
 
         // Update meta fields
         $fields = array(
@@ -1533,7 +1563,8 @@ class WPHD_Admin_Menu {
 
                 if ( $old_value !== $new_value ) {
                     update_post_meta( $ticket_id, $meta_key, $new_value );
-                    WPHD_Database::add_history( $ticket_id, str_replace( array( 'ticket_', '_wphd_' ), '', $field_name ), $old_value, $new_value );
+                    $history_field = isset( $field_mapping[ $field_name ] ) ? $field_mapping[ $field_name ] : $field_name;
+                    WPHD_Database::add_history( $ticket_id, $history_field, $old_value, $new_value );
                 }
             }
         }
@@ -1561,7 +1592,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'edit_wphd_tickets' ) && ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
