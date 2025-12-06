@@ -149,4 +149,8 @@ class WPHD_Ticket_Create {
         <?php
         return ob_get_clean();
     }
+
+    public static function render() {
+        return self::render_form();
+    }
 }

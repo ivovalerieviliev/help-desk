@@ -74,4 +74,10 @@ class WPHD_Ticket_Details {
             'modified' => $post->post_modified
         );
     }
+
+    public static function render($ticket_id) {
+        ob_start();
+        echo '<p>' . esc_html__('Use the ticket details page in the main tickets page.', 'wp-helpdesk') . '</p>';
+        return ob_get_clean();
+    }
 }
