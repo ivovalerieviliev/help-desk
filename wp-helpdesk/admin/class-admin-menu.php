@@ -15,20 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class WP_HelpDesk_Admin_Menu
+ * Class WPHD_Admin_Menu
  *
  * Registers and manages the admin menu items for the Help Desk plugin.
  *
  * @since 1.0.0
  */
-class WP_HelpDesk_Admin_Menu {
+class WPHD_Admin_Menu {
 
     /**
      * Instance of this class.
      *
      * @since  1.0.0
      * @access private
-     * @var    WP_HelpDesk_Admin_Menu
+     * @var    WPHD_Admin_Menu
      */
     private static $instance = null;
 
@@ -63,9 +63,9 @@ class WP_HelpDesk_Admin_Menu {
      * Get the singleton instance of this class.
      *
      * @since  1.0.0
-     * @return WP_HelpDesk_Admin_Menu
+     * @return WPHD_Admin_Menu
      */
-    public static function get_instance() {
+    public static function instance() {
         if ( null === self::$instance ) {
             self::$instance = new self();
         }
@@ -175,17 +175,17 @@ class WP_HelpDesk_Admin_Menu {
         // Enqueue admin styles.
         wp_enqueue_style(
             'wp-helpdesk-admin',
-            plugin_dir_url( __FILE__ ) . 'css/admin-style.css',
+            WPHD_PLUGIN_URL . 'assets/css/admin.css',
             array(),
-            WP_HELPDESK_VERSION
+            WPHD_VERSION
         );
 
         // Enqueue admin scripts.
         wp_enqueue_script(
             'wp-helpdesk-admin',
-            plugin_dir_url( __FILE__ ) . 'js/admin-script.js',
+            WPHD_PLUGIN_URL . 'assets/js/admin.js',
             array( 'jquery' ),
-            WP_HELPDESK_VERSION,
+            WPHD_VERSION,
             true
         );
 
@@ -395,6 +395,3 @@ class WP_HelpDesk_Admin_Menu {
         return $this->menu_slug;
     }
 }
-
-// Initialize the admin menu.
-WP_HelpDesk_Admin_Menu::get_instance();
