@@ -1674,6 +1674,20 @@ class WPHD_Admin_Menu {
                                     <small><?php esc_html_e( 'Lower numbers appear first', 'wp-helpdesk' ); ?></small>
                                 </p>
                                 
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="status_is_default" value="1" <?php checked( ! empty( $editing_status['is_default'] ) ); ?>>
+                                        <?php esc_html_e( 'Default status for new tickets', 'wp-helpdesk' ); ?>
+                                    </label>
+                                </p>
+                                
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="status_is_closed" value="1" <?php checked( ! empty( $editing_status['is_closed'] ) ); ?>>
+                                        <?php esc_html_e( 'This is a closed/resolved status', 'wp-helpdesk' ); ?>
+                                    </label>
+                                </p>
+                                
                                 <?php if ( $editing_status ) : ?>
                                     <?php submit_button( __( 'Update Status', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
                                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-statuses' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?></a>
@@ -2068,10 +2082,12 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        $slug  = isset( $_POST['status_slug'] ) ? sanitize_title( $_POST['status_slug'] ) : '';
-        $name  = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
-        $color = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
-        $order = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $slug       = isset( $_POST['status_slug'] ) ? sanitize_title( $_POST['status_slug'] ) : '';
+        $name       = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
+        $color      = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
+        $order      = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $is_default = isset( $_POST['status_is_default'] ) ? true : false;
+        $is_closed  = isset( $_POST['status_is_closed'] ) ? true : false;
 
         if ( empty( $slug ) || empty( $name ) ) {
             add_settings_error(
@@ -2098,13 +2114,20 @@ class WPHD_Admin_Menu {
             }
         }
 
+        // If setting as default, unset other defaults
+        if ( $is_default ) {
+            foreach ( $statuses as $key => $status ) {
+                $statuses[ $key ]['is_default'] = false;
+            }
+        }
+
         $statuses[] = array(
-            'slug'  => $slug,
-            'name'  => $name,
-            'color' => $color,
-            'order' => $order,
-            'is_default' => false,
-            'is_closed' => false,
+            'slug'       => $slug,
+            'name'       => $name,
+            'color'      => $color,
+            'order'      => $order,
+            'is_default' => $is_default,
+            'is_closed'  => $is_closed,
         );
 
         update_option( 'wphd_statuses', $statuses );
@@ -2131,10 +2154,12 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        $old_slug = isset( $_POST['old_status_slug'] ) ? sanitize_title( $_POST['old_status_slug'] ) : '';
-        $name     = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
-        $color    = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
-        $order    = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $old_slug   = isset( $_POST['old_status_slug'] ) ? sanitize_title( $_POST['old_status_slug'] ) : '';
+        $name       = isset( $_POST['status_name'] ) ? sanitize_text_field( $_POST['status_name'] ) : '';
+        $color      = isset( $_POST['status_color'] ) ? sanitize_hex_color( $_POST['status_color'] ) : '#3498db';
+        $order      = isset( $_POST['status_order'] ) ? intval( $_POST['status_order'] ) : 1;
+        $is_default = isset( $_POST['status_is_default'] ) ? true : false;
+        $is_closed  = isset( $_POST['status_is_closed'] ) ? true : false;
 
         if ( empty( $old_slug ) || empty( $name ) ) {
             add_settings_error(
@@ -2149,11 +2174,20 @@ class WPHD_Admin_Menu {
         $statuses = get_option( 'wphd_statuses', array() );
         $found = false;
 
+        // If setting as default, unset other defaults
+        if ( $is_default ) {
+            foreach ( $statuses as $key => $status ) {
+                $statuses[ $key ]['is_default'] = false;
+            }
+        }
+
         foreach ( $statuses as $key => $status ) {
             if ( $status['slug'] === $old_slug ) {
-                $statuses[ $key ]['name'] = $name;
-                $statuses[ $key ]['color'] = $color;
-                $statuses[ $key ]['order'] = $order;
+                $statuses[ $key ]['name']       = $name;
+                $statuses[ $key ]['color']      = $color;
+                $statuses[ $key ]['order']      = $order;
+                $statuses[ $key ]['is_default'] = $is_default;
+                $statuses[ $key ]['is_closed']  = $is_closed;
                 $found = true;
                 break;
             }
