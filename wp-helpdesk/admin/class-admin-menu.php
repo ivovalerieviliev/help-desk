@@ -1915,6 +1915,45 @@ class WPHD_Admin_Menu {
                     </div>
                 </div>
 
+                <!-- Comment Statistics Section -->
+                <div class="wphd-comment-statistics" style="margin-top: 30px;">
+                    <h3><?php esc_html_e( 'Comment Activity', 'wp-helpdesk' ); ?></h3>
+                    <div class="wphd-summary-cards">
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-total-comments">0</span>
+                            <span class="card-label"><?php esc_html_e( 'Total Comments', 'wp-helpdesk' ); ?></span>
+                        </div>
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-avg-comments">0</span>
+                            <span class="card-label"><?php esc_html_e( 'Avg Comments per Ticket', 'wp-helpdesk' ); ?></span>
+                        </div>
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-tickets-with-comments">0</span>
+                            <span class="card-label"><?php esc_html_e( 'Tickets with Comments', 'wp-helpdesk' ); ?></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Commenters Table -->
+                    <div class="wphd-data-table-container" style="margin-top: 20px;">
+                        <div class="wphd-data-table-header">
+                            <h4><?php esc_html_e( 'Most Active Commenters', 'wp-helpdesk' ); ?></h4>
+                        </div>
+                        <table id="wphd-top-commenters-table" class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Total Comments', 'wp-helpdesk' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="2"><?php esc_html_e( 'Loading...', 'wp-helpdesk' ); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Charts Grid -->
                 <div class="wphd-charts-grid">
                     <div class="wphd-chart-container">
@@ -1958,6 +1997,28 @@ class WPHD_Admin_Menu {
                             <canvas id="wphd-resolution-time-trend-chart"></canvas>
                         </div>
                     </div>
+                </div>
+
+                <!-- Agent Performance Details Table -->
+                <div class="wphd-data-table-container" style="margin-top: 30px;">
+                    <div class="wphd-data-table-header">
+                        <h3><?php esc_html_e( 'Agent Performance Details', 'wp-helpdesk' ); ?></h3>
+                    </div>
+                    <table id="wphd-agent-details-table" class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Agent', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Tickets Assigned', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Total Comments', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Avg Comments/Ticket', 'wp-helpdesk' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4"><?php esc_html_e( 'Loading...', 'wp-helpdesk' ); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
                 <!-- Ticket Details Table -->
