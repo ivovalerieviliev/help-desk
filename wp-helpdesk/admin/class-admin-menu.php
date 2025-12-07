@@ -48,7 +48,16 @@ class WPHD_Admin_Menu {
      * @access private
      * @var    string
      */
-    private $capability = 'manage_options';
+    private $capability = 'read';
+
+    /**
+     * Required capability for admin-only pages.
+     *
+     * @since  1.0.0
+     * @access private
+     * @var    string
+     */
+    private $admin_capability = 'manage_options';
 
     /**
      * Constructor.
@@ -131,62 +140,62 @@ class WPHD_Admin_Menu {
             array( $this, 'render_add_ticket_page' )
         );
 
-        // Categories submenu.
+        // Categories submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Categories', 'wp-helpdesk' ),
             __( 'Categories', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-categories',
             array( $this, 'render_categories_page' )
         );
 
-        // Statuses submenu.
+        // Statuses submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Statuses', 'wp-helpdesk' ),
             __( 'Statuses', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-statuses',
             array( $this, 'render_statuses_page' )
         );
 
-        // Priorities submenu.
+        // Priorities submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Priorities', 'wp-helpdesk' ),
             __( 'Priorities', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-priorities',
             array( $this, 'render_priorities_page' )
         );
 
-        // Organizations submenu.
+        // Organizations submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Organizations', 'wp-helpdesk' ),
             __( 'Organizations', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-organizations',
             array( $this, 'render_organizations_page' )
         );
 
-        // Settings submenu.
+        // Settings submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Settings', 'wp-helpdesk' ),
             __( 'Settings', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-settings',
             array( $this, 'render_settings_page' )
         );
 
-        // Reports submenu.
+        // Reports submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
             __( 'Reports', 'wp-helpdesk' ),
             __( 'Reports', 'wp-helpdesk' ),
-            $this->capability,
+            $this->admin_capability,
             $this->menu_slug . '-reports',
             array( $this, 'render_reports_page' )
         );
@@ -423,9 +432,9 @@ class WPHD_Admin_Menu {
     public function render_tickets_page() {
         // Check if viewing a single ticket
         if ( isset( $_GET['ticket_id'] ) && ! empty( $_GET['ticket_id'] ) ) {
-            // Verify user has permission
-            if ( ! current_user_can( 'manage_options' ) ) {
-                wp_die( esc_html__( 'You do not have permission to view this ticket.', 'wp-helpdesk' ) );
+            // Verify user is logged in
+            if ( ! current_user_can( 'read' ) ) {
+                wp_die( esc_html__( 'You must be logged in to view tickets.', 'wp-helpdesk' ) );
             }
             $this->render_ticket_details_page( intval( $_GET['ticket_id'] ) );
             return;
@@ -2189,7 +2198,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'read' ) ) {
             return;
         }
 
@@ -2286,7 +2295,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'read' ) ) {
             return;
         }
 
@@ -2348,7 +2357,7 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'read' ) ) {
             return;
         }
 
