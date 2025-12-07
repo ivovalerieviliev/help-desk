@@ -136,6 +136,11 @@
                 this.renderCommentStatistics(data.comment_statistics);
             }
 
+            // Render action items statistics
+            if (data.action_items_statistics) {
+                this.renderActionItemsStatistics(data.action_items_statistics);
+            }
+
             // Render charts
             this.renderTicketsOverTime(data.tickets_over_time);
             this.renderTicketsByStatus(data.tickets_by_status);
@@ -442,6 +447,27 @@
                 });
             } else {
                 tbody.append('<tr><td colspan="2">No comment data available</td></tr>');
+            }
+        },
+
+        renderActionItemsStatistics: function (stats) {
+            $('#wphd-stat-action-items-created').text(stats.total_created);
+            $('#wphd-stat-action-items-completed').text(stats.total_completed);
+            $('#wphd-stat-action-items-completion-rate').text(stats.completion_rate + '%');
+            
+            // Render completed action items by user table
+            const tbody = $('#wphd-action-items-by-user-table tbody');
+            tbody.empty();
+            
+            if (stats.completed_by_user && stats.completed_by_user.length > 0) {
+                stats.completed_by_user.forEach(user => {
+                    const row = $('<tr>');
+                    row.append(`<td>${this.escapeHtml(user.user_name)}</td>`);
+                    row.append(`<td><strong>${user.count}</strong></td>`);
+                    tbody.append(row);
+                });
+            } else {
+                tbody.append('<tr><td colspan="2">No action items data available</td></tr>');
             }
         },
         

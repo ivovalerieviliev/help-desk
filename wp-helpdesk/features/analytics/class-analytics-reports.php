@@ -68,6 +68,7 @@ class WPHD_Analytics_Reports {
             'ticket_details' => $this->get_ticket_details( $filters ),
             'sla_statistics' => $this->get_sla_statistics( $filters ),
             'comment_statistics' => $this->get_comment_statistics( $filters ),
+            'action_items_statistics' => $this->get_action_items_statistics( $filters ),
         );
 
         // If user-specific view, add comparison data
@@ -1013,6 +1014,81 @@ class WPHD_Analytics_Reports {
             'comments_by_user' => $formatted_comments_by_user,
             'avg_comments_per_ticket' => round( $avg_comments_per_ticket, 1 ),
             'tickets_with_comments' => intval( $tickets_with_comments ),
+        );
+    }
+
+    /**
+     * Get action items statistics.
+     *
+     * @param array $filters Filters.
+     * @return array Statistics.
+     */
+    public function get_action_items_statistics( $filters ) {
+        global $wpdb;
+        $action_items_table = $wpdb->prefix . 'wphd_action_items';
+
+        // Build where clauses for filtering
+        $where_clauses = array();
+        
+        // Total action items created in period
+        $total_created = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                FROM {$action_items_table}
+                WHERE created_at BETWEEN %s AND %s",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        // Total completed in period
+        $total_completed = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                FROM {$action_items_table}
+                WHERE is_completed = 1
+                AND completed_at BETWEEN %s AND %s",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        // Completed per user (KPI)
+        $completed_by_user = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT completed_by, COUNT(*) as count
+                FROM {$action_items_table}
+                WHERE is_completed = 1
+                AND completed_at BETWEEN %s AND %s
+                GROUP BY completed_by
+                ORDER BY count DESC",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        // Format completed by user with user names
+        $formatted_completed_by_user = array();
+        foreach ( $completed_by_user as $row ) {
+            if ( $row->completed_by ) {
+                $user = get_userdata( $row->completed_by );
+                if ( $user ) {
+                    $formatted_completed_by_user[] = array(
+                        'user_id' => $row->completed_by,
+                        'user_name' => $user->display_name,
+                        'count' => intval( $row->count ),
+                    );
+                }
+            }
+        }
+
+        $completion_rate = $total_created > 0 ? round( ( $total_completed / $total_created ) * 100, 1 ) : 0;
+
+        return array(
+            'total_created' => intval( $total_created ),
+            'total_completed' => intval( $total_completed ),
+            'completion_rate' => $completion_rate,
+            'completed_by_user' => $formatted_completed_by_user,
         );
     }
 }

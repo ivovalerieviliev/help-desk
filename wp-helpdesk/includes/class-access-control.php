@@ -217,6 +217,16 @@ class WPHD_Access_Control {
 				'description' => __( 'View ticket priorities', 'wp-helpdesk' ),
 				'default'     => true,
 			),
+			'action_items_view'          => array(
+				'label'       => __( 'View Action Items', 'wp-helpdesk' ),
+				'description' => __( 'View action items on tickets', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'action_items_manage'        => array(
+				'label'       => __( 'Manage Action Items', 'wp-helpdesk' ),
+				'description' => __( 'Create, edit, delete, and complete action items', 'wp-helpdesk' ),
+				'default'     => false,
+			),
 		);
 
 		/**
