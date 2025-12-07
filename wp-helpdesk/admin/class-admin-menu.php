@@ -3526,4 +3526,3 @@ class WPHD_Admin_Menu {
         exit;
     }
 }
-}
