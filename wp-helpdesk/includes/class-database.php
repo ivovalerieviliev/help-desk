@@ -30,8 +30,9 @@ class WPHD_Database {
      */
     public function maybe_create_tables() {
         // Always create tables if a form is being submitted on our pages
-        $is_plugin_page = isset($_GET['page']) && strpos($_GET['page'], 'wp-helpdesk') !== false;
+        $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
         $is_form_submission = isset($_POST['action']) && !empty($_POST['action']);
+        $is_plugin_page = $page && strpos($page, 'wp-helpdesk') !== false;
         
         if ($is_plugin_page && $is_form_submission) {
             // Skip transient, always verify tables on form submission
@@ -44,9 +45,6 @@ class WPHD_Database {
         
         // Don't use transient if we're on an admin page for the plugin
         // This ensures tables are always checked when user is actively using the plugin
-        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
-        $is_plugin_page = $page && strpos($page, 'wp-helpdesk') !== false;
-        
         if (!$is_plugin_page && get_transient($transient_key)) {
             return;
         }

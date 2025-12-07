@@ -251,6 +251,12 @@ class WPHD_Organizations {
      */
     public static function get_by_slug( $slug ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        if ( class_exists( 'WPHD_Activator' ) ) {
+            WPHD_Activator::create_tables();
+        }
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE slug = %s", $slug ) );
