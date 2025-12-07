@@ -1369,8 +1369,13 @@ class WPHD_Admin_Menu {
             <?php if ( 'tools' === $active_tab ) : ?>
                 <?php $this->render_tools_tab(); ?>
             <?php elseif ( 'access_control' === $active_tab ) : ?>
+            <form method="post">
+                <?php wp_nonce_field( 'wp_helpdesk_save_settings', 'wp_helpdesk_settings_nonce' ); ?>
+                <input type="hidden" name="action" value="save_settings">
+                <input type="hidden" name="tab" value="access_control">
                 <?php echo WPHD_Settings_Access_Control::render(); ?>
                 <?php submit_button(); ?>
+            </form>
             <?php else : ?>
             <form method="post">
                 <?php wp_nonce_field( 'wp_helpdesk_save_settings', 'wp_helpdesk_settings_nonce' ); ?>
