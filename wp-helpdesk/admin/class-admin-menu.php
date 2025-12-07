@@ -202,7 +202,7 @@ class WPHD_Admin_Menu {
                 $this->menu_slug,
                 __( 'Reports', 'wp-helpdesk' ),
                 __( 'Reports', 'wp-helpdesk' ),
-                $this->admin_capability,
+                $this->capability,
                 $this->menu_slug . '-reports',
                 array( $this, 'render_reports_page' )
             );
@@ -1596,6 +1596,12 @@ class WPHD_Admin_Menu {
         if ( 'access_control' === $tab ) {
             // Handle access control save
             WPHD_Settings_Access_Control::save();
+            add_settings_error(
+                'wp_helpdesk_settings',
+                'settings_saved',
+                __( 'Access control permissions saved successfully.', 'wp-helpdesk' ),
+                'success'
+            );
             return;
         } elseif ( 'general' === $tab ) {
             $settings = array(
