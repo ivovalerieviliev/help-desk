@@ -133,6 +133,11 @@ class WPHD_Settings_Access_Control {
 	 * @since 1.0.0
 	 */
 	public static function save() {
+		// Verify nonce
+		if ( ! isset( $_POST['wp_helpdesk_settings_nonce'] ) || ! wp_verify_nonce( $_POST['wp_helpdesk_settings_nonce'], 'wp_helpdesk_save_settings' ) ) {
+			return;
+		}
+
 		if ( ! isset( $_POST['wphd_role_permissions'] ) ) {
 			return;
 		}

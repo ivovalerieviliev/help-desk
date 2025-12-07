@@ -108,6 +108,12 @@ class WPHD_Access_Control {
 			$user_id = get_current_user_id();
 		}
 
+		// Validate user_id
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+
 		// Admins always have full access
 		if ( user_can( $user_id, 'manage_options' ) ) {
 			return true;
@@ -252,7 +258,10 @@ class WPHD_Access_Control {
 		$org = WPHD_Organizations::get( $org_id );
 		if ( $org && ! empty( $org->settings ) ) {
 			$settings = maybe_unserialize( $org->settings );
-			return is_array( $settings ) ? $settings : array();
+			// Validate that the result is an array
+			if ( is_array( $settings ) ) {
+				return $settings;
+			}
 		}
 		return array();
 	}

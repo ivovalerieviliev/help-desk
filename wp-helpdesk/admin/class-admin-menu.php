@@ -3261,22 +3261,23 @@ class WPHD_Admin_Menu {
                     </table>
                 </div>
 
-                <script type="text/javascript">
-                jQuery(document).ready(function($) {
-                    $('input[name="access_control_mode"]').on('change', function() {
-                        if ($(this).val() === 'custom') {
-                            $('#wphd-custom-permissions-section').slideDown();
-                        } else {
-                            $('#wphd-custom-permissions-section').slideUp();
-                        }
-                    });
-                });
-                </script>
-
                 <?php submit_button( __( 'Save Access Control Settings', 'wp-helpdesk' ) ); ?>
             </div>
         </form>
         <?php
+        // Enqueue inline script for toggling custom permissions
+        $script = "
+            jQuery(document).ready(function($) {
+                $('input[name=\"access_control_mode\"]').on('change', function() {
+                    if ($(this).val() === 'custom') {
+                        $('#wphd-custom-permissions-section').slideDown();
+                    } else {
+                        $('#wphd-custom-permissions-section').slideUp();
+                    }
+                });
+            });
+        ";
+        wp_add_inline_script( 'wp-helpdesk-admin', $script );
     }
 
     /**
