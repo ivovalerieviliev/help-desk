@@ -448,7 +448,7 @@ class WPHD_Analytics_Reports {
     public function get_resolution_time_trend( $filters ) {
         global $wpdb;
         
-        $sla_table = $wpdb->prefix . 'wphd_sla';
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
         $where_clauses = $this->build_where_clauses( $filters );
         $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
 
@@ -525,7 +525,7 @@ class WPHD_Analytics_Reports {
             )
         );
 
-        $sla_table = $wpdb->prefix . 'wphd_sla';
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
         
         $tickets = array();
         foreach ( $results as $row ) {
@@ -573,7 +573,7 @@ class WPHD_Analytics_Reports {
     public function get_sla_statistics( $filters ) {
         global $wpdb;
         
-        $sla_table = $wpdb->prefix . 'wphd_sla';
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
         $where_clauses = $this->build_where_clauses( $filters );
         $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
 
@@ -814,7 +814,7 @@ class WPHD_Analytics_Reports {
     private function get_average_resolution_time( $filters ) {
         global $wpdb;
         
-        $sla_table = $wpdb->prefix . 'wphd_sla';
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
         $where_clauses = $this->build_where_clauses( $filters );
         $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
 
@@ -857,7 +857,7 @@ class WPHD_Analytics_Reports {
     private function get_average_first_response_time( $filters ) {
         global $wpdb;
         
-        $sla_table = $wpdb->prefix . 'wphd_sla';
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
         $where_clauses = $this->build_where_clauses( $filters );
         $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
 
