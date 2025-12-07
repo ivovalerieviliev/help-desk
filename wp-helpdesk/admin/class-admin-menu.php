@@ -2079,6 +2079,45 @@ class WPHD_Admin_Menu {
                     </div>
                 </div>
 
+                <!-- Action Items Statistics Section -->
+                <div class="wphd-action-items-statistics" style="margin-top: 30px;">
+                    <h3><?php esc_html_e( 'Action Items Activity', 'wp-helpdesk' ); ?></h3>
+                    <div class="wphd-summary-cards">
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-action-items-created">0</span>
+                            <span class="card-label"><?php esc_html_e( 'Action Items Created', 'wp-helpdesk' ); ?></span>
+                        </div>
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-action-items-completed">0</span>
+                            <span class="card-label"><?php esc_html_e( 'Action Items Completed', 'wp-helpdesk' ); ?></span>
+                        </div>
+                        <div class="wphd-summary-card">
+                            <span class="card-value" id="wphd-stat-action-items-completion-rate">0%</span>
+                            <span class="card-label"><?php esc_html_e( 'Completion Rate', 'wp-helpdesk' ); ?></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Completed Action Items by User Table -->
+                    <div class="wphd-data-table-container" style="margin-top: 20px;">
+                        <div class="wphd-data-table-header">
+                            <h4><?php esc_html_e( 'Completed Action Items by User', 'wp-helpdesk' ); ?></h4>
+                        </div>
+                        <table id="wphd-action-items-by-user-table" class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Items Completed', 'wp-helpdesk' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="2"><?php esc_html_e( 'Loading...', 'wp-helpdesk' ); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Charts Grid -->
                 <div class="wphd-charts-grid">
                     <div class="wphd-chart-container">
