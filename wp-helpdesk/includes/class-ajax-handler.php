@@ -435,7 +435,10 @@ class WPHD_Ajax_Handler {
     
     public function get_report_data() {
         $this->verify_nonce();
-        $this->check_capability('manage_options');
+        
+        if ( ! WPHD_Access_Control::can_access( 'reports' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied', 'wp-helpdesk' ) ) );
+        }
         
         $filters = array(
             'date_start' => sanitize_text_field($_POST['date_start'] ?? date('Y-m-d', strtotime('-30 days'))),
@@ -455,7 +458,10 @@ class WPHD_Ajax_Handler {
     
     public function export_report_csv() {
         $this->verify_nonce();
-        $this->check_capability('manage_options');
+        
+        if ( ! WPHD_Access_Control::can_access( 'reports' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied', 'wp-helpdesk' ) ) );
+        }
         
         $filters = array(
             'date_start' => sanitize_text_field($_POST['date_start'] ?? date('Y-m-d', strtotime('-30 days'))),

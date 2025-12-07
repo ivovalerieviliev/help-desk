@@ -171,7 +171,7 @@ class WPHD_Settings_Access_Control {
 		WPHD_Access_Control::save_role_permissions( $sanitized_permissions );
 		
 		add_settings_error(
-			'wphd_settings',
+			'wp_helpdesk_settings',
 			'permissions_saved',
 			__( 'Access control permissions saved successfully.', 'wp-helpdesk' ),
 			'success'
