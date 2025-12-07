@@ -33,7 +33,8 @@ class WPHD_Database {
         
         // Don't use transient if we're on an admin page for the plugin
         // This ensures tables are always checked when user is actively using the plugin
-        $is_plugin_page = isset($_GET['page']) && strpos(sanitize_text_field($_GET['page']), 'wp-helpdesk') !== false;
+        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+        $is_plugin_page = $page && strpos($page, 'wp-helpdesk') !== false;
         
         if (!$is_plugin_page && get_transient($transient_key)) {
             return;
