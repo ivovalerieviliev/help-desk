@@ -111,34 +111,40 @@ class WPHD_Admin_Menu {
         );
 
         // Dashboard submenu (same as main menu).
-        add_submenu_page(
-            $this->menu_slug,
-            __( 'Dashboard', 'wp-helpdesk' ),
-            __( 'Dashboard', 'wp-helpdesk' ),
-            $this->capability,
-            $this->menu_slug,
-            array( $this, 'render_dashboard_page' )
-        );
+        if ( WPHD_Access_Control::can_access( 'dashboard' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Dashboard', 'wp-helpdesk' ),
+                __( 'Dashboard', 'wp-helpdesk' ),
+                $this->capability,
+                $this->menu_slug,
+                array( $this, 'render_dashboard_page' )
+            );
+        }
 
         // Tickets submenu.
-        add_submenu_page(
-            $this->menu_slug,
-            __( 'All Tickets', 'wp-helpdesk' ),
-            __( 'All Tickets', 'wp-helpdesk' ),
-            $this->capability,
-            $this->menu_slug . '-tickets',
-            array( $this, 'render_tickets_page' )
-        );
+        if ( WPHD_Access_Control::can_access( 'tickets_list' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'All Tickets', 'wp-helpdesk' ),
+                __( 'All Tickets', 'wp-helpdesk' ),
+                $this->capability,
+                $this->menu_slug . '-tickets',
+                array( $this, 'render_tickets_page' )
+            );
+        }
 
         // Add New Ticket submenu.
-        add_submenu_page(
-            $this->menu_slug,
-            __( 'Add New Ticket', 'wp-helpdesk' ),
-            __( 'Add New', 'wp-helpdesk' ),
-            $this->capability,
-            $this->menu_slug . '-add-ticket',
-            array( $this, 'render_add_ticket_page' )
-        );
+        if ( WPHD_Access_Control::can_access( 'ticket_create' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Add New Ticket', 'wp-helpdesk' ),
+                __( 'Add New', 'wp-helpdesk' ),
+                $this->capability,
+                $this->menu_slug . '-add-ticket',
+                array( $this, 'render_add_ticket_page' )
+            );
+        }
 
         // Categories submenu (Admin only).
         add_submenu_page(
@@ -191,14 +197,16 @@ class WPHD_Admin_Menu {
         );
 
         // Reports submenu (Admin only).
-        add_submenu_page(
-            $this->menu_slug,
-            __( 'Reports', 'wp-helpdesk' ),
-            __( 'Reports', 'wp-helpdesk' ),
-            $this->admin_capability,
-            $this->menu_slug . '-reports',
-            array( $this, 'render_reports_page' )
-        );
+        if ( WPHD_Access_Control::can_access( 'reports' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Reports', 'wp-helpdesk' ),
+                __( 'Reports', 'wp-helpdesk' ),
+                $this->admin_capability,
+                $this->menu_slug . '-reports',
+                array( $this, 'render_reports_page' )
+            );
+        }
     }
 
     /**
@@ -290,6 +298,9 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_dashboard_page() {
+        if ( ! WPHD_Access_Control::can_access( 'dashboard' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-helpdesk' ) );
+        }
         ?>
         <div class="wrap wp-helpdesk-wrap">
             <h1><?php esc_html_e( 'Help Desk Dashboard', 'wp-helpdesk' ); ?></h1>
@@ -432,12 +443,17 @@ class WPHD_Admin_Menu {
     public function render_tickets_page() {
         // Check if viewing a single ticket
         if ( isset( $_GET['ticket_id'] ) && ! empty( $_GET['ticket_id'] ) ) {
-            // Verify user is logged in
-            if ( ! current_user_can( 'read' ) ) {
-                wp_die( esc_html__( 'You do not have permission to view tickets.', 'wp-helpdesk' ) );
+            // Verify user can view ticket details
+            if ( ! WPHD_Access_Control::can_access( 'ticket_view' ) ) {
+                wp_die( esc_html__( 'You do not have permission to view ticket details.', 'wp-helpdesk' ) );
             }
             $this->render_ticket_details_page( intval( $_GET['ticket_id'] ) );
             return;
+        }
+
+        // Check list access
+        if ( ! WPHD_Access_Control::can_access( 'tickets_list' ) ) {
+            wp_die( esc_html__( 'You do not have permission to view tickets.', 'wp-helpdesk' ) );
         }
 
         ?>
@@ -922,6 +938,10 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_add_ticket_page() {
+        if ( ! WPHD_Access_Control::can_access( 'ticket_create' ) ) {
+            wp_die( esc_html__( 'You do not have permission to create tickets.', 'wp-helpdesk' ) );
+        }
+        
         $priorities = get_option( 'wphd_priorities', array() );
         $categories = get_option( 'wphd_categories', array() );
         $users = get_users( array( 'role__in' => array( 'administrator', 'editor' ) ) );
@@ -1320,7 +1340,7 @@ class WPHD_Admin_Menu {
             $this->handle_save_settings();
         }
 
-        $allowed_tabs = array( 'general', 'email', 'sla', 'tools' );
+        $allowed_tabs = array( 'general', 'email', 'sla', 'access_control', 'tools' );
         $active_tab   = isset( $_GET['tab'] ) && in_array( $_GET['tab'], $allowed_tabs, true ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
         $settings     = get_option( 'wphd_settings', array() );
         ?>
@@ -1338,6 +1358,9 @@ class WPHD_Admin_Menu {
                 <a href="?page=<?php echo esc_attr( $this->menu_slug ); ?>-settings&tab=sla" class="nav-tab <?php echo 'sla' === $active_tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'SLA', 'wp-helpdesk' ); ?>
                 </a>
+                <a href="?page=<?php echo esc_attr( $this->menu_slug ); ?>-settings&tab=access_control" class="nav-tab <?php echo 'access_control' === $active_tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Access Control', 'wp-helpdesk' ); ?>
+                </a>
                 <a href="?page=<?php echo esc_attr( $this->menu_slug ); ?>-settings&tab=tools" class="nav-tab <?php echo 'tools' === $active_tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Tools', 'wp-helpdesk' ); ?>
                 </a>
@@ -1345,6 +1368,9 @@ class WPHD_Admin_Menu {
 
             <?php if ( 'tools' === $active_tab ) : ?>
                 <?php $this->render_tools_tab(); ?>
+            <?php elseif ( 'access_control' === $active_tab ) : ?>
+                <?php echo WPHD_Settings_Access_Control::render(); ?>
+                <?php submit_button(); ?>
             <?php else : ?>
             <form method="post">
                 <?php wp_nonce_field( 'wp_helpdesk_save_settings', 'wp_helpdesk_settings_nonce' ); ?>
@@ -1562,7 +1588,11 @@ class WPHD_Admin_Menu {
 
         $tab = isset( $_POST['tab'] ) ? sanitize_text_field( $_POST['tab'] ) : 'general';
 
-        if ( 'general' === $tab ) {
+        if ( 'access_control' === $tab ) {
+            // Handle access control save
+            WPHD_Settings_Access_Control::save();
+            return;
+        } elseif ( 'general' === $tab ) {
             $settings = array(
                 'default_status'             => isset( $_POST['default_status'] ) ? sanitize_text_field( $_POST['default_status'] ) : 'open',
                 'default_priority'           => isset( $_POST['default_priority'] ) ? sanitize_text_field( $_POST['default_priority'] ) : 'medium',
@@ -1615,6 +1645,10 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_reports_page() {
+        if ( ! WPHD_Access_Control::can_access( 'reports' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access reports.', 'wp-helpdesk' ) );
+        }
+        
         // Get filter options
         $statuses   = get_option( 'wphd_statuses', array() );
         $priorities = get_option( 'wphd_priorities', array() );
@@ -2185,6 +2219,8 @@ class WPHD_Admin_Menu {
             $this->handle_remove_organization_member();
         } elseif ( 'save_organization_permissions' === $_POST['action'] ) {
             $this->handle_save_organization_permissions();
+        } elseif ( 'save_organization_access_control' === $_POST['action'] ) {
+            $this->handle_save_organization_access_control();
         }
     }
 
@@ -2879,6 +2915,9 @@ class WPHD_Admin_Menu {
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=permissions' ) ); ?>" class="nav-tab <?php echo 'permissions' === $tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Permissions', 'wp-helpdesk' ); ?>
                 </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=access_control' ) ); ?>" class="nav-tab <?php echo 'access_control' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Access Control', 'wp-helpdesk' ); ?>
+                </a>
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=logs' ) ); ?>" class="nav-tab <?php echo 'logs' === $tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Change Log', 'wp-helpdesk' ); ?>
                 </a>
@@ -2947,6 +2986,8 @@ class WPHD_Admin_Menu {
                 <?php $this->render_organization_members_tab( $org_id ); ?>
             <?php elseif ( 'permissions' === $tab ) : ?>
                 <?php $this->render_organization_permissions_tab( $org_id, $settings ); ?>
+            <?php elseif ( 'access_control' === $tab ) : ?>
+                <?php $this->render_organization_access_control_tab( $org_id, $settings ); ?>
             <?php elseif ( 'logs' === $tab ) : ?>
                 <?php $this->render_organization_logs_tab( $org_id ); ?>
             <?php endif; ?>
@@ -3132,6 +3173,111 @@ class WPHD_Admin_Menu {
             </div>
         </form>
         <?php
+    }
+
+    /**
+     * Render organization access control tab.
+     *
+     * @since 1.0.0
+     * @param int   $org_id   Organization ID.
+     * @param array $settings Organization settings.
+     */
+    private function render_organization_access_control_tab( $org_id, $settings ) {
+        // Get all features
+        $features = WPHD_Access_Control::get_controllable_features();
+        
+        // Get current access control settings
+        $access_control_mode = isset( $settings['access_control_mode'] ) ? $settings['access_control_mode'] : 'role_defaults';
+        $access_control      = isset( $settings['access_control'] ) ? $settings['access_control'] : array();
+        ?>
+        <form method="post" action="">
+            <?php wp_nonce_field( 'wphd_save_org_access_control', 'wphd_org_access_control_nonce' ); ?>
+            <input type="hidden" name="action" value="save_organization_access_control">
+            <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+
+            <div style="margin-top: 20px;">
+                <h3><?php esc_html_e( 'Access Control Mode', 'wp-helpdesk' ); ?></h3>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Permission Mode', 'wp-helpdesk' ); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="radio" name="access_control_mode" value="role_defaults" <?php checked( $access_control_mode, 'role_defaults' ); ?>>
+                                    <?php esc_html_e( 'Use Role Defaults', 'wp-helpdesk' ); ?>
+                                </label>
+                                <p class="description"><?php esc_html_e( 'Members inherit permissions based on their WordPress role.', 'wp-helpdesk' ); ?></p>
+                                <br>
+                                <label>
+                                    <input type="radio" name="access_control_mode" value="custom" <?php checked( $access_control_mode, 'custom' ); ?>>
+                                    <?php esc_html_e( 'Custom Permissions for this Organization', 'wp-helpdesk' ); ?>
+                                </label>
+                                <p class="description"><?php esc_html_e( 'Override role permissions with organization-specific settings.', 'wp-helpdesk' ); ?></p>
+                            </fieldset>
+                        </td>
+                    </tr>
+                </table>
+
+                <div id="wphd-custom-permissions-section" style="<?php echo 'custom' !== $access_control_mode ? 'display: none;' : ''; ?>">
+                    <h3><?php esc_html_e( 'Custom Feature Access', 'wp-helpdesk' ); ?></h3>
+                    <p><?php esc_html_e( 'Configure which features organization members can access. These settings override role-based permissions.', 'wp-helpdesk' ); ?></p>
+                    
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Feature', 'wp-helpdesk' ); ?></th>
+                                <th style="text-align: center; width: 120px;"><?php esc_html_e( 'Allow Access', 'wp-helpdesk' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $features as $feature_key => $feature_data ) : ?>
+                                <?php
+                                $is_checked = false;
+                                if ( isset( $access_control[ $feature_key ] ) ) {
+                                    $is_checked = (bool) $access_control[ $feature_key ];
+                                } else {
+                                    $is_checked = isset( $feature_data['default'] ) ? $feature_data['default'] : false;
+                                }
+                                ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo esc_html( $feature_data['label'] ); ?></strong>
+                                        <?php if ( ! empty( $feature_data['description'] ) ) : ?>
+                                            <br>
+                                            <span class="description"><?php echo esc_html( $feature_data['description'] ); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <input 
+                                            type="checkbox" 
+                                            name="access_control[<?php echo esc_attr( $feature_key ); ?>]" 
+                                            value="1" 
+                                            <?php checked( $is_checked, true ); ?>
+                                        >
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php submit_button( __( 'Save Access Control Settings', 'wp-helpdesk' ) ); ?>
+            </div>
+        </form>
+        <?php
+        // Enqueue inline script for toggling custom permissions
+        $script = "
+            jQuery(document).ready(function($) {
+                $('input[name=\"access_control_mode\"]').on('change', function() {
+                    if ($(this).val() === 'custom') {
+                        $('#wphd-custom-permissions-section').slideDown();
+                    } else {
+                        $('#wphd-custom-permissions-section').slideUp();
+                    }
+                });
+            });
+        ";
+        wp_add_inline_script( 'wp-helpdesk-admin', $script );
     }
 
     /**
@@ -3411,6 +3557,80 @@ class WPHD_Admin_Menu {
                 'error'
             );
         }
+    }
+
+    /**
+     * Handle save organization access control settings.
+     *
+     * @since 1.0.0
+     */
+    private function handle_save_organization_access_control() {
+        if ( ! isset( $_POST['wphd_org_access_control_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_org_access_control_nonce'], 'wphd_save_org_access_control' ) ) {
+            return;
+        }
+
+        $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+
+        if ( ! $org_id ) {
+            return;
+        }
+
+        // Check if user can change permissions (only administrators)
+        if ( ! WPHD_Organization_Permissions::can_change_permissions( $org_id ) ) {
+            wp_die( esc_html__( 'You do not have permission to change access control for this organization.', 'wp-helpdesk' ) );
+        }
+
+        // Get current settings
+        $org      = WPHD_Organizations::get( $org_id );
+        $settings = $org && ! empty( $org->settings ) ? maybe_unserialize( $org->settings ) : array();
+
+        // Ensure settings is an array
+        if ( ! is_array( $settings ) ) {
+            $settings = array();
+        }
+
+        // Get access control mode
+        $access_control_mode = isset( $_POST['access_control_mode'] ) ? sanitize_text_field( $_POST['access_control_mode'] ) : 'role_defaults';
+        $settings['access_control_mode'] = $access_control_mode;
+
+        // Process access control permissions if custom mode
+        if ( 'custom' === $access_control_mode && isset( $_POST['access_control'] ) ) {
+            $features         = WPHD_Access_Control::get_controllable_features();
+            $access_control   = array();
+            $submitted_access = wp_unslash( $_POST['access_control'] );
+
+            foreach ( $features as $feature_key => $feature_data ) {
+                // Checkbox is only present if checked
+                $access_control[ $feature_key ] = isset( $submitted_access[ $feature_key ] );
+            }
+
+            $settings['access_control'] = $access_control;
+        } elseif ( 'role_defaults' === $access_control_mode ) {
+            // Clear custom access control settings when switching to role defaults
+            unset( $settings['access_control'] );
+        }
+
+        // Update the organization
+        $result = WPHD_Organizations::update( $org_id, array( 'settings' => $settings ) );
+
+        if ( $result !== false ) {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'access_control_saved',
+                __( 'Access control settings saved successfully.', 'wp-helpdesk' ),
+                'success'
+            );
+        } else {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'access_control_save_failed',
+                __( 'Failed to save access control settings.', 'wp-helpdesk' ),
+                'error'
+            );
+        }
+
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=access_control' ) );
+        exit;
     }
     
     /**
