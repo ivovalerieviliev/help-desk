@@ -29,7 +29,7 @@ class WPHD_Assets {
         }
         
         wp_enqueue_style('wp-color-picker');
-        wp_enqueue_style('wphd-admin', WPHD_PLUGIN_URL . 'admin/css/admin-styles.css', array(), WPHD_VERSION);
+        wp_enqueue_style('wphd-admin', WPHD_PLUGIN_URL . 'assets/css/admin-style.css', array(), WPHD_VERSION);
         wp_enqueue_style('wphd-icons', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0');
         
         wp_enqueue_script('wp-color-picker');
@@ -38,7 +38,7 @@ class WPHD_Assets {
         wp_enqueue_style('jquery-ui-datepicker-style', 'https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css');
         
         wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', array(), '4.4.0', true);
-        wp_enqueue_script('wphd-admin', WPHD_PLUGIN_URL . 'admin/js/admin-scripts.js', array('jquery', 'wp-color-picker', 'jquery-ui-sortable'), WPHD_VERSION, true);
+        wp_enqueue_script('wphd-admin', WPHD_PLUGIN_URL . 'assets/js/admin-script.js', array('jquery', 'wp-color-picker', 'jquery-ui-sortable'), WPHD_VERSION, true);
         
         wp_enqueue_editor();
         

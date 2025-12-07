@@ -2147,6 +2147,9 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function handle_form_submissions() {
+        // Ensure tables exist before any form processing
+        WPHD_Database::instance()->maybe_create_tables();
+        
         if ( ! isset( $_POST['action'] ) ) {
             return;
         }
