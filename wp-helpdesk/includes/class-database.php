@@ -20,7 +20,7 @@ class WPHD_Database {
     
     public function __construct() {
         add_action('plugins_loaded', array($this, 'check_db_update'));
-        add_action('admin_init', array($this, 'maybe_create_tables'));
+        add_action('admin_init', array($this, 'maybe_create_tables'), 1); // Priority 1 = runs first
     }
     
     /**
@@ -29,9 +29,14 @@ class WPHD_Database {
      * @since 1.0.0
      */
     public function maybe_create_tables() {
-        // Only check once per hour per site
         $transient_key = 'wphd_tables_verified_' . get_current_blog_id();
-        if (get_transient($transient_key)) {
+        
+        // Don't use transient if we're on an admin page for the plugin
+        // This ensures tables are always checked when user is actively using the plugin
+        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+        $is_plugin_page = $page && strpos($page, 'wp-helpdesk') !== false;
+        
+        if (!$is_plugin_page && get_transient($transient_key)) {
             return;
         }
         
@@ -66,6 +71,27 @@ class WPHD_Database {
         }
         
         set_transient($transient_key, true, HOUR_IN_SECONDS);
+    }
+    
+    /**
+     * Force table creation (called directly when needed).
+     * 
+     * This method bypasses the transient caching and forces table creation.
+     * Use this when you need to ensure tables are created immediately, such as
+     * during plugin activation or database repair operations.
+     * 
+     * Note: This method uses dbDelta which is idempotent and safe to run multiple times.
+     * No error handling is performed as dbDelta will handle SQL errors gracefully and
+     * will only create or update tables that need changes.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public function force_create_tables() {
+        WPHD_Activator::create_tables();
+        
+        // Clear the transient to force a recheck next time
+        delete_transient('wphd_tables_verified_' . get_current_blog_id());
     }
     
     /**
