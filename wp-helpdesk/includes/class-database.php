@@ -255,6 +255,16 @@ class WPHD_Database {
         return $wpdb->delete($table, array('id' => $id));
     }
     
+    public static function get_action_item($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_action_items';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $id
+        ));
+    }
+    
     public static function get_sla($ticket_id) {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_sla_log';

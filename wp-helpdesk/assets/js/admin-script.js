@@ -115,6 +115,156 @@
         }
     };
 
-    $(document).ready(function() { WPHD.init(); });
+    // Action Items Management
+    WPHD.ActionItems = {
+        init: function() {
+            // Bind event listeners
+            $(document).on('click', '.wphd-add-action-item', this.addItem);
+            $(document).on('change', '.wphd-toggle-action-item', this.toggleItem);
+            $(document).on('click', '.wphd-edit-action-item', this.editItem);
+            $(document).on('click', '.wphd-delete-action-item', this.deleteItem);
+            $(document).on('click', '.wphd-save-action-item', this.saveItem);
+            $(document).on('click', '.wphd-cancel-edit-action-item', this.cancelEdit);
+        },
+
+        addItem: function(e) {
+            e.preventDefault();
+            var ticketId = $(this).data('ticket-id');
+            var title = $('#wphd-new-action-item-title').val().trim();
+            var assignedTo = $('#wphd-new-action-item-assignee').val();
+
+            if (!title) {
+                alert('Please enter an action item title');
+                return;
+            }
+
+            $.post(wphd_ajax.ajax_url, {
+                action: 'wphd_add_action_item',
+                nonce: wphd_ajax.nonce,
+                ticket_id: ticketId,
+                title: title,
+                assigned_to: assignedTo
+            }, function(response) {
+                if (response.success) {
+                    WPHD.showNotice(response.data.message, 'success');
+                    $('#wphd-new-action-item-title').val('');
+                    $('#wphd-new-action-item-assignee').val('0');
+                    WPHD.ActionItems.refreshList(ticketId);
+                } else {
+                    WPHD.showNotice(response.data.message, 'error');
+                }
+            });
+        },
+
+        toggleItem: function(e) {
+            var $item = $(this).closest('.wphd-action-item');
+            var itemId = $item.data('item-id');
+
+            $.post(wphd_ajax.ajax_url, {
+                action: 'wphd_toggle_action_item',
+                nonce: wphd_ajax.nonce,
+                item_id: itemId
+            }, function(response) {
+                if (response.success) {
+                    if (response.data.is_completed) {
+                        $item.addClass('completed');
+                    } else {
+                        $item.removeClass('completed');
+                    }
+                    WPHD.ActionItems.updateCounter();
+                } else {
+                    WPHD.showNotice(response.data.message, 'error');
+                }
+            });
+        },
+
+        editItem: function(e) {
+            e.preventDefault();
+            var $item = $(this).closest('.wphd-action-item');
+            $item.find('.wphd-action-item-content').hide();
+            $item.find('.wphd-action-item-actions').hide();
+            $item.find('.wphd-action-item-edit-form').show();
+        },
+
+        saveItem: function(e) {
+            e.preventDefault();
+            var $item = $(this).closest('.wphd-action-item');
+            var itemId = $item.data('item-id');
+            var title = $item.find('.wphd-edit-action-item-title').val().trim();
+            var assignedTo = $item.find('.wphd-edit-action-item-assignee').val();
+
+            if (!title) {
+                alert('Please enter an action item title');
+                return;
+            }
+
+            $.post(wphd_ajax.ajax_url, {
+                action: 'wphd_update_action_item',
+                nonce: wphd_ajax.nonce,
+                item_id: itemId,
+                title: title,
+                assigned_to: assignedTo
+            }, function(response) {
+                if (response.success) {
+                    WPHD.showNotice(response.data.message, 'success');
+                    // Get ticket ID from add button
+                    var ticketId = $('.wphd-add-action-item').data('ticket-id');
+                    WPHD.ActionItems.refreshList(ticketId);
+                } else {
+                    WPHD.showNotice(response.data.message, 'error');
+                }
+            });
+        },
+
+        deleteItem: function(e) {
+            e.preventDefault();
+            if (!confirm('Are you sure you want to delete this action item?')) {
+                return;
+            }
+
+            var $item = $(this).closest('.wphd-action-item');
+            var itemId = $item.data('item-id');
+
+            $.post(wphd_ajax.ajax_url, {
+                action: 'wphd_delete_action_item',
+                nonce: wphd_ajax.nonce,
+                item_id: itemId
+            }, function(response) {
+                if (response.success) {
+                    WPHD.showNotice(response.data.message, 'success');
+                    $item.fadeOut(300, function() {
+                        $(this).remove();
+                        WPHD.ActionItems.updateCounter();
+                    });
+                } else {
+                    WPHD.showNotice(response.data.message, 'error');
+                }
+            });
+        },
+
+        cancelEdit: function(e) {
+            e.preventDefault();
+            var $item = $(this).closest('.wphd-action-item');
+            $item.find('.wphd-action-item-edit-form').hide();
+            $item.find('.wphd-action-item-content').show();
+            $item.find('.wphd-action-item-actions').show();
+        },
+
+        updateCounter: function() {
+            var total = $('.wphd-action-item').length;
+            var completed = $('.wphd-action-item.completed').length;
+            $('.wphd-action-items-counter').text('(' + completed + '/' + total + ')');
+        },
+
+        refreshList: function(ticketId) {
+            // Reload the page to refresh the action items list
+            location.reload();
+        }
+    };
+
+    $(document).ready(function() { 
+        WPHD.init(); 
+        WPHD.ActionItems.init();
+    });
 
 })(jQuery);

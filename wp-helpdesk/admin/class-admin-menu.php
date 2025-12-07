@@ -837,6 +837,119 @@ class WPHD_Admin_Menu {
                         </div>
                     </div>
                     <?php endif; ?>
+
+                    <?php if ( WPHD_Access_Control::can_access( 'action_items_view' ) ) : ?>
+                    <?php
+                    // Get action items for this ticket
+                    $action_items = WPHD_Database::get_action_items( $ticket_id );
+                    $completed_count = 0;
+                    foreach ( $action_items as $item ) {
+                        if ( $item->is_completed ) {
+                            $completed_count++;
+                        }
+                    }
+                    $total_count = count( $action_items );
+                    $settings = get_option( 'wphd_settings', array() );
+                    $items_limit = isset( $settings['action_items_limit'] ) ? intval( $settings['action_items_limit'] ) : 10;
+                    ?>
+                    <div class="postbox wphd-action-items-section">
+                        <div class="inside">
+                            <div class="wphd-action-items-header">
+                                <h2>
+                                    <?php esc_html_e( 'Action Items', 'wp-helpdesk' ); ?>
+                                    <span class="wphd-action-items-counter">
+                                        (<?php echo esc_html( $completed_count . '/' . $total_count ); ?>)
+                                    </span>
+                                </h2>
+                            </div>
+
+                            <?php if ( WPHD_Access_Control::can_access( 'action_items_manage' ) ) : ?>
+                            <div class="wphd-add-action-item-form">
+                                <input type="text" id="wphd-new-action-item-title" placeholder="<?php esc_attr_e( 'Enter action item title...', 'wp-helpdesk' ); ?>" style="flex: 1;">
+                                <select id="wphd-new-action-item-assignee" style="width: 150px;">
+                                    <option value="0"><?php esc_html_e( 'Unassigned', 'wp-helpdesk' ); ?></option>
+                                    <?php foreach ( $users as $user ) : ?>
+                                        <option value="<?php echo esc_attr( $user->ID ); ?>">
+                                            <?php echo esc_html( $user->display_name ); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" class="button wphd-add-action-item" data-ticket-id="<?php echo esc_attr( $ticket_id ); ?>">
+                                    <?php esc_html_e( 'Add', 'wp-helpdesk' ); ?>
+                                </button>
+                            </div>
+                            <p class="description" style="margin-top: 10px;">
+                                <?php echo esc_html( sprintf( __( 'Maximum %d action items allowed per ticket.', 'wp-helpdesk' ), $items_limit ) ); ?>
+                            </p>
+                            <?php endif; ?>
+
+                            <div id="wphd-action-items-list" style="margin-top: 20px;">
+                                <?php if ( ! empty( $action_items ) ) : ?>
+                                    <?php foreach ( $action_items as $item ) : ?>
+                                        <?php
+                                        $assignee_user = $item->assigned_to ? get_userdata( $item->assigned_to ) : null;
+                                        $created_user = get_userdata( $item->created_by );
+                                        $completed_class = $item->is_completed ? 'completed' : '';
+                                        ?>
+                                        <div class="wphd-action-item <?php echo esc_attr( $completed_class ); ?>" data-item-id="<?php echo esc_attr( $item->id ); ?>">
+                                            <?php if ( WPHD_Access_Control::can_access( 'action_items_manage' ) ) : ?>
+                                            <input type="checkbox" class="wphd-action-item-checkbox wphd-toggle-action-item" 
+                                                   <?php checked( $item->is_completed, 1 ); ?>>
+                                            <?php endif; ?>
+                                            <div class="wphd-action-item-content">
+                                                <span class="wphd-action-item-title"><?php echo esc_html( $item->title ); ?></span>
+                                                <?php if ( $assignee_user ) : ?>
+                                                    <span class="wphd-action-item-assignee">
+                                                        <?php echo esc_html( sprintf( __( 'Assigned to: %s', 'wp-helpdesk' ), $assignee_user->display_name ) ); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <span class="wphd-action-item-meta">
+                                                    <?php
+                                                    echo esc_html(
+                                                        sprintf(
+                                                            __( 'Created by %s on %s', 'wp-helpdesk' ),
+                                                            $created_user ? $created_user->display_name : __( 'Unknown', 'wp-helpdesk' ),
+                                                            mysql2date( get_option( 'date_format' ), $item->created_at )
+                                                        )
+                                                    );
+                                                    ?>
+                                                </span>
+                                            </div>
+                                            <?php if ( WPHD_Access_Control::can_access( 'action_items_manage' ) ) : ?>
+                                            <div class="wphd-action-item-actions">
+                                                <button type="button" class="button-link wphd-edit-action-item" title="<?php esc_attr_e( 'Edit', 'wp-helpdesk' ); ?>">
+                                                    <span class="dashicons dashicons-edit"></span>
+                                                </button>
+                                                <button type="button" class="button-link wphd-delete-action-item" title="<?php esc_attr_e( 'Delete', 'wp-helpdesk' ); ?>">
+                                                    <span class="dashicons dashicons-trash"></span>
+                                                </button>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ( WPHD_Access_Control::can_access( 'action_items_manage' ) ) : ?>
+                                            <div class="wphd-action-item-edit-form" style="display: none;">
+                                                <input type="text" class="wphd-edit-action-item-title" value="<?php echo esc_attr( $item->title ); ?>" style="width: 100%; margin-bottom: 10px;">
+                                                <select class="wphd-edit-action-item-assignee" style="width: 100%; margin-bottom: 10px;">
+                                                    <option value="0"><?php esc_html_e( 'Unassigned', 'wp-helpdesk' ); ?></option>
+                                                    <?php foreach ( $users as $user ) : ?>
+                                                        <option value="<?php echo esc_attr( $user->ID ); ?>" <?php selected( $item->assigned_to, $user->ID ); ?>>
+                                                            <?php echo esc_html( $user->display_name ); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <button type="button" class="button button-primary wphd-save-action-item"><?php esc_html_e( 'Save', 'wp-helpdesk' ); ?></button>
+                                                <button type="button" class="button wphd-cancel-edit-action-item"><?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?></button>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php else : ?>
+                                    <p><?php esc_html_e( 'No action items yet.', 'wp-helpdesk' ); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <div style="flex: 1;">
@@ -1542,6 +1655,17 @@ class WPHD_Admin_Menu {
                     </label>
                 </td>
             </tr>
+            <tr>
+                <th scope="row">
+                    <label for="action_items_limit"><?php esc_html_e( 'Max Action Items Per Ticket', 'wp-helpdesk' ); ?></label>
+                </th>
+                <td>
+                    <input type="number" name="action_items_limit" id="action_items_limit" 
+                           value="<?php echo esc_attr( isset( $settings['action_items_limit'] ) ? $settings['action_items_limit'] : 10 ); ?>" 
+                           min="1" max="50">
+                    <p class="description"><?php esc_html_e( 'Maximum number of action items allowed per ticket.', 'wp-helpdesk' ); ?></p>
+                </td>
+            </tr>
         </table>
         <?php
     }
@@ -1686,6 +1810,7 @@ class WPHD_Admin_Menu {
                 'items_per_page'             => isset( $_POST['tickets_per_page'] ) ? intval( $_POST['tickets_per_page'] ) : 20,
                 'ticket_prefix'              => isset( $_POST['ticket_prefix'] ) ? sanitize_text_field( $_POST['ticket_prefix'] ) : 'TKT',
                 'enable_email_notifications' => isset( $_POST['enable_email_notifications'] ) ? true : false,
+                'action_items_limit'         => isset( $_POST['action_items_limit'] ) ? intval( $_POST['action_items_limit'] ) : 10,
             );
             update_option( 'wphd_settings', $settings );
         } elseif ( 'email' === $tab ) {

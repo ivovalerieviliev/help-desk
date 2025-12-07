@@ -32,6 +32,8 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_update_action_item', array($this, 'update_action_item'));
         add_action('wp_ajax_wphd_delete_action_item', array($this, 'delete_action_item'));
         add_action('wp_ajax_wphd_complete_action_item', array($this, 'complete_action_item'));
+        add_action('wp_ajax_wphd_toggle_action_item', array($this, 'toggle_action_item'));
+        add_action('wp_ajax_wphd_get_action_items', array($this, 'get_action_items'));
         add_action('wp_ajax_wphd_create_handover', array($this, 'create_handover'));
         add_action('wp_ajax_wphd_update_handover', array($this, 'update_handover'));
         add_action('wp_ajax_wphd_delete_handover', array($this, 'delete_handover'));
@@ -305,15 +307,40 @@ class WPHD_Ajax_Handler {
     
     public function add_action_item() {
         $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_manage')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
+        $ticket_id = intval($_POST['ticket_id'] ?? 0);
+        $settings = get_option('wphd_settings', array());
+        $limit = isset($settings['action_items_limit']) ? intval($settings['action_items_limit']) : 10;
+        
+        // Check limit
+        $existing_items = WPHD_Database::get_action_items($ticket_id);
+        if (count($existing_items) >= $limit) {
+            wp_send_json_error(array('message' => sprintf(__('Maximum of %d action items allowed per ticket', 'wp-helpdesk'), $limit)));
+        }
+        
         $data = array(
-            'ticket_id' => intval($_POST['ticket_id'] ?? 0),
+            'ticket_id' => $ticket_id,
             'title' => sanitize_text_field($_POST['title'] ?? ''),
             'description' => sanitize_textarea_field($_POST['description'] ?? ''),
             'assigned_to' => intval($_POST['assigned_to'] ?? 0),
             'due_date' => sanitize_text_field($_POST['due_date'] ?? '')
         );
+        
         $item_id = WPHD_Database::add_action_item($data);
         if ($item_id) {
+            // Record history
+            WPHD_Database::add_history($ticket_id, 'action_item_created', '', $data['title']);
+            
+            // Record assignment if assigned
+            if ($data['assigned_to']) {
+                $user = get_userdata($data['assigned_to']);
+                WPHD_Database::add_history($ticket_id, 'action_item_assigned', 'Unassigned', $user ? $user->display_name : '');
+            }
+            
             wp_send_json_success(array('message' => __('Action item added', 'wp-helpdesk'), 'item_id' => $item_id));
         }
         wp_send_json_error(array('message' => __('Failed to add action item', 'wp-helpdesk')));
@@ -321,29 +348,135 @@ class WPHD_Ajax_Handler {
     
     public function update_action_item() {
         $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_manage')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
         $item_id = intval($_POST['item_id'] ?? 0);
+        $item = WPHD_Database::get_action_item($item_id);
+        
+        if (!$item) {
+            wp_send_json_error(array('message' => __('Action item not found', 'wp-helpdesk')));
+        }
+        
         $data = array();
+        $old_title = $item->title;
+        $old_assigned_to = $item->assigned_to;
+        
         if (isset($_POST['title'])) $data['title'] = sanitize_text_field($_POST['title']);
         if (isset($_POST['description'])) $data['description'] = sanitize_textarea_field($_POST['description']);
         if (isset($_POST['assigned_to'])) $data['assigned_to'] = intval($_POST['assigned_to']);
         if (isset($_POST['due_date'])) $data['due_date'] = sanitize_text_field($_POST['due_date']);
+        
         WPHD_Database::update_action_item($item_id, $data);
+        
+        // Record history
+        if (isset($data['title']) && $data['title'] !== $old_title) {
+            WPHD_Database::add_history($item->ticket_id, 'action_item_edited', $old_title, $data['title']);
+        }
+        
+        if (isset($data['assigned_to']) && $data['assigned_to'] != $old_assigned_to) {
+            $old_user = $old_assigned_to ? get_userdata($old_assigned_to) : null;
+            $new_user = $data['assigned_to'] ? get_userdata($data['assigned_to']) : null;
+            WPHD_Database::add_history(
+                $item->ticket_id, 
+                'action_item_assigned', 
+                $old_user ? $old_user->display_name : 'Unassigned',
+                $new_user ? $new_user->display_name : 'Unassigned'
+            );
+        }
+        
         wp_send_json_success(array('message' => __('Action item updated', 'wp-helpdesk')));
     }
     
     public function delete_action_item() {
         $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_manage')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
         $item_id = intval($_POST['item_id'] ?? 0);
+        $item = WPHD_Database::get_action_item($item_id);
+        
+        if (!$item) {
+            wp_send_json_error(array('message' => __('Action item not found', 'wp-helpdesk')));
+        }
+        
         WPHD_Database::delete_action_item($item_id);
+        
+        // Record history
+        WPHD_Database::add_history($item->ticket_id, 'action_item_deleted', $item->title, '');
+        
         wp_send_json_success(array('message' => __('Action item deleted', 'wp-helpdesk')));
     }
     
     public function complete_action_item() {
         $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_manage')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
         $item_id = intval($_POST['item_id'] ?? 0);
         $completed = intval($_POST['completed'] ?? 1);
+        $item = WPHD_Database::get_action_item($item_id);
+        
+        if (!$item) {
+            wp_send_json_error(array('message' => __('Action item not found', 'wp-helpdesk')));
+        }
+        
         WPHD_Database::update_action_item($item_id, array('is_completed' => $completed));
+        
+        // Record history
+        if ($completed) {
+            WPHD_Database::add_history($item->ticket_id, 'action_item_completed', '', $item->title);
+        } else {
+            WPHD_Database::add_history($item->ticket_id, 'action_item_uncompleted', $item->title, '');
+        }
+        
         wp_send_json_success(array('message' => __('Action item updated', 'wp-helpdesk')));
+    }
+    
+    public function toggle_action_item() {
+        $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_manage')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
+        $item_id = intval($_POST['item_id'] ?? 0);
+        $item = WPHD_Database::get_action_item($item_id);
+        
+        if (!$item) {
+            wp_send_json_error(array('message' => __('Action item not found', 'wp-helpdesk')));
+        }
+        
+        $new_status = $item->is_completed ? 0 : 1;
+        WPHD_Database::update_action_item($item_id, array('is_completed' => $new_status));
+        
+        // Record history
+        if ($new_status) {
+            WPHD_Database::add_history($item->ticket_id, 'action_item_completed', '', $item->title);
+        } else {
+            WPHD_Database::add_history($item->ticket_id, 'action_item_uncompleted', $item->title, '');
+        }
+        
+        wp_send_json_success(array('message' => __('Action item updated', 'wp-helpdesk'), 'is_completed' => $new_status));
+    }
+    
+    public function get_action_items() {
+        $this->verify_nonce();
+        
+        if (!WPHD_Access_Control::can_access('action_items_view')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
+        $ticket_id = intval($_POST['ticket_id'] ?? 0);
+        $items = WPHD_Database::get_action_items($ticket_id);
+        
+        wp_send_json_success(array('items' => $items));
     }
     
     public function create_handover() {
