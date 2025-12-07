@@ -79,6 +79,10 @@ class WPHD_Database {
      * This method bypasses the transient caching and forces table creation.
      * Use this when you need to ensure tables are created immediately, such as
      * during plugin activation or database repair operations.
+     * 
+     * Note: This method uses dbDelta which is idempotent and safe to run multiple times.
+     * No error handling is performed as dbDelta will handle SQL errors gracefully and
+     * will only create or update tables that need changes.
      *
      * @since 1.0.0
      * @return void
