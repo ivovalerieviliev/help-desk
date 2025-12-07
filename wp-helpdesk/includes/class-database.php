@@ -33,7 +33,7 @@ class WPHD_Database {
         
         // Don't use transient if we're on an admin page for the plugin
         // This ensures tables are always checked when user is actively using the plugin
-        $is_plugin_page = isset($_GET['page']) && strpos($_GET['page'], 'wp-helpdesk') !== false;
+        $is_plugin_page = isset($_GET['page']) && strpos(sanitize_text_field($_GET['page']), 'wp-helpdesk') !== false;
         
         if (!$is_plugin_page && get_transient($transient_key)) {
             return;
@@ -74,8 +74,13 @@ class WPHD_Database {
     
     /**
      * Force table creation (called directly when needed).
+     * 
+     * This method bypasses the transient caching and forces table creation.
+     * Use this when you need to ensure tables are created immediately, such as
+     * during plugin activation or database repair operations.
      *
      * @since 1.0.0
+     * @return void
      */
     public function force_create_tables() {
         WPHD_Activator::create_tables();
