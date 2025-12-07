@@ -434,7 +434,7 @@ class WPHD_Admin_Menu {
         if ( isset( $_GET['ticket_id'] ) && ! empty( $_GET['ticket_id'] ) ) {
             // Verify user is logged in
             if ( ! current_user_can( 'read' ) ) {
-                wp_die( esc_html__( 'You must be logged in to view tickets.', 'wp-helpdesk' ) );
+                wp_die( esc_html__( 'You do not have permission to view tickets.', 'wp-helpdesk' ) );
             }
             $this->render_ticket_details_page( intval( $_GET['ticket_id'] ) );
             return;
