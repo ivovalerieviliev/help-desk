@@ -3176,12 +3176,20 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
+        $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+
+        // Check permissions based on action
+        if ( $org_id > 0 ) {
+            if ( ! WPHD_Organization_Permissions::can_edit_organization( $org_id ) ) {
+                wp_die( esc_html__( 'You do not have permission to edit this organization.', 'wp-helpdesk' ) );
+            }
+        } else {
+            if ( ! WPHD_Organization_Permissions::can_create_organizations() ) {
+                wp_die( esc_html__( 'You do not have permission to create organizations.', 'wp-helpdesk' ) );
+            }
         }
 
-        $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
-        $name   = isset( $_POST['org_name'] ) ? sanitize_text_field( $_POST['org_name'] ) : '';
+        $name = isset( $_POST['org_name'] ) ? sanitize_text_field( $_POST['org_name'] ) : '';
 
         if ( empty( $name ) ) {
             add_settings_error(
@@ -3250,15 +3258,16 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
-        }
-
         $org_id  = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
         $user_id = isset( $_POST['user_id'] ) ? intval( $_POST['user_id'] ) : 0;
 
         if ( ! $org_id || ! $user_id ) {
             return;
+        }
+
+        // Check permissions
+        if ( ! WPHD_Organization_Permissions::can_manage_members( $org_id ) ) {
+            wp_die( esc_html__( 'You do not have permission to manage members for this organization.', 'wp-helpdesk' ) );
         }
 
         $result = WPHD_Organizations::add_member( $org_id, $user_id );
@@ -3290,15 +3299,16 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
-        }
-
         $org_id  = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
         $user_id = isset( $_POST['user_id'] ) ? intval( $_POST['user_id'] ) : 0;
 
         if ( ! $org_id || ! $user_id ) {
             return;
+        }
+
+        // Check permissions
+        if ( ! WPHD_Organization_Permissions::can_manage_members( $org_id ) ) {
+            wp_die( esc_html__( 'You do not have permission to manage members for this organization.', 'wp-helpdesk' ) );
         }
 
         $result = WPHD_Organizations::remove_member( $org_id, $user_id );
@@ -3330,14 +3340,15 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
-        }
-
         $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
 
         if ( ! $org_id ) {
             return;
+        }
+
+        // Check if user can change permissions (only administrators)
+        if ( ! WPHD_Organization_Permissions::can_change_permissions( $org_id ) ) {
+            wp_die( esc_html__( 'You do not have permission to change permissions for this organization.', 'wp-helpdesk' ) );
         }
 
         $visibility_mode = isset( $_POST['visibility_mode'] ) ? sanitize_text_field( $_POST['visibility_mode'] ) : 'own';

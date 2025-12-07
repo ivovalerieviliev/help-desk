@@ -468,8 +468,14 @@ class WPHD_Organizations {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_organization_logs';
 
+        // Get IP address safely - note: this can still be spoofed through proxies
+        // but we use sanitization for security
         $ip_address = '';
-        if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+        if ( ! empty( $_SERVER['HTTP_CLIENT_IP'] ) ) {
+            $ip_address = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CLIENT_IP'] ) );
+        } elseif ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+            $ip_address = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+        } elseif ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
             $ip_address = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
         }
 
@@ -480,13 +486,27 @@ class WPHD_Organizations {
                 'user_id'         => get_current_user_id(),
                 'action'          => $action,
                 'field_name'      => $field_name,
-                'old_value'       => is_array( $old_value ) || is_object( $old_value ) ? maybe_serialize( $old_value ) : $old_value,
-                'new_value'       => is_array( $new_value ) || is_object( $new_value ) ? maybe_serialize( $new_value ) : $new_value,
+                'old_value'       => self::prepare_log_value( $old_value ),
+                'new_value'       => self::prepare_log_value( $new_value ),
                 'ip_address'      => $ip_address,
             )
         );
 
         return $result !== false;
+    }
+
+    /**
+     * Prepare a value for logging.
+     *
+     * @since  1.0.0
+     * @param  mixed $value Value to prepare.
+     * @return string Prepared value.
+     */
+    private static function prepare_log_value( $value ) {
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return maybe_serialize( $value );
+        }
+        return (string) $value;
     }
 
     /**
