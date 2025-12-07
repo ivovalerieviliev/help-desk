@@ -146,7 +146,7 @@ class WPHD_Activator {
         $sql_organizations = "CREATE TABLE $table_organizations (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
-            slug varchar(255) NOT NULL UNIQUE,
+            slug varchar(255) NOT NULL,
             description text,
             logo_id bigint(20),
             allowed_domains text,
@@ -156,7 +156,7 @@ class WPHD_Activator {
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            KEY slug (slug),
+            UNIQUE KEY slug (slug),
             KEY status (status)
         ) $charset_collate;";
         dbDelta($sql_organizations);
