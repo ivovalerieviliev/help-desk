@@ -55,6 +55,26 @@ class WPHD_Organizations {
     }
 
     /**
+     * Ensure the organizations table exists before database operations.
+     * 
+     * This is a safety check to prevent "table doesn't exist" errors.
+     * Checks table existence first for performance before calling create_tables().
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    private static function ensure_tables_exist() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_organizations';
+        
+        if ( ! WPHD_Database::check_table_exists( $table ) ) {
+            if ( class_exists( 'WPHD_Activator' ) ) {
+                WPHD_Activator::create_tables();
+            }
+        }
+    }
+
+    /**
      * Create a new organization.
      *
      * @since  1.0.0
@@ -63,6 +83,10 @@ class WPHD_Organizations {
      */
     public static function create( $data ) {
         global $wpdb;
+        
+        // Ensure tables exist before attempting to use them
+        self::ensure_tables_exist();
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         $slug = isset( $data['slug'] ) ? sanitize_title( $data['slug'] ) : sanitize_title( $data['name'] );
@@ -225,6 +249,10 @@ class WPHD_Organizations {
      */
     public static function get( $org_id ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        self::ensure_tables_exist();
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id = %d", $org_id ) );
@@ -239,6 +267,10 @@ class WPHD_Organizations {
      */
     public static function get_by_slug( $slug ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        self::ensure_tables_exist();
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE slug = %s", $slug ) );
@@ -253,6 +285,10 @@ class WPHD_Organizations {
      */
     public static function get_all( $args = array() ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        self::ensure_tables_exist();
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         $defaults = array(
