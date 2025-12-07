@@ -2147,6 +2147,11 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function handle_form_submissions() {
+        // CRITICAL: Ensure database tables exist before ANY form processing
+        if ( class_exists( 'WPHD_Activator' ) ) {
+            WPHD_Activator::create_tables();
+        }
+        
         if ( ! isset( $_POST['action'] ) ) {
             return;
         }

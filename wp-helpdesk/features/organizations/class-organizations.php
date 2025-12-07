@@ -63,6 +63,12 @@ class WPHD_Organizations {
      */
     public static function create( $data ) {
         global $wpdb;
+        
+        // Ensure tables exist before attempting to use them
+        if ( class_exists( 'WPHD_Activator' ) ) {
+            WPHD_Activator::create_tables();
+        }
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         $slug = isset( $data['slug'] ) ? sanitize_title( $data['slug'] ) : sanitize_title( $data['name'] );
@@ -225,6 +231,12 @@ class WPHD_Organizations {
      */
     public static function get( $org_id ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        if ( class_exists( 'WPHD_Activator' ) ) {
+            WPHD_Activator::create_tables();
+        }
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id = %d", $org_id ) );
@@ -253,6 +265,12 @@ class WPHD_Organizations {
      */
     public static function get_all( $args = array() ) {
         global $wpdb;
+        
+        // Ensure tables exist before querying
+        if ( class_exists( 'WPHD_Activator' ) ) {
+            WPHD_Activator::create_tables();
+        }
+        
         $table = $wpdb->prefix . 'wphd_organizations';
 
         $defaults = array(
