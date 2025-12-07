@@ -77,11 +77,51 @@ final class WP_HelpDesk {
     }
     
     private function init_hooks() {
-        register_activation_hook(__FILE__, array('WPHD_Activator', 'activate'));
+        register_activation_hook(__FILE__, array($this, 'activate_plugin'));
         register_deactivation_hook(__FILE__, array('WPHD_Deactivator', 'deactivate'));
         
         add_action('plugins_loaded', array($this, 'init_plugin'));
         add_action('init', array($this, 'load_textdomain'));
+        
+        // Multisite: Create tables when a new site is added
+        add_action('wp_initialize_site', array($this, 'on_new_site_created'), 10, 2);
+    }
+    
+    /**
+     * Plugin activation handler with multisite support.
+     *
+     * @param bool $network_wide Whether the plugin is being activated network-wide.
+     */
+    public function activate_plugin($network_wide) {
+        if (is_multisite() && $network_wide) {
+            // Network activation - create tables on all sites
+            $sites = get_sites(array('number' => 0));
+            foreach ($sites as $site) {
+                switch_to_blog($site->blog_id);
+                WPHD_Activator::activate();
+                restore_current_blog();
+            }
+        } else {
+            // Single site activation
+            WPHD_Activator::activate();
+        }
+    }
+    
+    /**
+     * Create tables when a new site is created in multisite.
+     *
+     * @param WP_Site $new_site New site object.
+     * @param array   $args     Arguments for the initialization.
+     */
+    public function on_new_site_created($new_site, $args) {
+        // Only run if plugin is network activated
+        if (!is_plugin_active_for_network(WPHD_PLUGIN_BASENAME)) {
+            return;
+        }
+        
+        switch_to_blog($new_site->blog_id);
+        WPHD_Activator::activate();
+        restore_current_blog();
     }
     
     public function init_plugin() {

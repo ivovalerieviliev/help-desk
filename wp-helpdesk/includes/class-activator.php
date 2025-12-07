@@ -16,7 +16,7 @@ class WPHD_Activator {
         flush_rewrite_rules();
     }
     
-    private static function create_tables() {
+    public static function create_tables() {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
         

@@ -81,6 +81,7 @@ class WPHD_Admin_Menu {
         add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'admin_init', array( $this, 'handle_form_submissions' ) );
+        add_action( 'admin_init', array( $this, 'handle_repair_database' ) );
     }
 
     /**
@@ -1310,7 +1311,7 @@ class WPHD_Admin_Menu {
             $this->handle_save_settings();
         }
 
-        $allowed_tabs = array( 'general', 'email', 'sla' );
+        $allowed_tabs = array( 'general', 'email', 'sla', 'tools' );
         $active_tab   = isset( $_GET['tab'] ) && in_array( $_GET['tab'], $allowed_tabs, true ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
         $settings     = get_option( 'wphd_settings', array() );
         ?>
@@ -1328,8 +1329,14 @@ class WPHD_Admin_Menu {
                 <a href="?page=<?php echo esc_attr( $this->menu_slug ); ?>-settings&tab=sla" class="nav-tab <?php echo 'sla' === $active_tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'SLA', 'wp-helpdesk' ); ?>
                 </a>
+                <a href="?page=<?php echo esc_attr( $this->menu_slug ); ?>-settings&tab=tools" class="nav-tab <?php echo 'tools' === $active_tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Tools', 'wp-helpdesk' ); ?>
+                </a>
             </h2>
 
+            <?php if ( 'tools' === $active_tab ) : ?>
+                <?php $this->render_tools_tab(); ?>
+            <?php else : ?>
             <form method="post">
                 <?php wp_nonce_field( 'wp_helpdesk_save_settings', 'wp_helpdesk_settings_nonce' ); ?>
                 <input type="hidden" name="action" value="save_settings">
@@ -1347,6 +1354,7 @@ class WPHD_Admin_Menu {
 
                 <?php submit_button(); ?>
             </form>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -3383,5 +3391,141 @@ class WPHD_Admin_Menu {
                 'error'
             );
         }
+    }
+    
+    /**
+     * Render the tools tab with database status.
+     *
+     * @since 1.0.0
+     */
+    private function render_tools_tab() {
+        global $wpdb;
+        
+        $tables = array(
+            'wphd_comments' => 'Ticket Comments',
+            'wphd_history' => 'Ticket History',
+            'wphd_sla_log' => 'SLA Tracking',
+            'wphd_action_items' => 'Action Items',
+            'wphd_handovers' => 'Handovers',
+            'wphd_handover_tickets' => 'Handover Tickets',
+            'wphd_ticket_meta' => 'Ticket Meta',
+            'wphd_organizations' => 'Organizations',
+            'wphd_organization_members' => 'Organization Members',
+            'wphd_organization_logs' => 'Organization Logs',
+        );
+        
+        // Get all existing tables in a single query for efficiency
+        $existing_tables = $wpdb->get_col("SHOW TABLES LIKE '{$wpdb->prefix}wphd_%'");
+        
+        ?>
+        <div style="margin-top: 20px;">
+            <h2><?php esc_html_e( 'Database Status', 'wp-helpdesk' ); ?></h2>
+            <p><?php esc_html_e( 'This page shows the status of all required database tables for the Help Desk plugin.', 'wp-helpdesk' ); ?></p>
+            
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'Table', 'wp-helpdesk' ); ?></th>
+                        <th><?php esc_html_e( 'Table Name', 'wp-helpdesk' ); ?></th>
+                        <th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $all_exist = true;
+                    foreach ( $tables as $table_suffix => $label ) :
+                        $table_name = $wpdb->prefix . $table_suffix;
+                        $exists = in_array( $table_name, $existing_tables, true );
+                        if ( ! $exists ) {
+                            $all_exist = false;
+                        }
+                        $status = $exists ? '<span style="color:green; font-weight: bold;">✓ ' . esc_html__( 'Exists', 'wp-helpdesk' ) . '</span>' : '<span style="color:red; font-weight: bold;">✗ ' . esc_html__( 'Missing', 'wp-helpdesk' ) . '</span>';
+                        ?>
+                        <tr>
+                            <td><strong><?php echo esc_html( $label ); ?></strong></td>
+                            <td><code><?php echo esc_html( $table_name ); ?></code></td>
+                            <td><?php echo wp_kses_post( $status ); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            
+            <?php if ( is_multisite() ) : ?>
+                <p style="margin-top: 15px;">
+                    <strong><?php esc_html_e( 'Multisite Information:', 'wp-helpdesk' ); ?></strong><br>
+                    <?php
+                    echo sprintf(
+                        esc_html__( 'Current Site: %s (ID: %d)', 'wp-helpdesk' ),
+                        esc_html( get_bloginfo( 'name' ) ),
+                        get_current_blog_id()
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
+            
+            <form method="post" style="margin-top: 20px;">
+                <?php wp_nonce_field( 'wphd_repair_database', 'wphd_repair_nonce' ); ?>
+                <input type="hidden" name="action" value="repair_database">
+                
+                <?php if ( $all_exist ) : ?>
+                    <p style="padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
+                        <?php esc_html_e( '✓ All database tables are present and healthy.', 'wp-helpdesk' ); ?>
+                    </p>
+                    <p>
+                        <button type="submit" class="button button-secondary">
+                            <?php esc_html_e( 'Recreate All Tables', 'wp-helpdesk' ); ?>
+                        </button>
+                        <span class="description"><?php esc_html_e( 'This will attempt to recreate all tables. Existing data will not be lost.', 'wp-helpdesk' ); ?></span>
+                    </p>
+                <?php else : ?>
+                    <p style="padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
+                        <?php esc_html_e( '⚠ Some database tables are missing. Click the button below to create them.', 'wp-helpdesk' ); ?>
+                    </p>
+                    <p>
+                        <button type="submit" class="button button-primary">
+                            <?php esc_html_e( 'Repair Database', 'wp-helpdesk' ); ?>
+                        </button>
+                        <span class="description"><?php esc_html_e( 'This will create all missing tables.', 'wp-helpdesk' ); ?></span>
+                    </p>
+                <?php endif; ?>
+            </form>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Handle database repair action.
+     *
+     * @since 1.0.0
+     */
+    public function handle_repair_database() {
+        if ( ! isset( $_POST['action'] ) || 'repair_database' !== $_POST['action'] ) {
+            return;
+        }
+        
+        if ( ! isset( $_POST['wphd_repair_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_repair_nonce'], 'wphd_repair_database' ) ) {
+            return;
+        }
+        
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to perform this action.', 'wp-helpdesk' ) );
+        }
+        
+        // Run table creation
+        WPHD_Activator::create_tables();
+        
+        // Clear the transient to force a recheck
+        delete_transient( 'wphd_tables_verified_' . get_current_blog_id() );
+        
+        add_settings_error(
+            'wp_helpdesk_settings',
+            'database_repaired',
+            __( 'Database tables have been created/repaired successfully.', 'wp-helpdesk' ),
+            'success'
+        );
+        
+        // Redirect to prevent resubmission
+        wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-settings&tab=tools&repaired=1' ) );
+        exit;
     }
 }

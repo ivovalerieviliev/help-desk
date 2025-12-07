@@ -20,6 +20,64 @@ class WPHD_Database {
     
     public function __construct() {
         add_action('plugins_loaded', array($this, 'check_db_update'));
+        add_action('admin_init', array($this, 'maybe_create_tables'));
+    }
+    
+    /**
+     * Check and auto-create missing tables (runs once per hour per site).
+     *
+     * @since 1.0.0
+     */
+    public function maybe_create_tables() {
+        // Only check once per hour per site
+        $transient_key = 'wphd_tables_verified_' . get_current_blog_id();
+        if (get_transient($transient_key)) {
+            return;
+        }
+        
+        global $wpdb;
+        $tables_to_check = array(
+            $wpdb->prefix . 'wphd_comments',
+            $wpdb->prefix . 'wphd_history',
+            $wpdb->prefix . 'wphd_sla_log',
+            $wpdb->prefix . 'wphd_action_items',
+            $wpdb->prefix . 'wphd_handovers',
+            $wpdb->prefix . 'wphd_handover_tickets',
+            $wpdb->prefix . 'wphd_ticket_meta',
+            $wpdb->prefix . 'wphd_organizations',
+            $wpdb->prefix . 'wphd_organization_members',
+            $wpdb->prefix . 'wphd_organization_logs',
+        );
+        
+        // Get all existing tables in a single query
+        $existing_tables = $wpdb->get_col("SHOW TABLES LIKE '{$wpdb->prefix}wphd_%'");
+        
+        // Check if any required tables are missing
+        $missing_tables = false;
+        foreach ($tables_to_check as $table) {
+            if (!in_array($table, $existing_tables, true)) {
+                $missing_tables = true;
+                break;
+            }
+        }
+        
+        if ($missing_tables) {
+            WPHD_Activator::create_tables();
+        }
+        
+        set_transient($transient_key, true, HOUR_IN_SECONDS);
+    }
+    
+    /**
+     * Check if a specific table exists.
+     *
+     * @since 1.0.0
+     * @param string $table_name Full table name with prefix.
+     * @return bool True if table exists, false otherwise.
+     */
+    public static function check_table_exists($table_name) {
+        global $wpdb;
+        return $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
     }
     
     public function check_db_update() {
