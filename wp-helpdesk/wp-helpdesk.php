@@ -43,6 +43,7 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'includes/class-assets.php';
         require_once WPHD_PLUGIN_DIR . 'includes/class-ajax-handler.php';
         require_once WPHD_PLUGIN_DIR . 'includes/class-rest-api.php';
+        require_once WPHD_PLUGIN_DIR . 'includes/class-access-control.php';
         
         require_once WPHD_PLUGIN_DIR . 'features/tickets/class-ticket-cpt.php';
         require_once WPHD_PLUGIN_DIR . 'features/tickets/class-ticket-meta.php';
@@ -68,6 +69,7 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-categories.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-priorities.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-sla.php';
+        require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-access-control.php';
         
         require_once WPHD_PLUGIN_DIR . 'features/organizations/class-organizations.php';
         require_once WPHD_PLUGIN_DIR . 'features/organizations/class-organization-permissions.php';
@@ -129,6 +131,7 @@ final class WP_HelpDesk {
         WPHD_Assets::instance();
         WPHD_Ajax_Handler::instance();
         WPHD_REST_API::instance();
+        WPHD_Access_Control::instance();
         
         WPHD_Ticket_CPT::instance();
         WPHD_Ticket_Meta::instance();
@@ -153,6 +156,7 @@ final class WP_HelpDesk {
         WPHD_Settings_Categories::instance();
         WPHD_Settings_Priorities::instance();
         WPHD_Settings_SLA::instance();
+        WPHD_Settings_Access_Control::instance();
         
         WPHD_Organizations::instance();
         WPHD_Organization_Permissions::instance();
