@@ -226,11 +226,62 @@ class WPHD_REST_API {
                 if ($old !== $new) {
                     update_post_meta($ticket_id, '_wphd_' . $field, $new);
                     WPHD_Database::add_history($ticket_id, $field, $old, $new);
+                    
+                    // Handle SLA resolved_at when status changes
+                    if ($field === 'status') {
+                        $this->update_sla_on_status_change($ticket_id, $old, $new);
+                    }
                 }
             }
         }
         
         return new WP_REST_Response($this->format_ticket(get_post($ticket_id)), 200);
+    }
+    
+    /**
+     * Update SLA resolved_at when status changes to/from closed.
+     *
+     * @param int    $ticket_id Ticket ID.
+     * @param string $old_status Old status slug.
+     * @param string $new_status New status slug.
+     */
+    private function update_sla_on_status_change($ticket_id, $old_status, $new_status) {
+        $statuses = get_option('wphd_statuses', array());
+        
+        // Check if new status is a closed/resolved status
+        $is_new_closed = false;
+        foreach ($statuses as $status) {
+            if ($status['slug'] === $new_status && !empty($status['is_closed'])) {
+                $is_new_closed = true;
+                break;
+            }
+        }
+        
+        // Check if old status was a closed/resolved status
+        $is_old_closed = false;
+        foreach ($statuses as $status) {
+            if ($status['slug'] === $old_status && !empty($status['is_closed'])) {
+                $is_old_closed = true;
+                break;
+            }
+        }
+        
+        // If status changed to closed/resolved, update SLA resolved_at
+        if ($is_new_closed && !$is_old_closed) {
+            $sla = WPHD_Database::get_sla($ticket_id);
+            if ($sla && empty($sla->resolved_at)) {
+                WPHD_Database::update_sla($ticket_id, array( 
+                    'resolved_at' => current_time('mysql') 
+                ));
+            }
+        }
+        
+        // If status changed FROM closed to open, clear resolved_at (ticket reopened)
+        if ($is_old_closed && !$is_new_closed) {
+            WPHD_Database::update_sla($ticket_id, array( 
+                'resolved_at' => null 
+            ));
+        }
     }
     
     public function delete_ticket($request) {

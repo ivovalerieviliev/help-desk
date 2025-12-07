@@ -2409,6 +2409,53 @@ class WPHD_Admin_Menu {
     }
 
     /**
+     * Update SLA resolved_at when status changes to/from closed.
+     *
+     * @since 1.0.0
+     * @param int    $ticket_id Ticket ID.
+     * @param string $old_status Old status slug.
+     * @param string $new_status New status slug.
+     */
+    private function update_sla_on_status_change( $ticket_id, $old_status, $new_status ) {
+        $statuses = get_option( 'wphd_statuses', array() );
+        
+        // Check if new status is a closed/resolved status
+        $is_new_closed = false;
+        foreach ( $statuses as $status ) {
+            if ( $status['slug'] === $new_status && ! empty( $status['is_closed'] ) ) {
+                $is_new_closed = true;
+                break;
+            }
+        }
+        
+        // Check if old status was a closed/resolved status
+        $is_old_closed = false;
+        foreach ( $statuses as $status ) {
+            if ( $status['slug'] === $old_status && ! empty( $status['is_closed'] ) ) {
+                $is_old_closed = true;
+                break;
+            }
+        }
+        
+        // If status changed to closed/resolved, update SLA resolved_at
+        if ( $is_new_closed && ! $is_old_closed ) {
+            $sla = WPHD_Database::get_sla( $ticket_id );
+            if ( $sla && empty( $sla->resolved_at ) ) {
+                WPHD_Database::update_sla( $ticket_id, array( 
+                    'resolved_at' => current_time( 'mysql' ) 
+                ) );
+            }
+        }
+        
+        // If status changed FROM closed to open, clear resolved_at (ticket reopened)
+        if ( $is_old_closed && ! $is_new_closed ) {
+            WPHD_Database::update_sla( $ticket_id, array( 
+                'resolved_at' => null 
+            ) );
+        }
+    }
+
+    /**
      * Handle ticket update.
      *
      * @since 1.0.0
@@ -2453,6 +2500,11 @@ class WPHD_Admin_Menu {
                     update_post_meta( $ticket_id, $meta_key, $new_value );
                     $history_field = isset( $field_mapping[ $field_name ] ) ? $field_mapping[ $field_name ] : $field_name;
                     WPHD_Database::add_history( $ticket_id, $history_field, $old_value, $new_value );
+
+                    // Handle SLA resolved_at when status changes
+                    if ( 'ticket_status' === $field_name ) {
+                        $this->update_sla_on_status_change( $ticket_id, $old_value, $new_value );
+                    }
                 }
             }
         }
