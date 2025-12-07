@@ -2147,13 +2147,19 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function handle_form_submissions() {
-        // CRITICAL: Ensure database tables exist before ANY form processing
-        if ( class_exists( 'WPHD_Activator' ) ) {
-            WPHD_Activator::create_tables();
-        }
-        
         if ( ! isset( $_POST['action'] ) ) {
             return;
+        }
+
+        // CRITICAL: Ensure database tables exist before ANY form processing
+        // This is a safety check in addition to maybe_create_tables() which runs earlier
+        // We check table existence first for performance
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_organizations';
+        if ( ! WPHD_Database::check_table_exists( $table ) ) {
+            if ( class_exists( 'WPHD_Activator' ) ) {
+                WPHD_Activator::create_tables();
+            }
         }
 
         if ( 'create_ticket' === $_POST['action'] ) {

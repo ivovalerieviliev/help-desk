@@ -29,11 +29,12 @@ class WPHD_Database {
      * @since 1.0.0
      */
     public function maybe_create_tables() {
-        // Always create tables if a form is being submitted on our pages
+        // Get page parameter once at the top
         $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
-        $is_form_submission = isset($_POST['action']) && !empty($_POST['action']);
         $is_plugin_page = $page && strpos($page, 'wp-helpdesk') !== false;
+        $is_form_submission = isset($_POST['action']) && !empty($_POST['action']);
         
+        // Always create tables if a form is being submitted on our pages
         if ($is_plugin_page && $is_form_submission) {
             // Skip transient, always verify tables on form submission
             WPHD_Activator::create_tables();
