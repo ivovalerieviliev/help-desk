@@ -385,13 +385,15 @@
             $('#wphd-user-resolution').text(user.avg_resolution_time + 'h');
             $('#wphd-user-sla').text(user.sla_compliance_rate + '%');
 
-            // Show comparison indicators
-            this.updateComparisonIndicator('#wphd-user-tickets-diff', diff.tickets_diff);
-            this.updateComparisonIndicator('#wphd-user-resolution-diff', diff.resolution_diff, true); // inverse - lower is better
-            this.updateComparisonIndicator('#wphd-user-sla-diff', diff.sla_diff);
+            // Show comparison indicators - tickets_diff is a count, not percentage
+            this.updateComparisonIndicator('#wphd-user-tickets-diff', diff.tickets_diff, false, false);
+            // resolution_diff is hours, not percentage (inverse - lower is better)
+            this.updateComparisonIndicator('#wphd-user-resolution-diff', diff.resolution_diff, true, false);
+            // sla_diff is a percentage difference
+            this.updateComparisonIndicator('#wphd-user-sla-diff', diff.sla_diff, false, true);
         },
 
-        updateComparisonIndicator: function (selector, value, inverse = false) {
+        updateComparisonIndicator: function (selector, value, inverse = false, isPercentage = true) {
             const element = $(selector);
             const absValue = Math.abs(value).toFixed(1);
             
@@ -404,8 +406,9 @@
             const isPositive = inverse ? value < 0 : value > 0;
             const sign = value > 0 ? '+' : '';
             
-            // For percentage differences, always show % symbol
-            element.text(sign + absValue + '%');
+            // Display percentage symbol only for percentage values
+            const suffix = isPercentage ? '%' : '';
+            element.text(sign + absValue + suffix);
             element.removeClass('positive negative');
             element.addClass(isPositive ? 'positive' : 'negative');
         },
