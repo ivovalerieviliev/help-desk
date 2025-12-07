@@ -23,12 +23,12 @@
         filterTickets: function() {
             var data = {
                 action: 'wphd_filter_tickets',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 status: $('#wphd-filter-status').val(),
                 priority: $('#wphd-filter-priority').val(),
                 search: $('#wphd-search').val()
             };
-            $.post(wphd_ajax.ajax_url, data, function(response) {
+            $.post(wpHelpDesk.ajaxUrl, data, function(response) {
                 if (response.success) {
                     $('#wphd-tickets-list').html(response.data.html);
                 }
@@ -37,9 +37,9 @@
 
         updateTicketStatus: function() {
             var ticketId = $('.wphd-ticket-details').data('ticket-id');
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_update_ticket',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 ticket_id: ticketId,
                 field: 'status',
                 value: $(this).val()
@@ -52,9 +52,9 @@
 
         updateTicketAssignee: function() {
             var ticketId = $('.wphd-ticket-details').data('ticket-id');
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_update_ticket',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 ticket_id: ticketId,
                 field: 'assignee',
                 value: $(this).val()
@@ -70,9 +70,9 @@
             var ticketId = $('.wphd-ticket-details').data('ticket-id');
             var content = $('#wphd-comment-content').val();
             var isInternal = $('#wphd-comment-internal').is(':checked') ? 1 : 0;
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_add_comment',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 ticket_id: ticketId,
                 content: content,
                 is_internal: isInternal
@@ -138,9 +138,9 @@
                 return;
             }
 
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_add_action_item',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 ticket_id: ticketId,
                 title: title,
                 assigned_to: assignedTo
@@ -160,9 +160,9 @@
             var $item = $(this).closest('.wphd-action-item');
             var itemId = $item.data('item-id');
 
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_toggle_action_item',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 item_id: itemId
             }, function(response) {
                 if (response.success) {
@@ -198,9 +198,9 @@
                 return;
             }
 
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_update_action_item',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 item_id: itemId,
                 title: title,
                 assigned_to: assignedTo
@@ -225,9 +225,9 @@
             var $item = $(this).closest('.wphd-action-item');
             var itemId = $item.data('item-id');
 
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_delete_action_item',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 item_id: itemId
             }, function(response) {
                 if (response.success) {
@@ -258,9 +258,9 @@
 
         refreshList: function(ticketId) {
             // Reload action items via AJAX
-            $.post(wphd_ajax.ajax_url, {
+            $.post(wpHelpDesk.ajaxUrl, {
                 action: 'wphd_get_action_items',
-                nonce: wphd_ajax.nonce,
+                nonce: wpHelpDesk.nonce,
                 ticket_id: ticketId
             }, function(response) {
                 if (response.success) {
