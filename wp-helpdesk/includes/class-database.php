@@ -128,7 +128,11 @@ class WPHD_Database {
         $table = $wpdb->prefix . 'wphd_comments';
         
         // Check if current user can view internal comments
-        if (!$include_internal || !WPHD_Organization_Permissions::can_view_internal_comments()) {
+        // User needs permission in at least one system (Access Control OR Organization)
+        // Exclude internal comments if user lacks permission in BOTH systems
+        if (!$include_internal || 
+            (!WPHD_Access_Control::can_access('ticket_internal_comments') && 
+             !WPHD_Organization_Permissions::can_view_internal_comments())) {
             $include_internal = false;
         }
         

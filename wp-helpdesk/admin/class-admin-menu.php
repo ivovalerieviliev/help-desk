@@ -726,6 +726,14 @@ class WPHD_Admin_Menu {
 
         // Get comments and history
         $comments = WPHD_Database::get_comments( $ticket_id );
+        
+        // Filter out internal comments if user doesn't have permission
+        if ( ! WPHD_Access_Control::can_access( 'ticket_internal_comments' ) ) {
+            $comments = array_filter( $comments, function( $comment ) {
+                return ! $comment->is_internal;
+            });
+        }
+        
         $history  = WPHD_Database::get_history( $ticket_id );
         $sla      = WPHD_Database::get_sla( $ticket_id );
 
@@ -775,6 +783,7 @@ class WPHD_Admin_Menu {
                                 <p><?php esc_html_e( 'No comments yet.', 'wp-helpdesk' ); ?></p>
                             <?php endif; ?>
 
+                            <?php if ( WPHD_Access_Control::can_access( 'ticket_comment' ) ) : ?>
                             <form method="post" style="margin-top: 20px;">
                                 <?php wp_nonce_field( 'wp_helpdesk_add_comment', 'wp_helpdesk_comment_nonce' ); ?>
                                 <input type="hidden" name="action" value="add_comment">
@@ -792,14 +801,17 @@ class WPHD_Admin_Menu {
                                     );
                                     ?>
                                 </p>
+                                <?php if ( WPHD_Access_Control::can_access( 'ticket_internal_comments' ) ) : ?>
                                 <p>
                                     <label>
                                         <input type="checkbox" name="is_internal" value="1">
                                         <?php esc_html_e( 'Internal Note (not visible to customer)', 'wp-helpdesk' ); ?>
                                     </label>
                                 </p>
+                                <?php endif; ?>
                                 <?php submit_button( __( 'Add Comment', 'wp-helpdesk' ), 'secondary' ); ?>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -835,6 +847,7 @@ class WPHD_Admin_Menu {
                     <div class="postbox">
                         <div class="inside">
                             <h2><?php esc_html_e( 'Ticket Details', 'wp-helpdesk' ); ?></h2>
+                            <?php if ( WPHD_Access_Control::can_access( 'ticket_edit' ) ) : ?>
                             <form method="post">
                                 <?php wp_nonce_field( 'wp_helpdesk_update_ticket', 'wp_helpdesk_update_nonce' ); ?>
                                 <input type="hidden" name="action" value="update_ticket">
@@ -898,6 +911,73 @@ class WPHD_Admin_Menu {
 
                                 <?php submit_button( __( 'Update Ticket', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
                             </form>
+                            <?php else : ?>
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $status_name = '';
+                                    foreach ( $statuses as $s ) {
+                                        if ( $s['slug'] === $status ) {
+                                            $status_name = $s['name'];
+                                            break;
+                                        }
+                                    }
+                                    echo esc_html( $status_name );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $priority_name = '';
+                                    foreach ( $priorities as $p ) {
+                                        if ( $p['slug'] === $priority ) {
+                                            $priority_name = $p['name'];
+                                            break;
+                                        }
+                                    }
+                                    echo esc_html( $priority_name );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $category_name = __( 'None', 'wp-helpdesk' );
+                                    foreach ( $categories as $c ) {
+                                        if ( $c['slug'] === $category ) {
+                                            $category_name = $c['name'];
+                                            break;
+                                        }
+                                    }
+                                    echo esc_html( $category_name );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $assignee_name = __( 'Unassigned', 'wp-helpdesk' );
+                                    if ( $assignee ) {
+                                        $assignee_user = get_userdata( $assignee );
+                                        if ( $assignee_user ) {
+                                            $assignee_name = $assignee_user->display_name;
+                                        }
+                                    }
+                                    echo esc_html( $assignee_name );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Created', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php echo esc_html( get_the_date( '', $ticket ) ); ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Last Modified', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php echo esc_html( get_the_modified_date( '', $ticket ) ); ?>
+                                </p>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -2342,8 +2422,8 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'read' ) ) {
-            return;
+        if ( ! WPHD_Access_Control::can_access( 'ticket_edit' ) ) {
+            wp_die( esc_html__( 'You do not have permission to edit tickets.', 'wp-helpdesk' ) );
         }
 
         $ticket_id = isset( $_POST['ticket_id'] ) ? intval( $_POST['ticket_id'] ) : 0;
@@ -2404,13 +2484,18 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        if ( ! current_user_can( 'read' ) ) {
-            return;
+        if ( ! WPHD_Access_Control::can_access( 'ticket_comment' ) ) {
+            wp_die( esc_html__( 'You do not have permission to add comments.', 'wp-helpdesk' ) );
         }
 
         $ticket_id   = isset( $_POST['ticket_id'] ) ? intval( $_POST['ticket_id'] ) : 0;
         $content     = isset( $_POST['comment_content'] ) ? wp_kses_post( $_POST['comment_content'] ) : '';
         $is_internal = isset( $_POST['is_internal'] ) ? 1 : 0;
+        
+        // Check internal comment permission
+        if ( $is_internal && ! WPHD_Access_Control::can_access( 'ticket_internal_comments' ) ) {
+            $is_internal = 0; // Force to public if no permission
+        }
 
         if ( ! $ticket_id || empty( $content ) ) {
             return;
