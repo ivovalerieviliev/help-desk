@@ -376,7 +376,7 @@ class WPHD_Ajax_Handler {
             WPHD_Database::add_history($item->ticket_id, 'action_item_edited', $old_title, $data['title']);
         }
         
-        if (isset($data['assigned_to']) && $data['assigned_to'] != $old_assigned_to) {
+        if (isset($data['assigned_to']) && $data['assigned_to'] !== $old_assigned_to) {
             $old_user = $old_assigned_to ? get_userdata($old_assigned_to) : null;
             $new_user = $data['assigned_to'] ? get_userdata($data['assigned_to']) : null;
             WPHD_Database::add_history(

@@ -257,8 +257,18 @@
         },
 
         refreshList: function(ticketId) {
-            // Reload the page to refresh the action items list
-            location.reload();
+            // Reload action items via AJAX
+            $.post(wphd_ajax.ajax_url, {
+                action: 'wphd_get_action_items',
+                nonce: wphd_ajax.nonce,
+                ticket_id: ticketId
+            }, function(response) {
+                if (response.success) {
+                    // For simplicity, reload the page
+                    // TODO: Implement dynamic list update without page reload
+                    location.reload();
+                }
+            });
         }
     };
 
