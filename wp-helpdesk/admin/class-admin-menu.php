@@ -196,7 +196,7 @@ class WPHD_Admin_Menu {
         // Enqueue admin styles.
         wp_enqueue_style(
             'wp-helpdesk-admin',
-            WPHD_PLUGIN_URL . 'assets/css/admin.css',
+            WPHD_PLUGIN_URL . 'assets/css/admin-style.css',
             array(),
             WPHD_VERSION
         );
@@ -204,11 +204,30 @@ class WPHD_Admin_Menu {
         // Enqueue admin scripts.
         wp_enqueue_script(
             'wp-helpdesk-admin',
-            WPHD_PLUGIN_URL . 'assets/js/admin.js',
+            WPHD_PLUGIN_URL . 'assets/js/admin-script.js',
             array( 'jquery' ),
             WPHD_VERSION,
             true
         );
+
+        // Enqueue Chart.js and reports.js on reports page
+        if ( strpos( $hook, 'reports' ) !== false ) {
+            wp_enqueue_script(
+                'chartjs',
+                'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+                array(),
+                '4.4.0',
+                true
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-reports',
+                WPHD_PLUGIN_URL . 'assets/js/reports.js',
+                array( 'jquery', 'chartjs' ),
+                WPHD_VERSION,
+                true
+            );
+        }
 
         // Localize script with data.
         wp_localize_script(
@@ -216,12 +235,18 @@ class WPHD_Admin_Menu {
             'wpHelpDesk',
             array(
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => wp_create_nonce( 'wp_helpdesk_nonce' ),
+                'nonce'   => wp_create_nonce( 'wphd_nonce' ),
                 'i18n'    => array(
                     'confirm_delete' => __( 'Are you sure you want to delete this item?', 'wp-helpdesk' ),
                     'saving'         => __( 'Saving...', 'wp-helpdesk' ),
                     'saved'          => __( 'Saved!', 'wp-helpdesk' ),
                     'error'          => __( 'An error occurred. Please try again.', 'wp-helpdesk' ),
+                    'reports'        => __( 'Reports', 'wp-helpdesk' ),
+                    'report_for'     => __( 'Report for', 'wp-helpdesk' ),
+                    'no_tickets'     => __( 'No tickets found.', 'wp-helpdesk' ),
+                    'exporting'      => __( 'Exporting...', 'wp-helpdesk' ),
+                    'export_csv'     => __( 'Export to CSV', 'wp-helpdesk' ),
+                    'team_avg'       => __( 'team average', 'wp-helpdesk' ),
                 ),
             )
         );
@@ -1551,11 +1576,256 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_reports_page() {
+        // Get filter options
+        $statuses   = get_option( 'wphd_statuses', array() );
+        $priorities = get_option( 'wphd_priorities', array() );
+        $categories = get_option( 'wphd_categories', array() );
+        
+        // Get users with tickets assigned
+        $agents = get_users( array(
+            'role__in' => array( 'administrator', 'editor' ),
+            'orderby'  => 'display_name',
+        ) );
+        
         ?>
-        <div class="wrap wp-helpdesk-wrap">
-            <h1><?php esc_html_e( 'Help Desk Reports', 'wp-helpdesk' ); ?></h1>
-            <div class="wp-helpdesk-reports">
-                <p><?php esc_html_e( 'View ticket statistics and reports here.', 'wp-helpdesk' ); ?></p>
+        <div class="wrap wp-helpdesk-wrap" id="wphd-reports-page">
+            <div class="wphd-reports-header">
+                <h1 id="wphd-report-title"><?php esc_html_e( 'Help Desk Reports', 'wp-helpdesk' ); ?></h1>
+                <div>
+                    <button type="button" id="wphd-print-report" class="button">
+                        <span class="dashicons dashicons-printer"></span>
+                        <?php esc_html_e( 'Print Report', 'wp-helpdesk' ); ?>
+                    </button>
+                    <button type="button" id="wphd-export-csv" class="button button-primary">
+                        <span class="dashicons dashicons-download"></span>
+                        <?php esc_html_e( 'Export to CSV', 'wp-helpdesk' ); ?>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="wphd-reports-filters">
+                <div class="wphd-filter-grid">
+                    <div class="wphd-filter-field">
+                        <label for="wphd-date-range"><?php esc_html_e( 'Date Range', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-date-range">
+                            <option value="today"><?php esc_html_e( 'Today', 'wp-helpdesk' ); ?></option>
+                            <option value="week"><?php esc_html_e( 'This Week', 'wp-helpdesk' ); ?></option>
+                            <option value="month" selected><?php esc_html_e( 'This Month', 'wp-helpdesk' ); ?></option>
+                            <option value="quarter"><?php esc_html_e( 'This Quarter', 'wp-helpdesk' ); ?></option>
+                            <option value="year"><?php esc_html_e( 'This Year', 'wp-helpdesk' ); ?></option>
+                            <option value="custom"><?php esc_html_e( 'Custom Date Range', 'wp-helpdesk' ); ?></option>
+                        </select>
+                    </div>
+
+                    <div class="wphd-filter-field">
+                        <label for="wphd-filter-status"><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-filter-status">
+                            <option value=""><?php esc_html_e( 'All Statuses', 'wp-helpdesk' ); ?></option>
+                            <?php foreach ( $statuses as $status ) : ?>
+                                <option value="<?php echo esc_attr( $status['slug'] ); ?>">
+                                    <?php echo esc_html( $status['name'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="wphd-filter-field">
+                        <label for="wphd-filter-priority"><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-filter-priority">
+                            <option value=""><?php esc_html_e( 'All Priorities', 'wp-helpdesk' ); ?></option>
+                            <?php foreach ( $priorities as $priority ) : ?>
+                                <option value="<?php echo esc_attr( $priority['slug'] ); ?>">
+                                    <?php echo esc_html( $priority['name'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="wphd-filter-field">
+                        <label for="wphd-filter-category"><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-filter-category">
+                            <option value=""><?php esc_html_e( 'All Categories', 'wp-helpdesk' ); ?></option>
+                            <?php foreach ( $categories as $category ) : ?>
+                                <option value="<?php echo esc_attr( $category['slug'] ); ?>">
+                                    <?php echo esc_html( $category['name'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="wphd-filter-field">
+                        <label for="wphd-filter-assignee"><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-filter-assignee">
+                            <option value=""><?php esc_html_e( 'All Agents', 'wp-helpdesk' ); ?></option>
+                            <?php foreach ( $agents as $agent ) : ?>
+                                <option value="<?php echo esc_attr( $agent->ID ); ?>">
+                                    <?php echo esc_html( $agent->display_name ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="wphd-filter-field">
+                        <label for="wphd-view-user"><?php esc_html_e( 'View as User', 'wp-helpdesk' ); ?></label>
+                        <select id="wphd-view-user">
+                            <option value="0"><?php esc_html_e( 'All Users (Team View)', 'wp-helpdesk' ); ?></option>
+                            <?php foreach ( $agents as $agent ) : ?>
+                                <option value="<?php echo esc_attr( $agent->ID ); ?>">
+                                    <?php echo esc_html( $agent->display_name ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div id="wphd-custom-dates" style="display: none;">
+                        <div class="wphd-filter-field">
+                            <label for="wphd-date-start"><?php esc_html_e( 'Start Date', 'wp-helpdesk' ); ?></label>
+                            <input type="date" id="wphd-date-start" value="<?php echo esc_attr( date( 'Y-m-d', strtotime( '-30 days' ) ) ); ?>">
+                        </div>
+                        <div class="wphd-filter-field">
+                            <label for="wphd-date-end"><?php esc_html_e( 'End Date', 'wp-helpdesk' ); ?></label>
+                            <input type="date" id="wphd-date-end" value="<?php echo esc_attr( date( 'Y-m-d' ) ); ?>">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wphd-filter-actions">
+                    <button type="button" id="wphd-generate-report" class="button button-primary">
+                        <?php esc_html_e( 'Generate Report', 'wp-helpdesk' ); ?>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="wphd-reports-loading" style="display: none;">
+                <div class="wphd-spinner"></div>
+                <p><?php esc_html_e( 'Loading report data...', 'wp-helpdesk' ); ?></p>
+            </div>
+
+            <!-- Reports Content -->
+            <div id="wphd-reports-content">
+                <!-- User Comparison (shown when viewing specific user) -->
+                <div id="wphd-user-comparison" style="display: none;">
+                    <h3><?php esc_html_e( 'Performance Comparison', 'wp-helpdesk' ); ?></h3>
+                    <div class="wphd-comparison-cards">
+                        <div class="wphd-comparison-card">
+                            <div class="label"><?php esc_html_e( 'Tickets Assigned', 'wp-helpdesk' ); ?></div>
+                            <div class="value" id="wphd-user-tickets">-</div>
+                            <div class="diff" id="wphd-user-tickets-diff">-</div>
+                        </div>
+                        <div class="wphd-comparison-card">
+                            <div class="label"><?php esc_html_e( 'Avg Resolution Time', 'wp-helpdesk' ); ?></div>
+                            <div class="value" id="wphd-user-resolution">-</div>
+                            <div class="diff" id="wphd-user-resolution-diff">-</div>
+                        </div>
+                        <div class="wphd-comparison-card">
+                            <div class="label"><?php esc_html_e( 'SLA Compliance', 'wp-helpdesk' ); ?></div>
+                            <div class="value" id="wphd-user-sla">-</div>
+                            <div class="diff" id="wphd-user-sla-diff">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Statistics Cards -->
+                <div class="wphd-summary-cards">
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-total">0</span>
+                        <span class="card-label"><?php esc_html_e( 'Total Tickets', 'wp-helpdesk' ); ?></span>
+                    </div>
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-open">0</span>
+                        <span class="card-label"><?php esc_html_e( 'Open Tickets', 'wp-helpdesk' ); ?></span>
+                    </div>
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-closed">0</span>
+                        <span class="card-label"><?php esc_html_e( 'Closed/Resolved', 'wp-helpdesk' ); ?></span>
+                    </div>
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-avg-resolution">0h</span>
+                        <span class="card-label"><?php esc_html_e( 'Avg Resolution Time', 'wp-helpdesk' ); ?></span>
+                    </div>
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-sla-compliance">0%</span>
+                        <span class="card-label"><?php esc_html_e( 'SLA Compliance Rate', 'wp-helpdesk' ); ?></span>
+                    </div>
+                    <div class="wphd-summary-card">
+                        <span class="card-value" id="wphd-stat-avg-response">0h</span>
+                        <span class="card-label"><?php esc_html_e( 'Avg First Response', 'wp-helpdesk' ); ?></span>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="wphd-charts-grid">
+                    <div class="wphd-chart-container">
+                        <h3><?php esc_html_e( 'Tickets Over Time', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-tickets-over-time-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="wphd-chart-container">
+                        <h3><?php esc_html_e( 'Tickets by Status', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-tickets-by-status-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="wphd-chart-container">
+                        <h3><?php esc_html_e( 'Tickets by Priority', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-tickets-by-priority-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="wphd-chart-container">
+                        <h3><?php esc_html_e( 'Tickets by Category', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-tickets-by-category-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="wphd-chart-container full-width">
+                        <h3><?php esc_html_e( 'Agent Performance Comparison', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-agent-performance-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="wphd-chart-container full-width">
+                        <h3><?php esc_html_e( 'Resolution Time Trend', 'wp-helpdesk' ); ?></h3>
+                        <div class="wphd-chart-canvas">
+                            <canvas id="wphd-resolution-time-trend-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticket Details Table -->
+                <div class="wphd-data-table-container">
+                    <div class="wphd-data-table-header">
+                        <h3><?php esc_html_e( 'Ticket Details', 'wp-helpdesk' ); ?></h3>
+                    </div>
+                    <table id="wphd-tickets-table" class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'ID', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Subject', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Created', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Resolved', 'wp-helpdesk' ); ?></th>
+                                <th><?php esc_html_e( 'Resolution Time', 'wp-helpdesk' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9"><?php esc_html_e( 'Loading...', 'wp-helpdesk' ); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         <?php
