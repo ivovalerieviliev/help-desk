@@ -728,28 +728,28 @@ class WPHD_Analytics_Reports {
 
         if ( $include_status && ! empty( $filters['status'] ) ) {
             $clauses[] = $wpdb->prepare(
-                "(pm.meta_key = '_wphd_status' AND pm.meta_value = %s) OR pm.meta_key != '_wphd_status'",
+                "EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_status WHERE pm_status.post_id = p.ID AND pm_status.meta_key = '_wphd_status' AND pm_status.meta_value = %s)",
                 $filters['status']
             );
         }
 
         if ( $include_priority && ! empty( $filters['priority'] ) ) {
             $clauses[] = $wpdb->prepare(
-                "(pm2.meta_key = '_wphd_priority' AND pm2.meta_value = %s)",
+                "EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_priority WHERE pm_priority.post_id = p.ID AND pm_priority.meta_key = '_wphd_priority' AND pm_priority.meta_value = %s)",
                 $filters['priority']
             );
         }
 
         if ( $include_category && ! empty( $filters['category'] ) ) {
             $clauses[] = $wpdb->prepare(
-                "(pm2.meta_key = '_wphd_category' AND pm2.meta_value = %s)",
+                "EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_category WHERE pm_category.post_id = p.ID AND pm_category.meta_key = '_wphd_category' AND pm_category.meta_value = %s)",
                 $filters['category']
             );
         }
 
         if ( $include_assignee && ! empty( $filters['assignee'] ) ) {
             $clauses[] = $wpdb->prepare(
-                "(pm2.meta_key = '_wphd_assignee' AND pm2.meta_value = %s)",
+                "EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm_assignee WHERE pm_assignee.post_id = p.ID AND pm_assignee.meta_key = '_wphd_assignee' AND pm_assignee.meta_value = %s)",
                 $filters['assignee']
             );
         }

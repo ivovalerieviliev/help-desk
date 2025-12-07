@@ -220,6 +220,18 @@ class WPHD_Admin_Menu {
                 true
             );
             
+            // Add integrity and crossorigin attributes for CDN security
+            add_filter( 'script_loader_tag', function( $tag, $handle ) {
+                if ( 'chartjs' === $handle ) {
+                    $tag = str_replace(
+                        ' src',
+                        ' integrity="sha256-6L34L8Kqw8J2g9OO8sIjjWoVOKk72c8J5RgJFPdFpLY=" crossorigin="anonymous" src',
+                        $tag
+                    );
+                }
+                return $tag;
+            }, 10, 2 );
+            
             wp_enqueue_script(
                 'wp-helpdesk-reports',
                 WPHD_PLUGIN_URL . 'assets/js/reports.js',

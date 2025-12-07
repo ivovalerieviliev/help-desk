@@ -404,7 +404,8 @@
             const isPositive = inverse ? value < 0 : value > 0;
             const sign = value > 0 ? '+' : '';
             
-            element.text(sign + absValue + (value > 100 || value < -100 ? '' : '%'));
+            // For percentage differences, always show % symbol
+            element.text(sign + absValue + '%');
             element.removeClass('positive negative');
             element.addClass(isPositive ? 'positive' : 'negative');
         },
