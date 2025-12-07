@@ -33,6 +33,11 @@ class WPHD_Database {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_comments';
         
+        // Check if current user can view internal comments
+        if (!$include_internal || !WPHD_Organization_Permissions::can_view_internal_comments()) {
+            $include_internal = false;
+        }
+        
         $sql = $wpdb->prepare("SELECT * FROM $table WHERE ticket_id = %d", $ticket_id);
         if (!$include_internal) {
             $sql .= " AND is_internal = 0";

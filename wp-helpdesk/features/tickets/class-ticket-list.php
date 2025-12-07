@@ -45,6 +45,22 @@ class WPHD_Ticket_List {
             'order' => $args['order']
         );
         
+        // Apply organization-based visibility filtering
+        $visible_ticket_ids = WPHD_Organization_Permissions::get_visible_ticket_ids();
+        if ($visible_ticket_ids !== 'all') {
+            if (empty($visible_ticket_ids)) {
+                // No visible tickets - return empty result
+                return array(
+                    'tickets' => array(),
+                    'total' => 0,
+                    'pages' => 0,
+                    'current_page' => $args['page']
+                );
+            }
+            // Limit to visible ticket IDs
+            $query_args['post__in'] = $visible_ticket_ids;
+        }
+        
         $meta_query = array();
         
         if (!empty($args['status'])) {
