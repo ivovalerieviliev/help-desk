@@ -43,6 +43,12 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_export_csv', array($this, 'export_csv'));
         add_action('wp_ajax_wphd_get_report_data', array($this, 'get_report_data'));
         add_action('wp_ajax_wphd_export_report_csv', array($this, 'export_report_csv'));
+        add_action('wp_ajax_wphd_create_organization', array($this, 'create_organization'));
+        add_action('wp_ajax_wphd_update_organization', array($this, 'update_organization'));
+        add_action('wp_ajax_wphd_delete_organization', array($this, 'delete_organization'));
+        add_action('wp_ajax_wphd_add_org_member', array($this, 'add_organization_member'));
+        add_action('wp_ajax_wphd_remove_org_member', array($this, 'remove_organization_member'));
+        add_action('wp_ajax_wphd_get_organization', array($this, 'get_organization'));
     }
     
     private function verify_nonce() {
@@ -465,5 +471,168 @@ class WPHD_Ajax_Handler {
         $csv = $reports->export_csv($filters);
         
         wp_send_json_success(array('csv' => $csv));
+    }
+    
+    public function create_organization() {
+        $this->verify_nonce();
+        
+        // Check if user can create organizations
+        if (!WPHD_Organization_Permissions::can_create_organizations()) {
+            wp_send_json_error(array('message' => __('You do not have permission to create organizations', 'wp-helpdesk')));
+        }
+        
+        $data = array(
+            'name' => sanitize_text_field($_POST['name'] ?? ''),
+            'slug' => sanitize_title($_POST['slug'] ?? ''),
+            'description' => wp_kses_post($_POST['description'] ?? ''),
+            'allowed_domains' => sanitize_text_field($_POST['allowed_domains'] ?? ''),
+            'status' => sanitize_text_field($_POST['status'] ?? 'active'),
+            'settings' => isset($_POST['settings']) ? array_map('sanitize_text_field', $_POST['settings']) : array()
+        );
+        
+        if (empty($data['name'])) {
+            wp_send_json_error(array('message' => __('Organization name is required', 'wp-helpdesk')));
+        }
+        
+        $org_id = WPHD_Organizations::create($data);
+        
+        if ($org_id) {
+            wp_send_json_success(array('message' => __('Organization created successfully', 'wp-helpdesk'), 'org_id' => $org_id));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to create organization', 'wp-helpdesk')));
+    }
+    
+    public function update_organization() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        if (!$org_id) {
+            wp_send_json_error(array('message' => __('Invalid organization', 'wp-helpdesk')));
+        }
+        
+        // Check if user can edit this organization
+        if (!WPHD_Organization_Permissions::can_edit_organization($org_id)) {
+            wp_send_json_error(array('message' => __('You do not have permission to edit this organization', 'wp-helpdesk')));
+        }
+        
+        $data = array();
+        if (isset($_POST['name'])) $data['name'] = sanitize_text_field($_POST['name']);
+        if (isset($_POST['description'])) $data['description'] = wp_kses_post($_POST['description']);
+        if (isset($_POST['allowed_domains'])) $data['allowed_domains'] = sanitize_text_field($_POST['allowed_domains']);
+        if (isset($_POST['status'])) $data['status'] = sanitize_text_field($_POST['status']);
+        
+        // Only allow admins to change permissions
+        if (isset($_POST['settings']) && WPHD_Organization_Permissions::can_change_permissions($org_id)) {
+            $data['settings'] = array_map('sanitize_text_field', $_POST['settings']);
+        }
+        
+        $result = WPHD_Organizations::update($org_id, $data);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Organization updated successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to update organization', 'wp-helpdesk')));
+    }
+    
+    public function delete_organization() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        if (!$org_id) {
+            wp_send_json_error(array('message' => __('Invalid organization', 'wp-helpdesk')));
+        }
+        
+        // Check if user can delete this organization
+        if (!WPHD_Organization_Permissions::can_delete_organization($org_id)) {
+            wp_send_json_error(array('message' => __('You do not have permission to delete this organization', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Organizations::delete($org_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Organization deleted successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to delete organization', 'wp-helpdesk')));
+    }
+    
+    public function add_organization_member() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        $user_id = intval($_POST['user_id'] ?? 0);
+        $role = sanitize_text_field($_POST['role'] ?? 'member');
+        
+        if (!$org_id || !$user_id) {
+            wp_send_json_error(array('message' => __('Invalid organization or user', 'wp-helpdesk')));
+        }
+        
+        // Check if user can manage members
+        if (!WPHD_Organization_Permissions::can_manage_members($org_id)) {
+            wp_send_json_error(array('message' => __('You do not have permission to manage members', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Organizations::add_member($org_id, $user_id, $role);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Member added successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to add member', 'wp-helpdesk')));
+    }
+    
+    public function remove_organization_member() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        $user_id = intval($_POST['user_id'] ?? 0);
+        
+        if (!$org_id || !$user_id) {
+            wp_send_json_error(array('message' => __('Invalid organization or user', 'wp-helpdesk')));
+        }
+        
+        // Check if user can manage members
+        if (!WPHD_Organization_Permissions::can_manage_members($org_id)) {
+            wp_send_json_error(array('message' => __('You do not have permission to manage members', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Organizations::remove_member($org_id, $user_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Member removed successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to remove member', 'wp-helpdesk')));
+    }
+    
+    public function get_organization() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        if (!$org_id) {
+            wp_send_json_error(array('message' => __('Invalid organization', 'wp-helpdesk')));
+        }
+        
+        // Check if user can view this organization
+        if (!WPHD_Organization_Permissions::can_view_organization($org_id)) {
+            wp_send_json_error(array('message' => __('You do not have permission to view this organization', 'wp-helpdesk')));
+        }
+        
+        $org = WPHD_Organizations::get($org_id);
+        
+        if ($org) {
+            $members = WPHD_Organizations::get_members($org_id);
+            $settings = maybe_unserialize($org->settings);
+            
+            wp_send_json_success(array(
+                'organization' => $org,
+                'members' => $members,
+                'settings' => $settings
+            ));
+        }
+        
+        wp_send_json_error(array('message' => __('Organization not found', 'wp-helpdesk')));
     }
 }
