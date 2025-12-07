@@ -141,6 +141,60 @@ class WPHD_Activator {
         ) $charset_collate;";
         dbDelta($sql_meta);
         
+        // Organizations Table
+        $table_organizations = $wpdb->prefix . 'wphd_organizations';
+        $sql_organizations = "CREATE TABLE $table_organizations (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            slug varchar(255) NOT NULL UNIQUE,
+            description text,
+            logo_id bigint(20),
+            allowed_domains text,
+            status varchar(20) DEFAULT 'active',
+            settings longtext,
+            created_by bigint(20) NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY slug (slug),
+            KEY status (status)
+        ) $charset_collate;";
+        dbDelta($sql_organizations);
+        
+        // Organization Members Table
+        $table_org_members = $wpdb->prefix . 'wphd_organization_members';
+        $sql_org_members = "CREATE TABLE $table_org_members (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            organization_id bigint(20) NOT NULL,
+            user_id bigint(20) NOT NULL,
+            role varchar(50) DEFAULT 'member',
+            added_by bigint(20),
+            added_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY org_user (organization_id, user_id),
+            KEY organization_id (organization_id),
+            KEY user_id (user_id)
+        ) $charset_collate;";
+        dbDelta($sql_org_members);
+        
+        // Organization Change Log Table
+        $table_org_logs = $wpdb->prefix . 'wphd_organization_logs';
+        $sql_org_logs = "CREATE TABLE $table_org_logs (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            organization_id bigint(20) NOT NULL,
+            user_id bigint(20) NOT NULL,
+            action varchar(50) NOT NULL,
+            field_name varchar(100),
+            old_value longtext,
+            new_value longtext,
+            ip_address varchar(45),
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY organization_id (organization_id),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+        dbDelta($sql_org_logs);
+        
         update_option('wphd_db_version', WPHD_VERSION);
     }
     

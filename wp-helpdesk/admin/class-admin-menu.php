@@ -160,6 +160,16 @@ class WPHD_Admin_Menu {
             array( $this, 'render_priorities_page' )
         );
 
+        // Organizations submenu.
+        add_submenu_page(
+            $this->menu_slug,
+            __( 'Organizations', 'wp-helpdesk' ),
+            __( 'Organizations', 'wp-helpdesk' ),
+            $this->capability,
+            $this->menu_slug . '-organizations',
+            array( $this, 'render_organizations_page' )
+        );
+
         // Settings submenu.
         add_submenu_page(
             $this->menu_slug,
@@ -2139,6 +2149,14 @@ class WPHD_Admin_Menu {
             $this->handle_update_ticket();
         } elseif ( 'add_comment' === $_POST['action'] ) {
             $this->handle_add_comment();
+        } elseif ( 'save_organization' === $_POST['action'] ) {
+            $this->handle_save_organization();
+        } elseif ( 'add_organization_member' === $_POST['action'] ) {
+            $this->handle_add_organization_member();
+        } elseif ( 'remove_organization_member' === $_POST['action'] ) {
+            $this->handle_remove_organization_member();
+        } elseif ( 'save_organization_permissions' === $_POST['action'] ) {
+            $this->handle_save_organization_permissions();
         }
     }
 
@@ -2706,5 +2724,653 @@ class WPHD_Admin_Menu {
 
         wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities' ) );
         exit;
+    }
+
+    /**
+     * Render the organizations page.
+     *
+     * @since 1.0.0
+     */
+    public function render_organizations_page() {
+        // Check if viewing/editing a single organization
+        if ( isset( $_GET['action'] ) && 'edit' === $_GET['action'] && isset( $_GET['org_id'] ) ) {
+            $this->render_organization_edit_page( intval( $_GET['org_id'] ) );
+            return;
+        }
+
+        if ( isset( $_GET['action'] ) && 'new' === $_GET['action'] ) {
+            $this->render_organization_edit_page( 0 );
+            return;
+        }
+
+        // List all organizations
+        $organizations = WPHD_Organizations::get_all();
+        ?>
+        <div class="wrap wp-helpdesk-wrap">
+            <h1 class="wp-heading-inline"><?php esc_html_e( 'Organizations', 'wp-helpdesk' ); ?></h1>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=new' ) ); ?>" class="page-title-action">
+                <?php esc_html_e( 'Add New Organization', 'wp-helpdesk' ); ?>
+            </a>
+            <hr class="wp-header-end">
+            <?php settings_errors( 'wp_helpdesk_organizations' ); ?>
+
+            <?php if ( ! empty( $organizations ) ) : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Members', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Domains', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Created', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $organizations as $org ) : ?>
+                            <?php
+                            $member_count = WPHD_Organizations::get_member_count( $org->id );
+                            ?>
+                            <tr>
+                                <td>
+                                    <strong>
+                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org->id ) ); ?>">
+                                            <?php echo esc_html( $org->name ); ?>
+                                        </a>
+                                    </strong>
+                                </td>
+                                <td><?php echo esc_html( $member_count ); ?></td>
+                                <td><?php echo esc_html( $org->allowed_domains ? $org->allowed_domains : __( 'None', 'wp-helpdesk' ) ); ?></td>
+                                <td>
+                                    <?php if ( 'active' === $org->status ) : ?>
+                                        <span style="color: green;">● <?php esc_html_e( 'Active', 'wp-helpdesk' ); ?></span>
+                                    <?php else : ?>
+                                        <span style="color: #999;">● <?php esc_html_e( 'Inactive', 'wp-helpdesk' ); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html( mysql2date( get_option( 'date_format' ), $org->created_at ) ); ?></td>
+                                <td>
+                                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org->id ) ); ?>" class="button button-small">
+                                        <?php esc_html_e( 'Edit', 'wp-helpdesk' ); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p><?php esc_html_e( 'No organizations found.', 'wp-helpdesk' ); ?></p>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render organization edit/create page.
+     *
+     * @since 1.0.0
+     * @param int $org_id Organization ID (0 for new).
+     */
+    private function render_organization_edit_page( $org_id ) {
+        $is_new = 0 === $org_id;
+        $org = $is_new ? null : WPHD_Organizations::get( $org_id );
+
+        if ( ! $is_new && ! $org ) {
+            ?>
+            <div class="wrap">
+                <h1><?php esc_html_e( 'Organization Not Found', 'wp-helpdesk' ); ?></h1>
+                <p><?php esc_html_e( 'The requested organization could not be found.', 'wp-helpdesk' ); ?></p>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations' ) ); ?>" class="button">
+                    <?php esc_html_e( 'Back to Organizations', 'wp-helpdesk' ); ?>
+                </a>
+            </div>
+            <?php
+            return;
+        }
+
+        $settings = $org ? maybe_unserialize( $org->settings ) : array();
+        $tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'overview';
+
+        ?>
+        <div class="wrap wp-helpdesk-wrap">
+            <h1><?php echo $is_new ? esc_html__( 'Add New Organization', 'wp-helpdesk' ) : esc_html( sprintf( __( 'Edit Organization: %s', 'wp-helpdesk' ), $org->name ) ); ?></h1>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations' ) ); ?>" class="button">
+                &larr; <?php esc_html_e( 'Back to Organizations', 'wp-helpdesk' ); ?>
+            </a>
+            <hr class="wp-header-end">
+            <?php settings_errors( 'wp_helpdesk_organizations' ); ?>
+
+            <?php if ( ! $is_new ) : ?>
+            <h2 class="nav-tab-wrapper">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=overview' ) ); ?>" class="nav-tab <?php echo 'overview' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Overview', 'wp-helpdesk' ); ?>
+                </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=members' ) ); ?>" class="nav-tab <?php echo 'members' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Members', 'wp-helpdesk' ); ?>
+                </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=permissions' ) ); ?>" class="nav-tab <?php echo 'permissions' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Permissions', 'wp-helpdesk' ); ?>
+                </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=logs' ) ); ?>" class="nav-tab <?php echo 'logs' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Change Log', 'wp-helpdesk' ); ?>
+                </a>
+            </h2>
+            <?php endif; ?>
+
+            <?php if ( 'overview' === $tab || $is_new ) : ?>
+                <form method="post" action="">
+                    <?php wp_nonce_field( 'wphd_save_organization', 'wphd_organization_nonce' ); ?>
+                    <input type="hidden" name="action" value="save_organization">
+                    <?php if ( ! $is_new ) : ?>
+                        <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+                    <?php endif; ?>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="org_name"><?php esc_html_e( 'Organization Name', 'wp-helpdesk' ); ?> <span class="required">*</span></label>
+                            </th>
+                            <td>
+                                <input type="text" name="org_name" id="org_name" class="regular-text" required value="<?php echo $org ? esc_attr( $org->name ) : ''; ?>">
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="org_slug"><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" name="org_slug" id="org_slug" class="regular-text" value="<?php echo $org ? esc_attr( $org->slug ) : ''; ?>" <?php echo $org ? 'readonly' : ''; ?>>
+                                <p class="description"><?php esc_html_e( 'Auto-generated from name if left empty. Cannot be changed after creation.', 'wp-helpdesk' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="org_description"><?php esc_html_e( 'Description', 'wp-helpdesk' ); ?></label>
+                            </th>
+                            <td>
+                                <textarea name="org_description" id="org_description" rows="5" class="large-text"><?php echo $org ? esc_textarea( $org->description ) : ''; ?></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="org_domains"><?php esc_html_e( 'Allowed Email Domains', 'wp-helpdesk' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" name="org_domains" id="org_domains" class="regular-text" value="<?php echo $org ? esc_attr( $org->allowed_domains ) : ''; ?>">
+                                <p class="description"><?php esc_html_e( 'Comma-separated list (e.g., "acme.com, acme.org"). New users with these domains will be auto-added.', 'wp-helpdesk' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="org_status"><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></label>
+                            </th>
+                            <td>
+                                <select name="org_status" id="org_status">
+                                    <option value="active" <?php selected( $org ? $org->status : 'active', 'active' ); ?>><?php esc_html_e( 'Active', 'wp-helpdesk' ); ?></option>
+                                    <option value="inactive" <?php selected( $org ? $org->status : 'active', 'inactive' ); ?>><?php esc_html_e( 'Inactive', 'wp-helpdesk' ); ?></option>
+                                </select>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <?php submit_button( $is_new ? __( 'Create Organization', 'wp-helpdesk' ) : __( 'Update Organization', 'wp-helpdesk' ) ); ?>
+                </form>
+            <?php elseif ( 'members' === $tab ) : ?>
+                <?php $this->render_organization_members_tab( $org_id ); ?>
+            <?php elseif ( 'permissions' === $tab ) : ?>
+                <?php $this->render_organization_permissions_tab( $org_id, $settings ); ?>
+            <?php elseif ( 'logs' === $tab ) : ?>
+                <?php $this->render_organization_logs_tab( $org_id ); ?>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render organization members tab.
+     *
+     * @since 1.0.0
+     * @param int $org_id Organization ID.
+     */
+    private function render_organization_members_tab( $org_id ) {
+        $members = WPHD_Organizations::get_members( $org_id );
+        $all_users = get_users( array( 'orderby' => 'display_name' ) );
+        ?>
+        <div style="margin-top: 20px;">
+            <h3><?php esc_html_e( 'Add Member', 'wp-helpdesk' ); ?></h3>
+            <form method="post" action="">
+                <?php wp_nonce_field( 'wphd_add_member', 'wphd_member_nonce' ); ?>
+                <input type="hidden" name="action" value="add_organization_member">
+                <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="user_id"><?php esc_html_e( 'Select User', 'wp-helpdesk' ); ?></label>
+                        </th>
+                        <td>
+                            <select name="user_id" id="user_id" required>
+                                <option value=""><?php esc_html_e( 'Select a user...', 'wp-helpdesk' ); ?></option>
+                                <?php foreach ( $all_users as $user ) : ?>
+                                    <option value="<?php echo esc_attr( $user->ID ); ?>">
+                                        <?php echo esc_html( $user->display_name . ' (' . $user->user_email . ')' ); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php submit_button( __( 'Add Member', 'wp-helpdesk' ), 'secondary', 'submit', false ); ?>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+
+            <h3><?php esc_html_e( 'Current Members', 'wp-helpdesk' ); ?></h3>
+            <?php if ( ! empty( $members ) ) : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Email', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Role', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Added', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $members as $member ) : ?>
+                            <?php
+                            $user = get_userdata( $member->user_id );
+                            if ( ! $user ) {
+                                continue;
+                            }
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html( $user->display_name ); ?></td>
+                                <td><?php echo esc_html( $user->user_email ); ?></td>
+                                <td><?php echo esc_html( ucfirst( $member->role ) ); ?></td>
+                                <td><?php echo esc_html( mysql2date( get_option( 'date_format' ), $member->added_at ) ); ?></td>
+                                <td>
+                                    <form method="post" action="" style="display: inline-block;">
+                                        <?php wp_nonce_field( 'wphd_remove_member', 'wphd_member_nonce' ); ?>
+                                        <input type="hidden" name="action" value="remove_organization_member">
+                                        <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr( $member->user_id ); ?>">
+                                        <button type="submit" class="button button-small button-link-delete" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to remove this member?', 'wp-helpdesk' ) ); ?>');">
+                                            <?php esc_html_e( 'Remove', 'wp-helpdesk' ); ?>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p><?php esc_html_e( 'No members yet.', 'wp-helpdesk' ); ?></p>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render organization permissions tab.
+     *
+     * @since 1.0.0
+     * @param int   $org_id   Organization ID.
+     * @param array $settings Organization settings.
+     */
+    private function render_organization_permissions_tab( $org_id, $settings ) {
+        ?>
+        <form method="post" action="">
+            <?php wp_nonce_field( 'wphd_save_permissions', 'wphd_permissions_nonce' ); ?>
+            <input type="hidden" name="action" value="save_organization_permissions">
+            <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+
+            <div style="margin-top: 20px;">
+                <h3><?php esc_html_e( 'Ticket Visibility Rules', 'wp-helpdesk' ); ?></h3>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Visibility Settings', 'wp-helpdesk' ); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="radio" name="visibility_mode" value="own" <?php checked( empty( $settings['view_organization_tickets'] ) && empty( $settings['view_all_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'View own tickets only', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="radio" name="visibility_mode" value="organization" <?php checked( ! empty( $settings['view_organization_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'View all tickets from organization members', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="radio" name="visibility_mode" value="all" <?php checked( ! empty( $settings['view_all_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'View all tickets (for internal/admin teams)', 'wp-helpdesk' ); ?>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+                </table>
+
+                <h3><?php esc_html_e( 'Ticket Permissions', 'wp-helpdesk' ); ?></h3>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Create & Edit', 'wp-helpdesk' ); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="checkbox" name="can_create_tickets" value="1" <?php checked( ! empty( $settings['can_create_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can create new tickets', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="checkbox" name="can_edit_own_tickets" value="1" <?php checked( ! empty( $settings['can_edit_own_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can edit their own tickets', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="checkbox" name="can_edit_org_tickets" value="1" <?php checked( ! empty( $settings['can_edit_org_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can edit any ticket in their organization', 'wp-helpdesk' ); ?>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Delete', 'wp-helpdesk' ); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="checkbox" name="can_delete_own_tickets" value="1" <?php checked( ! empty( $settings['can_delete_own_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can delete their own tickets', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="checkbox" name="can_delete_org_tickets" value="1" <?php checked( ! empty( $settings['can_delete_org_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can delete any ticket in their organization', 'wp-helpdesk' ); ?>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Comments', 'wp-helpdesk' ); ?></th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="checkbox" name="can_comment_on_tickets" value="1" <?php checked( ! empty( $settings['can_comment_on_tickets'] ) ); ?>>
+                                    <?php esc_html_e( 'Can add comments to tickets', 'wp-helpdesk' ); ?>
+                                </label><br>
+                                <label>
+                                    <input type="checkbox" name="can_view_internal_comments" value="1" <?php checked( ! empty( $settings['can_view_internal_comments'] ) ); ?>>
+                                    <?php esc_html_e( 'Can view internal/private comments', 'wp-helpdesk' ); ?>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button( __( 'Save Permissions', 'wp-helpdesk' ) ); ?>
+            </div>
+        </form>
+        <?php
+    }
+
+    /**
+     * Render organization logs tab.
+     *
+     * @since 1.0.0
+     * @param int $org_id Organization ID.
+     */
+    private function render_organization_logs_tab( $org_id ) {
+        $logs = WPHD_Organizations::get_logs( $org_id, array( 'limit' => 100 ) );
+        ?>
+        <div style="margin-top: 20px;">
+            <h3><?php esc_html_e( 'Change Log', 'wp-helpdesk' ); ?></h3>
+            <?php if ( ! empty( $logs ) ) : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Date & Time', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Action', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Details', 'wp-helpdesk' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $logs as $log ) : ?>
+                            <?php
+                            $user = get_userdata( $log->user_id );
+                            $details = '';
+                            
+                            if ( 'updated' === $log->action || 'permission_changed' === $log->action ) {
+                                $details = sprintf(
+                                    __( 'Changed "%s" from "%s" to "%s"', 'wp-helpdesk' ),
+                                    esc_html( $log->field_name ),
+                                    esc_html( $log->old_value ),
+                                    esc_html( $log->new_value )
+                                );
+                            } elseif ( 'user_added' === $log->action ) {
+                                $details = sprintf( __( 'Added user "%s"', 'wp-helpdesk' ), esc_html( $log->new_value ) );
+                            } elseif ( 'user_removed' === $log->action ) {
+                                $details = sprintf( __( 'Removed user "%s"', 'wp-helpdesk' ), esc_html( $log->old_value ) );
+                            } elseif ( 'created' === $log->action ) {
+                                $details = sprintf( __( 'Created organization "%s"', 'wp-helpdesk' ), esc_html( $log->new_value ) );
+                            } elseif ( 'deleted' === $log->action ) {
+                                $details = sprintf( __( 'Deleted organization "%s"', 'wp-helpdesk' ), esc_html( $log->new_value ) );
+                            }
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $log->created_at ) ); ?></td>
+                                <td><?php echo $user ? esc_html( $user->display_name ) : esc_html__( 'Unknown', 'wp-helpdesk' ); ?></td>
+                                <td><?php echo esc_html( ucwords( str_replace( '_', ' ', $log->action ) ) ); ?></td>
+                                <td><?php echo wp_kses_post( $details ); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p><?php esc_html_e( 'No change log entries yet.', 'wp-helpdesk' ); ?></p>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Handle save organization.
+     *
+     * @since 1.0.0
+     */
+    private function handle_save_organization() {
+        if ( ! isset( $_POST['wphd_organization_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_organization_nonce'], 'wphd_save_organization' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+        $name   = isset( $_POST['org_name'] ) ? sanitize_text_field( $_POST['org_name'] ) : '';
+
+        if ( empty( $name ) ) {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'missing_name',
+                __( 'Organization name is required.', 'wp-helpdesk' ),
+                'error'
+            );
+            return;
+        }
+
+        $data = array(
+            'name'            => $name,
+            'slug'            => isset( $_POST['org_slug'] ) ? sanitize_title( $_POST['org_slug'] ) : '',
+            'description'     => isset( $_POST['org_description'] ) ? wp_kses_post( $_POST['org_description'] ) : '',
+            'allowed_domains' => isset( $_POST['org_domains'] ) ? sanitize_text_field( $_POST['org_domains'] ) : '',
+            'status'          => isset( $_POST['org_status'] ) ? sanitize_text_field( $_POST['org_status'] ) : 'active',
+        );
+
+        if ( $org_id > 0 ) {
+            $result = WPHD_Organizations::update( $org_id, $data );
+            if ( $result ) {
+                add_settings_error(
+                    'wp_helpdesk_organizations',
+                    'org_updated',
+                    __( 'Organization updated successfully.', 'wp-helpdesk' ),
+                    'success'
+                );
+            } else {
+                add_settings_error(
+                    'wp_helpdesk_organizations',
+                    'update_failed',
+                    __( 'Failed to update organization.', 'wp-helpdesk' ),
+                    'error'
+                );
+            }
+        } else {
+            $new_org_id = WPHD_Organizations::create( $data );
+            if ( $new_org_id ) {
+                add_settings_error(
+                    'wp_helpdesk_organizations',
+                    'org_created',
+                    __( 'Organization created successfully.', 'wp-helpdesk' ),
+                    'success'
+                );
+                wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $new_org_id ) );
+                exit;
+            } else {
+                add_settings_error(
+                    'wp_helpdesk_organizations',
+                    'create_failed',
+                    __( 'Failed to create organization. The slug may already exist.', 'wp-helpdesk' ),
+                    'error'
+                );
+            }
+        }
+    }
+
+    /**
+     * Handle add organization member.
+     *
+     * @since 1.0.0
+     */
+    private function handle_add_organization_member() {
+        if ( ! isset( $_POST['wphd_member_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_member_nonce'], 'wphd_add_member' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $org_id  = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+        $user_id = isset( $_POST['user_id'] ) ? intval( $_POST['user_id'] ) : 0;
+
+        if ( ! $org_id || ! $user_id ) {
+            return;
+        }
+
+        $result = WPHD_Organizations::add_member( $org_id, $user_id );
+
+        if ( $result ) {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'member_added',
+                __( 'Member added successfully.', 'wp-helpdesk' ),
+                'success'
+            );
+        } else {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'add_member_failed',
+                __( 'Failed to add member. They may already be a member.', 'wp-helpdesk' ),
+                'error'
+            );
+        }
+    }
+
+    /**
+     * Handle remove organization member.
+     *
+     * @since 1.0.0
+     */
+    private function handle_remove_organization_member() {
+        if ( ! isset( $_POST['wphd_member_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_member_nonce'], 'wphd_remove_member' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $org_id  = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+        $user_id = isset( $_POST['user_id'] ) ? intval( $_POST['user_id'] ) : 0;
+
+        if ( ! $org_id || ! $user_id ) {
+            return;
+        }
+
+        $result = WPHD_Organizations::remove_member( $org_id, $user_id );
+
+        if ( $result ) {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'member_removed',
+                __( 'Member removed successfully.', 'wp-helpdesk' ),
+                'success'
+            );
+        } else {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'remove_member_failed',
+                __( 'Failed to remove member.', 'wp-helpdesk' ),
+                'error'
+            );
+        }
+    }
+
+    /**
+     * Handle save organization permissions.
+     *
+     * @since 1.0.0
+     */
+    private function handle_save_organization_permissions() {
+        if ( ! isset( $_POST['wphd_permissions_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_permissions_nonce'], 'wphd_save_permissions' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $org_id = isset( $_POST['org_id'] ) ? intval( $_POST['org_id'] ) : 0;
+
+        if ( ! $org_id ) {
+            return;
+        }
+
+        $visibility_mode = isset( $_POST['visibility_mode'] ) ? sanitize_text_field( $_POST['visibility_mode'] ) : 'own';
+
+        $settings = array(
+            'view_own_tickets_only'       => 'own' === $visibility_mode,
+            'view_organization_tickets'   => 'organization' === $visibility_mode,
+            'view_all_tickets'            => 'all' === $visibility_mode,
+            'can_create_tickets'          => isset( $_POST['can_create_tickets'] ),
+            'can_edit_own_tickets'        => isset( $_POST['can_edit_own_tickets'] ),
+            'can_edit_org_tickets'        => isset( $_POST['can_edit_org_tickets'] ),
+            'can_delete_own_tickets'      => isset( $_POST['can_delete_own_tickets'] ),
+            'can_delete_org_tickets'      => isset( $_POST['can_delete_org_tickets'] ),
+            'can_comment_on_tickets'      => isset( $_POST['can_comment_on_tickets'] ),
+            'can_view_internal_comments'  => isset( $_POST['can_view_internal_comments'] ),
+        );
+
+        $result = WPHD_Organizations::update( $org_id, array( 'settings' => $settings ) );
+
+        if ( $result !== false ) {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'permissions_saved',
+                __( 'Permissions saved successfully.', 'wp-helpdesk' ),
+                'success'
+            );
+        } else {
+            add_settings_error(
+                'wp_helpdesk_organizations',
+                'permissions_save_failed',
+                __( 'Failed to save permissions.', 'wp-helpdesk' ),
+                'error'
+            );
+        }
     }
 }
