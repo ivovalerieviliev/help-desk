@@ -3414,6 +3414,9 @@ class WPHD_Admin_Menu {
             'wphd_organization_logs' => 'Organization Logs',
         );
         
+        // Get all existing tables in a single query for efficiency
+        $existing_tables = $wpdb->get_col("SHOW TABLES LIKE '{$wpdb->prefix}wphd_%'");
+        
         ?>
         <div style="margin-top: 20px;">
             <h2><?php esc_html_e( 'Database Status', 'wp-helpdesk' ); ?></h2>
@@ -3432,7 +3435,7 @@ class WPHD_Admin_Menu {
                     $all_exist = true;
                     foreach ( $tables as $table_suffix => $label ) :
                         $table_name = $wpdb->prefix . $table_suffix;
-                        $exists = WPHD_Database::check_table_exists( $table_name );
+                        $exists = in_array( $table_name, $existing_tables, true );
                         if ( ! $exists ) {
                             $all_exist = false;
                         }

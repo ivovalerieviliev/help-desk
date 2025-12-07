@@ -49,9 +49,13 @@ class WPHD_Database {
             $wpdb->prefix . 'wphd_organization_logs',
         );
         
+        // Get all existing tables in a single query
+        $existing_tables = $wpdb->get_col("SHOW TABLES LIKE '{$wpdb->prefix}wphd_%'");
+        
+        // Check if any required tables are missing
         $missing_tables = false;
         foreach ($tables_to_check as $table) {
-            if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) {
+            if (!in_array($table, $existing_tables, true)) {
                 $missing_tables = true;
                 break;
             }
