@@ -130,6 +130,11 @@
 
             // Render summary cards
             this.renderSummaryCards(data.summary);
+            
+            // Render comment statistics
+            if (data.comment_statistics) {
+                this.renderCommentStatistics(data.comment_statistics);
+            }
 
             // Render charts
             this.renderTicketsOverTime(data.tickets_over_time);
@@ -141,8 +146,14 @@
             if (this.currentFilters.user_id === 0 || this.currentFilters.user_id === '0') {
                 $('#wphd-agent-performance-chart').parent().show();
                 this.renderAgentPerformance(data.agent_performance);
+                
+                // Render agent details table
+                if (data.agent_performance && data.agent_performance.agent_details) {
+                    this.renderAgentDetailsTable(data.agent_performance.agent_details);
+                }
             } else {
                 $('#wphd-agent-performance-chart').parent().hide();
+                $('#wphd-agent-details-table').closest('.wphd-data-table-container').hide();
             }
 
             this.renderResolutionTimeTrend(data.resolution_time_trend);
@@ -411,6 +422,45 @@
             element.text(sign + absValue + suffix);
             element.removeClass('positive negative');
             element.addClass(isPositive ? 'positive' : 'negative');
+        },
+        
+        renderCommentStatistics: function (stats) {
+            $('#wphd-stat-total-comments').text(stats.total_comments);
+            $('#wphd-stat-avg-comments').text(stats.avg_comments_per_ticket);
+            $('#wphd-stat-tickets-with-comments').text(stats.tickets_with_comments);
+            
+            // Render top commenters table
+            const tbody = $('#wphd-top-commenters-table tbody');
+            tbody.empty();
+            
+            if (stats.comments_by_user && stats.comments_by_user.length > 0) {
+                stats.comments_by_user.forEach(user => {
+                    const row = $('<tr>');
+                    row.append(`<td>${this.escapeHtml(user.user_name)}</td>`);
+                    row.append(`<td><strong>${user.comment_count}</strong></td>`);
+                    tbody.append(row);
+                });
+            } else {
+                tbody.append('<tr><td colspan="2">No comment data available</td></tr>');
+            }
+        },
+        
+        renderAgentDetailsTable: function (agentDetails) {
+            const tbody = $('#wphd-agent-details-table tbody');
+            tbody.empty();
+            
+            if (agentDetails && agentDetails.length > 0) {
+                agentDetails.forEach(agent => {
+                    const row = $('<tr>');
+                    row.append(`<td>${this.escapeHtml(agent.user_name)}</td>`);
+                    row.append(`<td>${agent.total_tickets}</td>`);
+                    row.append(`<td>${agent.total_comments}</td>`);
+                    row.append(`<td>${agent.avg_comments_per_ticket}</td>`);
+                    tbody.append(row);
+                });
+            } else {
+                tbody.append('<tr><td colspan="4">No agent data available</td></tr>');
+            }
         },
 
         exportCSV: function () {

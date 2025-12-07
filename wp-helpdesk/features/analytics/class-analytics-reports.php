@@ -67,6 +67,7 @@ class WPHD_Analytics_Reports {
             'resolution_time_trend' => $this->get_resolution_time_trend( $filters ),
             'ticket_details' => $this->get_ticket_details( $filters ),
             'sla_statistics' => $this->get_sla_statistics( $filters ),
+            'comment_statistics' => $this->get_comment_statistics( $filters ),
         );
 
         // If user-specific view, add comparison data
@@ -395,11 +396,17 @@ class WPHD_Analytics_Reports {
 
         $where_clauses = $this->build_where_clauses( $filters, true, true, true, false ); // Don't include assignee
         $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
+        $comments_table = $wpdb->prefix . 'wphd_comments';
 
-        // Get agents with tickets
+        // Get agents with tickets and their comment counts
         $results = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT pm.meta_value as user_id, COUNT(DISTINCT p.ID) as total_tickets
+                "SELECT pm.meta_value as user_id, 
+                COUNT(DISTINCT p.ID) as total_tickets,
+                (SELECT COUNT(c.id) 
+                 FROM {$comments_table} c 
+                 WHERE c.user_id = pm.meta_value 
+                 AND c.created_at BETWEEN %s AND %s) as comment_count
                 FROM {$wpdb->posts} p
                 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_wphd_assignee'
                 LEFT JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
@@ -412,6 +419,8 @@ class WPHD_Analytics_Reports {
                 GROUP BY pm.meta_value
                 ORDER BY total_tickets DESC
                 LIMIT 10",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59',
                 $filters['date_start'] . ' 00:00:00',
                 $filters['date_end'] . ' 23:59:59'
             )
@@ -426,6 +435,7 @@ class WPHD_Analytics_Reports {
                     'backgroundColor' => '#2271b1',
                 ),
             ),
+            'agent_details' => array(),
         );
 
         foreach ( $results as $row ) {
@@ -433,6 +443,13 @@ class WPHD_Analytics_Reports {
             if ( $user ) {
                 $data['labels'][] = $user->display_name;
                 $data['datasets'][0]['data'][] = intval( $row->total_tickets );
+                $data['agent_details'][] = array(
+                    'user_id' => $row->user_id,
+                    'user_name' => $user->display_name,
+                    'total_tickets' => intval( $row->total_tickets ),
+                    'total_comments' => intval( $row->comment_count ),
+                    'avg_comments_per_ticket' => $row->total_tickets > 0 ? round( $row->comment_count / $row->total_tickets, 1 ) : 0,
+                );
             }
         }
 
@@ -910,5 +927,92 @@ class WPHD_Analytics_Reports {
         );
 
         return max( 1, intval( $count ) );
+    }
+
+    /**
+     * Get comment statistics.
+     *
+     * @param array $filters Filters.
+     * @return array Comment statistics.
+     */
+    public function get_comment_statistics( $filters ) {
+        global $wpdb;
+        
+        $comments_table = $wpdb->prefix . 'wphd_comments';
+        $where_clauses = $this->build_where_clauses( $filters );
+        $where_sql = ! empty( $where_clauses ) ? ' AND ' . implode( ' AND ', $where_clauses ) : '';
+
+        // Total comments in date range
+        $total_comments = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(c.id)
+                FROM {$comments_table} c
+                INNER JOIN {$wpdb->posts} p ON c.ticket_id = p.ID
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND c.created_at BETWEEN %s AND %s
+                {$where_sql}",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        // Comments by user (top 10)
+        $comments_by_user = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT c.user_id, COUNT(c.id) as comment_count
+                FROM {$comments_table} c
+                INNER JOIN {$wpdb->posts} p ON c.ticket_id = p.ID
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND c.created_at BETWEEN %s AND %s
+                {$where_sql}
+                GROUP BY c.user_id
+                ORDER BY comment_count DESC
+                LIMIT 10",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        // Format comments by user with user names
+        $formatted_comments_by_user = array();
+        foreach ( $comments_by_user as $row ) {
+            $user = get_userdata( $row->user_id );
+            if ( $user ) {
+                $formatted_comments_by_user[] = array(
+                    'user_id' => $row->user_id,
+                    'user_name' => $user->display_name,
+                    'comment_count' => intval( $row->comment_count ),
+                );
+            }
+        }
+
+        // Average comments per ticket
+        $tickets_with_comments = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(DISTINCT c.ticket_id)
+                FROM {$comments_table} c
+                INNER JOIN {$wpdb->posts} p ON c.ticket_id = p.ID
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND c.created_at BETWEEN %s AND %s
+                {$where_sql}",
+                $filters['date_start'] . ' 00:00:00',
+                $filters['date_end'] . ' 23:59:59'
+            )
+        );
+
+        $avg_comments_per_ticket = $tickets_with_comments > 0 ? $total_comments / $tickets_with_comments : 0;
+
+        return array(
+            'total_comments' => intval( $total_comments ),
+            'comments_by_user' => $formatted_comments_by_user,
+            'avg_comments_per_ticket' => round( $avg_comments_per_ticket, 1 ),
+            'tickets_with_comments' => intval( $tickets_with_comments ),
+        );
     }
 }
