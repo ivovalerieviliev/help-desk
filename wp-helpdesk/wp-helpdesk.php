@@ -61,6 +61,7 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'features/analytics/class-analytics-dashboard.php';
         require_once WPHD_PLUGIN_DIR . 'features/analytics/class-analytics-queries.php';
         require_once WPHD_PLUGIN_DIR . 'features/analytics/class-analytics-charts.php';
+        require_once WPHD_PLUGIN_DIR . 'features/analytics/class-analytics-reports.php';
         
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-page.php';
         require_once WPHD_PLUGIN_DIR . 'features/settings/class-settings-statuses.php';

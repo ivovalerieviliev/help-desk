@@ -120,3 +120,280 @@
     background: #fcf9e8;
     border-color: #dba617;
 }
+
+/* Reports Page Styles */
+.wphd-reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.wphd-reports-filters {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.wphd-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.wphd-filter-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.wphd-filter-field label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.wphd-filter-field select,
+.wphd-filter-field input[type="date"] {
+    padding: 6px 8px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+}
+
+.wphd-filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#wphd-custom-dates {
+    grid-column: 1 / -1;
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Summary Cards */
+.wphd-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.wphd-summary-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wphd-summary-card .card-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: #2271b1;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.wphd-summary-card .card-label {
+    font-size: 13px;
+    color: #646970;
+    font-weight: 500;
+}
+
+/* Charts Grid */
+.wphd-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.wphd-chart-container {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wphd-chart-container.full-width {
+    grid-column: 1 / -1;
+}
+
+.wphd-chart-container h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #1d2327;
+}
+
+.wphd-chart-canvas {
+    height: 300px;
+    position: relative;
+}
+
+/* Data Table */
+.wphd-data-table-container {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wphd-data-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.wphd-data-table-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+#wphd-tickets-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#wphd-tickets-table th,
+#wphd-tickets-table td {
+    text-align: left;
+    padding: 12px 8px;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+#wphd-tickets-table th {
+    background: #f6f7f7;
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+#wphd-tickets-table tbody tr:hover {
+    background: #f6f7f7;
+}
+
+/* User Comparison */
+#wphd-user-comparison {
+    background: #f0f6fc;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+#wphd-user-comparison h3 {
+    margin-top: 0;
+}
+
+.wphd-comparison-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.wphd-comparison-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+}
+
+.wphd-comparison-card .value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2271b1;
+}
+
+.wphd-comparison-card .diff {
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 5px;
+}
+
+.wphd-comparison-card .diff.positive {
+    color: #00a32a;
+}
+
+.wphd-comparison-card .diff.negative {
+    color: #d63638;
+}
+
+/* Loading State */
+#wphd-reports-loading {
+    text-align: center;
+    padding: 40px;
+    display: none;
+}
+
+.wphd-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2271b1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .wphd-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .wphd-summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .wphd-filter-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .wphd-summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .wphd-comparison-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .wphd-reports-filters,
+    .wphd-reports-header .button,
+    .wphd-filter-actions,
+    #wphd-adminmenu,
+    #wpadminbar,
+    .update-nag {
+        display: none !important;
+    }
+    
+    .wphd-charts-grid,
+    .wphd-data-table-container {
+        page-break-inside: avoid;
+    }
+    
+    body {
+        background: #fff !important;
+    }
+}

@@ -41,6 +41,8 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_save_categories', array($this, 'save_categories'));
         add_action('wp_ajax_wphd_get_analytics', array($this, 'get_analytics'));
         add_action('wp_ajax_wphd_export_csv', array($this, 'export_csv'));
+        add_action('wp_ajax_wphd_get_report_data', array($this, 'get_report_data'));
+        add_action('wp_ajax_wphd_export_report_csv', array($this, 'export_report_csv'));
     }
     
     private function verify_nonce() {
@@ -423,5 +425,45 @@ class WPHD_Ajax_Handler {
         $type = sanitize_text_field($_POST['type'] ?? 'tickets');
         $data = WPHD_Analytics_Queries::get_export_data($type);
         wp_send_json_success(array('data' => $data));
+    }
+    
+    public function get_report_data() {
+        $this->verify_nonce();
+        $this->check_capability('manage_options');
+        
+        $filters = array(
+            'date_start' => sanitize_text_field($_POST['date_start'] ?? date('Y-m-d', strtotime('-30 days'))),
+            'date_end' => sanitize_text_field($_POST['date_end'] ?? date('Y-m-d')),
+            'status' => sanitize_text_field($_POST['status'] ?? ''),
+            'priority' => sanitize_text_field($_POST['priority'] ?? ''),
+            'category' => sanitize_text_field($_POST['category'] ?? ''),
+            'assignee' => sanitize_text_field($_POST['assignee'] ?? ''),
+            'user_id' => intval($_POST['user_id'] ?? 0),
+        );
+        
+        $reports = WPHD_Analytics_Reports::instance();
+        $data = $reports->get_report_data($filters);
+        
+        wp_send_json_success($data);
+    }
+    
+    public function export_report_csv() {
+        $this->verify_nonce();
+        $this->check_capability('manage_options');
+        
+        $filters = array(
+            'date_start' => sanitize_text_field($_POST['date_start'] ?? date('Y-m-d', strtotime('-30 days'))),
+            'date_end' => sanitize_text_field($_POST['date_end'] ?? date('Y-m-d')),
+            'status' => sanitize_text_field($_POST['status'] ?? ''),
+            'priority' => sanitize_text_field($_POST['priority'] ?? ''),
+            'category' => sanitize_text_field($_POST['category'] ?? ''),
+            'assignee' => sanitize_text_field($_POST['assignee'] ?? ''),
+            'user_id' => intval($_POST['user_id'] ?? 0),
+        );
+        
+        $reports = WPHD_Analytics_Reports::instance();
+        $csv = $reports->export_csv($filters);
+        
+        wp_send_json_success(array('csv' => $csv));
     }
 }
