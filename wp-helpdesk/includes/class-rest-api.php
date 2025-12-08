@@ -197,8 +197,20 @@ class WPHD_REST_API {
             return true;
         }
         
-        // Check org-level permission if org_id is provided
+        // Check org-level permission
         $org_id = $request->get_param('org_id');
+        
+        // For shift-specific GET endpoints, derive org_id from shift
+        if (!$org_id) {
+            $shift_id = $request->get_param('id');
+            if ($shift_id) {
+                $shift = WPHD_Database::get_shift($shift_id);
+                if ($shift) {
+                    $org_id = $shift->organization_id;
+                }
+            }
+        }
+        
         if ($org_id) {
             $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
             if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {

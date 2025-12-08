@@ -279,10 +279,6 @@
                 var self = this;
                 var $container = $('#wphd-shifts-container');
                 
-                if ($container.length === 0) {
-                    return;
-                }
-                
                 self.orgId = $container.data('org-id');
                 self.bindEvents();
                 self.fetchList();
@@ -593,7 +589,11 @@
     $(document).ready(function() {
         WPHD.init();
         WPHD.ActionItems.init();
-        WPHD.Shifts.init();
+        
+        // Only initialize Shifts module if shifts container exists
+        if ($('#wphd-shifts-container').length > 0) {
+            WPHD.Shifts.init();
+        }
     });
 
 })(jQuery);

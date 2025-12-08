@@ -460,6 +460,9 @@ class WPHD_Database {
             $valid_timezones = timezone_identifiers_list();
             if (in_array($timezone, $valid_timezones, true)) {
                 $update_data['timezone'] = $timezone;
+            } else {
+                // Return false to indicate validation failure
+                return false;
             }
         }
         
