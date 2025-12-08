@@ -221,11 +221,27 @@ class WPHD_Admin_Menu {
             return;
         }
 
+        // Enqueue Select2 for searchable dropdowns
+        wp_enqueue_style(
+            'select2',
+            'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css',
+            array(),
+            '4.1.0'
+        );
+        
+        wp_enqueue_script(
+            'select2',
+            'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js',
+            array( 'jquery' ),
+            '4.1.0',
+            true
+        );
+
         // Enqueue admin styles.
         wp_enqueue_style(
             'wp-helpdesk-admin',
             WPHD_PLUGIN_URL . 'assets/css/admin-style.css',
-            array(),
+            array( 'select2' ),
             WPHD_VERSION
         );
 
@@ -233,7 +249,7 @@ class WPHD_Admin_Menu {
         wp_enqueue_script(
             'wp-helpdesk-admin',
             WPHD_PLUGIN_URL . 'assets/js/admin-script.js',
-            array( 'jquery' ),
+            array( 'jquery', 'select2' ),
             WPHD_VERSION,
             true
         );
@@ -963,6 +979,28 @@ class WPHD_Admin_Menu {
                                 <input type="hidden" name="ticket_id" value="<?php echo esc_attr( $ticket_id ); ?>">
 
                                 <p>
+                                    <label><strong><?php esc_html_e( 'Reporter', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $reporter_id = get_post_field( 'post_author', $ticket_id );
+                                    $reporter = get_userdata( $reporter_id );
+                                    echo esc_html( $reporter ? $reporter->display_name : __( 'Unknown', 'wp-helpdesk' ) );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Organization', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $reporter_org = WPHD_Organizations::get_user_organization( $reporter_id );
+                                    if ( $reporter_org ) {
+                                        $org_url = admin_url( 'admin.php?page=wp-helpdesk-organizations&action=edit&org_id=' . $reporter_org->id );
+                                        echo '<a href="' . esc_url( $org_url ) . '" class="wphd-organization-link">' . esc_html( $reporter_org->name ) . '</a>';
+                                    } else {
+                                        esc_html_e( 'None', 'wp-helpdesk' );
+                                    }
+                                    ?>
+                                </p>
+
+                                <p>
                                     <label><strong><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></strong></label><br>
                                     <select name="ticket_status" class="widefat">
                                         <?php foreach ( $statuses as $s ) : ?>
@@ -998,11 +1036,11 @@ class WPHD_Admin_Menu {
 
                                 <p>
                                     <label><strong><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></strong></label><br>
-                                    <select name="ticket_assignee" class="widefat">
+                                    <select name="ticket_assignee" class="widefat wphd-searchable-select" data-placeholder="<?php esc_attr_e( 'Search for a user...', 'wp-helpdesk' ); ?>">
                                         <option value="0"><?php esc_html_e( 'Unassigned', 'wp-helpdesk' ); ?></option>
                                         <?php foreach ( $users as $user ) : ?>
                                             <option value="<?php echo esc_attr( $user->ID ); ?>" <?php selected( $assignee, $user->ID ); ?>>
-                                                <?php echo esc_html( $user->display_name ); ?>
+                                                <?php echo esc_html( $user->display_name . ' (' . $user->user_email . ')' ); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -1021,6 +1059,28 @@ class WPHD_Admin_Menu {
                                 <?php submit_button( __( 'Update Ticket', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
                             </form>
                             <?php else : ?>
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Reporter', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $reporter_id = get_post_field( 'post_author', $ticket_id );
+                                    $reporter = get_userdata( $reporter_id );
+                                    echo esc_html( $reporter ? $reporter->display_name : __( 'Unknown', 'wp-helpdesk' ) );
+                                    ?>
+                                </p>
+
+                                <p>
+                                    <label><strong><?php esc_html_e( 'Organization', 'wp-helpdesk' ); ?></strong></label><br>
+                                    <?php
+                                    $reporter_org = WPHD_Organizations::get_user_organization( $reporter_id );
+                                    if ( $reporter_org ) {
+                                        $org_url = admin_url( 'admin.php?page=wp-helpdesk-organizations&action=edit&org_id=' . $reporter_org->id );
+                                        echo '<a href="' . esc_url( $org_url ) . '" class="wphd-organization-link">' . esc_html( $reporter_org->name ) . '</a>';
+                                    } else {
+                                        esc_html_e( 'None', 'wp-helpdesk' );
+                                    }
+                                    ?>
+                                </p>
+
                                 <p>
                                     <label><strong><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></strong></label><br>
                                     <?php
@@ -1094,24 +1154,113 @@ class WPHD_Admin_Menu {
                     <div class="postbox">
                         <div class="inside">
                             <h2><?php esc_html_e( 'SLA Information', 'wp-helpdesk' ); ?></h2>
-                            <p>
-                                <strong><?php esc_html_e( 'First Response Due', 'wp-helpdesk' ); ?>:</strong><br>
-                                <?php echo esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $sla->first_response_due ) ); ?>
-                                <?php if ( $sla->first_response_at ) : ?>
-                                    <br><span style="color: green;">✓ <?php esc_html_e( 'Met', 'wp-helpdesk' ); ?></span>
-                                <?php elseif ( strtotime( $sla->first_response_due ) < time() ) : ?>
-                                    <br><span style="color: red;">✗ <?php esc_html_e( 'Breached', 'wp-helpdesk' ); ?></span>
-                                <?php endif; ?>
-                            </p>
-                            <p>
-                                <strong><?php esc_html_e( 'Resolution Due', 'wp-helpdesk' ); ?>:</strong><br>
-                                <?php echo esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $sla->resolution_due ) ); ?>
-                                <?php if ( $sla->resolved_at ) : ?>
-                                    <br><span style="color: green;">✓ <?php esc_html_e( 'Met', 'wp-helpdesk' ); ?></span>
-                                <?php elseif ( strtotime( $sla->resolution_due ) < time() ) : ?>
-                                    <br><span style="color: red;">✗ <?php esc_html_e( 'Breached', 'wp-helpdesk' ); ?></span>
-                                <?php endif; ?>
-                            </p>
+                            
+                            <?php
+                            // Get SLA settings for configured times
+                            $sla_settings = get_option( 'wphd_sla_settings', array() );
+                            $configured_first_response = isset( $sla_settings['first_response'] ) ? intval( $sla_settings['first_response'] ) : 4 * HOUR_IN_SECONDS;
+                            $configured_resolution = isset( $sla_settings['resolution'] ) ? intval( $sla_settings['resolution'] ) : 24 * HOUR_IN_SECONDS;
+                            
+                            // Calculate First Response elapsed time
+                            $ticket_created = strtotime( $ticket->post_date );
+                            $first_response_due = strtotime( $sla->first_response_due );
+                            
+                            // For completed first response
+                            if ( $sla->first_response_at ) {
+                                $first_response_at = strtotime( $sla->first_response_at );
+                                $first_response_elapsed = $first_response_at - $ticket_created;
+                                $first_response_breached = $first_response_elapsed > $configured_first_response;
+                            } else {
+                                // Ongoing - no actual elapsed time yet, just time passed
+                                $first_response_elapsed = 0;
+                                $first_response_breached = false;
+                            }
+                            
+                            // Calculate Resolution elapsed time
+                            $resolution_due = strtotime( $sla->resolution_due );
+                            
+                            // For completed resolution
+                            if ( $sla->resolved_at ) {
+                                $resolved_at = strtotime( $sla->resolved_at );
+                                $resolution_elapsed = $resolved_at - $ticket_created;
+                                $resolution_breached = $resolution_elapsed > $configured_resolution;
+                            } else {
+                                // Ongoing - no actual elapsed time yet, just time passed
+                                $resolution_elapsed = 0;
+                                $resolution_breached = false;
+                            }
+                            
+                            // Helper function to format time duration
+                            $format_duration = function( $seconds ) {
+                                $hours = floor( $seconds / 3600 );
+                                $minutes = floor( ( $seconds % 3600 ) / 60 );
+                                
+                                if ( $seconds < 60 ) {
+                                    return __( 'Less than a minute', 'wp-helpdesk' );
+                                } elseif ( $hours > 0 ) {
+                                    return sprintf( _n( '%d hour', '%d hours', $hours, 'wp-helpdesk' ), $hours ) . 
+                                           ( $minutes > 0 ? ' ' . sprintf( _n( '%d min', '%d mins', $minutes, 'wp-helpdesk' ), $minutes ) : '' );
+                                } else {
+                                    return sprintf( _n( '%d minute', '%d minutes', $minutes, 'wp-helpdesk' ), $minutes );
+                                }
+                            };
+                            ?>
+                            
+                            <div class="wphd-sla-section">
+                                <h3><?php esc_html_e( 'First Response Time', 'wp-helpdesk' ); ?></h3>
+                                <div class="wphd-sla-comparison">
+                                    <div class="wphd-sla-actual">
+                                        <strong><?php esc_html_e( 'Actual:', 'wp-helpdesk' ); ?></strong><br>
+                                        <?php if ( $sla->first_response_at ) : ?>
+                                            <?php if ( $first_response_breached ) : ?>
+                                                <span class="wphd-sla-breached"><?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
+                                            <?php else : ?>
+                                                <span class="wphd-sla-met"><?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
+                                            <?php endif; ?>
+                                        <?php else : ?>
+                                            <span class="wphd-sla-pending">
+                                                <?php
+                                                $elapsed_so_far = time() - $ticket_created;
+                                                echo esc_html( $format_duration( $elapsed_so_far ) );
+                                                echo ' ' . esc_html__( '(ongoing)', 'wp-helpdesk' );
+                                                ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="wphd-sla-configured">
+                                        <strong><?php esc_html_e( 'Target:', 'wp-helpdesk' ); ?></strong><br>
+                                        <?php echo esc_html( $format_duration( $configured_first_response ) ); ?>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="wphd-sla-section">
+                                <h3><?php esc_html_e( 'Time to Resolution', 'wp-helpdesk' ); ?></h3>
+                                <div class="wphd-sla-comparison">
+                                    <div class="wphd-sla-actual">
+                                        <strong><?php esc_html_e( 'Actual:', 'wp-helpdesk' ); ?></strong><br>
+                                        <?php if ( $sla->resolved_at ) : ?>
+                                            <?php if ( $resolution_breached ) : ?>
+                                                <span class="wphd-sla-breached"><?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
+                                            <?php else : ?>
+                                                <span class="wphd-sla-met"><?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
+                                            <?php endif; ?>
+                                        <?php else : ?>
+                                            <span class="wphd-sla-pending">
+                                                <?php
+                                                $elapsed_so_far = time() - $ticket_created;
+                                                echo esc_html( $format_duration( $elapsed_so_far ) );
+                                                echo ' ' . esc_html__( '(ongoing)', 'wp-helpdesk' );
+                                                ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="wphd-sla-configured">
+                                        <strong><?php esc_html_e( 'Target:', 'wp-helpdesk' ); ?></strong><br>
+                                        <?php echo esc_html( $format_duration( $configured_resolution ) ); ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <?php endif; ?>

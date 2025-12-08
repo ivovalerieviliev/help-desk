@@ -582,6 +582,63 @@
         if ($('#wphd-shifts-container').length > 0) {
             WPHD.Shifts.init();
         }
+        
+        // Initialize searchable select for assignee dropdown
+        if (typeof $.fn.select2 !== 'undefined') {
+            // Use Select2 if available
+            $('.wphd-searchable-select').select2({
+                width: '100%',
+                placeholder: function() {
+                    return $(this).data('placeholder');
+                },
+                allowClear: false
+            });
+        } else {
+            // Fallback: add a simple search filter
+            WPHD.initSimpleSearchableSelect();
+        }
     });
+    
+    // Simple searchable select fallback (without Select2)
+    WPHD.initSimpleSearchableSelect = function() {
+        $('.wphd-searchable-select').each(function() {
+            var $select = $(this);
+            var $wrapper = $('<div class="wphd-searchable-wrapper"></div>');
+            var $search = $('<input type="text" class="wphd-search-input widefat" placeholder="' + $select.data('placeholder') + '" style="margin-bottom: 5px;">');
+            
+            // Store all options for filtering
+            var allOptions = [];
+            $select.find('option').each(function() {
+                allOptions.push({
+                    value: $(this).val(),
+                    text: $(this).text(),
+                    element: this
+                });
+            });
+            
+            $select.before($wrapper);
+            $wrapper.append($search);
+            $wrapper.append($select);
+            
+            $search.on('keyup', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                
+                // Clear all options first
+                $select.empty();
+                
+                // Add back matching options
+                allOptions.forEach(function(option) {
+                    if (option.value === '0' || option.text.toLowerCase().indexOf(searchTerm) > -1) {
+                        $select.append($(option.element).clone());
+                    }
+                });
+                
+                // If no results, show a message
+                if ($select.find('option').length === 0) {
+                    $select.append('<option value="">No matches found</option>');
+                }
+            });
+        });
+    };
 
 })(jQuery);

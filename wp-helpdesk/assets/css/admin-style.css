@@ -539,3 +539,108 @@
 #wphd-shifts-list .shift-actions .button {
     margin-right: 5px;
 }
+
+/* Organization Link */
+.wphd-organization-link {
+    color: #2271b1;
+    text-decoration: none;
+}
+
+.wphd-organization-link:hover {
+    color: #135e96;
+    text-decoration: underline;
+}
+
+/* Searchable Select (Select2 compatible) */
+.wphd-searchable-select {
+    width: 100% !important;
+}
+
+.select2-container--default .select2-selection--single {
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    height: auto;
+    padding: 2px;
+}
+
+.select2-container--default .select2-selection--single:focus {
+    border-color: #2271b1;
+    outline: none;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #2c3338;
+    line-height: 28px;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #2271b1;
+}
+
+/* SLA Section */
+.wphd-sla-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.wphd-sla-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.wphd-sla-section h3 {
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    color: #1d2327;
+}
+
+.wphd-sla-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.wphd-sla-actual,
+.wphd-sla-configured {
+    padding: 10px;
+    background: #f6f7f7;
+    border-radius: 4px;
+}
+
+.wphd-sla-actual strong,
+.wphd-sla-configured strong {
+    font-size: 12px;
+    color: #646970;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* SLA Status Indicators */
+.wphd-sla-met {
+    color: #00a32a;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.wphd-sla-met::before {
+    content: '\2713';  /* Unicode for checkmark */
+    margin-right: 5px;
+}
+
+.wphd-sla-breached {
+    color: #d63638;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.wphd-sla-breached::before {
+    content: '\2717';  /* Unicode for ballot X */
+    margin-right: 5px;
+}
+
+.wphd-sla-pending {
+    color: #dba617;
+    font-size: 15px;
+}
