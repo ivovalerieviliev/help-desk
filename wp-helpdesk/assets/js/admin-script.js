@@ -582,6 +582,46 @@
         if ($('#wphd-shifts-container').length > 0) {
             WPHD.Shifts.init();
         }
+        
+        // Initialize searchable select for assignee dropdown
+        if (typeof $.fn.select2 !== 'undefined') {
+            // Use Select2 if available
+            $('.wphd-searchable-select').select2({
+                width: '100%',
+                placeholder: function() {
+                    return $(this).data('placeholder');
+                },
+                allowClear: false
+            });
+        } else {
+            // Fallback: add a simple search filter
+            WPHD.initSimpleSearchableSelect();
+        }
     });
+    
+    // Simple searchable select fallback (without Select2)
+    WPHD.initSimpleSearchableSelect = function() {
+        $('.wphd-searchable-select').each(function() {
+            var $select = $(this);
+            var $wrapper = $('<div class="wphd-searchable-wrapper"></div>');
+            var $search = $('<input type="text" class="wphd-search-input widefat" placeholder="' + $select.data('placeholder') + '" style="margin-bottom: 5px;">');
+            
+            $select.before($wrapper);
+            $wrapper.append($search);
+            $wrapper.append($select);
+            
+            $search.on('keyup', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                $select.find('option').each(function() {
+                    var optionText = $(this).text().toLowerCase();
+                    if (optionText.indexOf(searchTerm) > -1 || $(this).val() === '0') {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            });
+        });
+    };
 
 })(jQuery);
