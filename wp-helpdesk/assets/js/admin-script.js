@@ -269,10 +269,11 @@
                     location.reload();
                 }
             });
-        },
-        
-        // Shifts Module
-        Shifts: {
+        }
+    };
+
+    // Shifts Module
+    WPHD.Shifts = {
             orgId: null,
             
             init: function() {
@@ -583,8 +584,7 @@
                 };
                 return text.replace(/[&<>"']/g, function(m) { return map[m]; });
             }
-        }
-    };
+        };
 
     $(document).ready(function() {
         WPHD.init();
