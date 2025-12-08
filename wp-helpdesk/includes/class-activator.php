@@ -195,6 +195,23 @@ class WPHD_Activator {
         ) $charset_collate;";
         dbDelta($sql_org_logs);
         
+        // Shifts Table
+        $table_shifts = $wpdb->prefix . 'wphd_shifts';
+        $sql_shifts = "CREATE TABLE $table_shifts (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            organization_id bigint(20) NOT NULL,
+            name varchar(255) NOT NULL,
+            start_time time NOT NULL,
+            end_time time NOT NULL,
+            timezone varchar(100) DEFAULT 'UTC',
+            created_by bigint(20),
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY organization_id (organization_id)
+        ) $charset_collate;";
+        dbDelta($sql_shifts);
+        
         update_option('wphd_db_version', WPHD_VERSION);
     }
     

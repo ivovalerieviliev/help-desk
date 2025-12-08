@@ -62,6 +62,7 @@ class WPHD_Database {
             $wpdb->prefix . 'wphd_organizations',
             $wpdb->prefix . 'wphd_organization_members',
             $wpdb->prefix . 'wphd_organization_logs',
+            $wpdb->prefix . 'wphd_shifts',
         );
         
         // Get all existing tables in a single query
@@ -399,5 +400,62 @@ class WPHD_Database {
             'handover_id' => $handover_id,
             'ticket_id' => $ticket_id
         ));
+    }
+    
+    // Shifts Methods
+    
+    public static function get_shifts($org_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_shifts';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE organization_id = %d ORDER BY start_time ASC",
+            $org_id
+        ));
+    }
+    
+    public static function get_shift($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_shifts';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $id
+        ));
+    }
+    
+    public static function create_shift($org_id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_shifts';
+        
+        $result = $wpdb->insert($table, array(
+            'organization_id' => $org_id,
+            'name' => sanitize_text_field($data['name']),
+            'start_time' => sanitize_text_field($data['start_time']),
+            'end_time' => sanitize_text_field($data['end_time']),
+            'timezone' => isset($data['timezone']) ? sanitize_text_field($data['timezone']) : 'UTC',
+            'created_by' => get_current_user_id()
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    public static function update_shift($id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_shifts';
+        
+        $update_data = array();
+        if (isset($data['name'])) $update_data['name'] = sanitize_text_field($data['name']);
+        if (isset($data['start_time'])) $update_data['start_time'] = sanitize_text_field($data['start_time']);
+        if (isset($data['end_time'])) $update_data['end_time'] = sanitize_text_field($data['end_time']);
+        if (isset($data['timezone'])) $update_data['timezone'] = sanitize_text_field($data['timezone']);
+        
+        return $wpdb->update($table, $update_data, array('id' => $id));
+    }
+    
+    public static function delete_shift($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_shifts';
+        return $wpdb->delete($table, array('id' => $id));
     }
 }

@@ -51,6 +51,10 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_add_org_member', array($this, 'add_organization_member'));
         add_action('wp_ajax_wphd_remove_org_member', array($this, 'remove_organization_member'));
         add_action('wp_ajax_wphd_get_organization', array($this, 'get_organization'));
+        add_action('wp_ajax_wphd_get_shifts', array($this, 'get_shifts'));
+        add_action('wp_ajax_wphd_add_shift', array($this, 'add_shift'));
+        add_action('wp_ajax_wphd_update_shift', array($this, 'update_shift'));
+        add_action('wp_ajax_wphd_delete_shift', array($this, 'delete_shift'));
     }
     
     private function verify_nonce() {
@@ -822,5 +826,202 @@ class WPHD_Ajax_Handler {
         }
         
         wp_send_json_error(array('message' => __('Organization not found', 'wp-helpdesk')));
+    }
+    
+    public function get_shifts() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        if (!$org_id) {
+            wp_send_json_error(array('message' => __('Invalid organization', 'wp-helpdesk')));
+        }
+        
+        // Check if user can view shifts (either global or org-level permission)
+        if (!WPHD_Access_Control::can_access('shifts_view')) {
+            // Check org-level permission
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            $has_org_permission = false;
+            
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_view'])) {
+                    $has_org_permission = (bool) $org_permissions['access_control']['shifts_view'];
+                }
+            }
+            
+            if (!$has_org_permission) {
+                wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+            }
+        }
+        
+        $shifts = WPHD_Database::get_shifts($org_id);
+        
+        wp_send_json_success(array('shifts' => $shifts));
+    }
+    
+    public function add_shift() {
+        $this->verify_nonce();
+        
+        $org_id = intval($_POST['org_id'] ?? 0);
+        if (!$org_id) {
+            wp_send_json_error(array('message' => __('Invalid organization', 'wp-helpdesk')));
+        }
+        
+        // Check if user can manage shifts (either global or org-level permission)
+        if (!WPHD_Access_Control::can_access('shifts_manage')) {
+            // Check org-level permission
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            $has_org_permission = false;
+            
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_manage'])) {
+                    $has_org_permission = (bool) $org_permissions['access_control']['shifts_manage'];
+                }
+            }
+            
+            if (!$has_org_permission) {
+                wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+            }
+        }
+        
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $start_time = sanitize_text_field($_POST['start_time'] ?? '');
+        $end_time = sanitize_text_field($_POST['end_time'] ?? '');
+        $timezone = sanitize_text_field($_POST['timezone'] ?? 'UTC');
+        
+        if (empty($name) || empty($start_time) || empty($end_time)) {
+            wp_send_json_error(array('message' => __('Name, start time, and end time are required', 'wp-helpdesk')));
+        }
+        
+        // Server-side validation: start_time should be before end_time
+        if (strtotime($start_time) >= strtotime($end_time)) {
+            wp_send_json_error(array('message' => __('Start time must be before end time', 'wp-helpdesk')));
+        }
+        
+        $data = array(
+            'name' => $name,
+            'start_time' => $start_time,
+            'end_time' => $end_time,
+            'timezone' => $timezone
+        );
+        
+        $shift_id = WPHD_Database::create_shift($org_id, $data);
+        
+        if ($shift_id) {
+            // Add to organization history
+            WPHD_Organizations::log_change($org_id, 'shift_created', '', '', $name);
+            
+            wp_send_json_success(array(
+                'message' => __('Shift created successfully', 'wp-helpdesk'),
+                'shift_id' => $shift_id
+            ));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to create shift', 'wp-helpdesk')));
+    }
+    
+    public function update_shift() {
+        $this->verify_nonce();
+        
+        $shift_id = intval($_POST['shift_id'] ?? 0);
+        if (!$shift_id) {
+            wp_send_json_error(array('message' => __('Invalid shift', 'wp-helpdesk')));
+        }
+        
+        $shift = WPHD_Database::get_shift($shift_id);
+        if (!$shift) {
+            wp_send_json_error(array('message' => __('Shift not found', 'wp-helpdesk')));
+        }
+        
+        $org_id = $shift->organization_id;
+        
+        // Check if user can manage shifts (either global or org-level permission)
+        if (!WPHD_Access_Control::can_access('shifts_manage')) {
+            // Check org-level permission
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            $has_org_permission = false;
+            
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_manage'])) {
+                    $has_org_permission = (bool) $org_permissions['access_control']['shifts_manage'];
+                }
+            }
+            
+            if (!$has_org_permission) {
+                wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+            }
+        }
+        
+        $data = array();
+        $old_name = $shift->name;
+        
+        if (isset($_POST['name'])) $data['name'] = sanitize_text_field($_POST['name']);
+        if (isset($_POST['start_time'])) $data['start_time'] = sanitize_text_field($_POST['start_time']);
+        if (isset($_POST['end_time'])) $data['end_time'] = sanitize_text_field($_POST['end_time']);
+        if (isset($_POST['timezone'])) $data['timezone'] = sanitize_text_field($_POST['timezone']);
+        
+        // Server-side validation if both times are provided
+        $start = isset($data['start_time']) ? $data['start_time'] : $shift->start_time;
+        $end = isset($data['end_time']) ? $data['end_time'] : $shift->end_time;
+        
+        if (strtotime($start) >= strtotime($end)) {
+            wp_send_json_error(array('message' => __('Start time must be before end time', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Database::update_shift($shift_id, $data);
+        
+        if ($result !== false) {
+            // Add to organization history
+            $new_name = isset($data['name']) ? $data['name'] : $old_name;
+            WPHD_Organizations::log_change($org_id, 'shift_edited', '', $old_name, $new_name);
+            
+            wp_send_json_success(array('message' => __('Shift updated successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to update shift', 'wp-helpdesk')));
+    }
+    
+    public function delete_shift() {
+        $this->verify_nonce();
+        
+        $shift_id = intval($_POST['shift_id'] ?? 0);
+        if (!$shift_id) {
+            wp_send_json_error(array('message' => __('Invalid shift', 'wp-helpdesk')));
+        }
+        
+        $shift = WPHD_Database::get_shift($shift_id);
+        if (!$shift) {
+            wp_send_json_error(array('message' => __('Shift not found', 'wp-helpdesk')));
+        }
+        
+        $org_id = $shift->organization_id;
+        
+        // Check if user can manage shifts (either global or org-level permission)
+        if (!WPHD_Access_Control::can_access('shifts_manage')) {
+            // Check org-level permission
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            $has_org_permission = false;
+            
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_manage'])) {
+                    $has_org_permission = (bool) $org_permissions['access_control']['shifts_manage'];
+                }
+            }
+            
+            if (!$has_org_permission) {
+                wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+            }
+        }
+        
+        $shift_name = $shift->name;
+        $result = WPHD_Database::delete_shift($shift_id);
+        
+        if ($result) {
+            // Add to organization history
+            WPHD_Organizations::log_change($org_id, 'shift_deleted', '', $shift_name, '');
+            
+            wp_send_json_success(array('message' => __('Shift deleted successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to delete shift', 'wp-helpdesk')));
     }
 }

@@ -3287,6 +3287,9 @@ class WPHD_Admin_Menu {
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=access_control' ) ); ?>" class="nav-tab <?php echo 'access_control' === $tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Access Control', 'wp-helpdesk' ); ?>
                 </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=shifts' ) ); ?>" class="nav-tab <?php echo 'shifts' === $tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Shifts', 'wp-helpdesk' ); ?>
+                </a>
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-organizations&action=edit&org_id=' . $org_id . '&tab=logs' ) ); ?>" class="nav-tab <?php echo 'logs' === $tab ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Change Log', 'wp-helpdesk' ); ?>
                 </a>
@@ -3357,6 +3360,8 @@ class WPHD_Admin_Menu {
                 <?php $this->render_organization_permissions_tab( $org_id, $settings ); ?>
             <?php elseif ( 'access_control' === $tab ) : ?>
                 <?php $this->render_organization_access_control_tab( $org_id, $settings ); ?>
+            <?php elseif ( 'shifts' === $tab ) : ?>
+                <?php $this->render_organization_shifts_tab( $org_id ); ?>
             <?php elseif ( 'logs' === $tab ) : ?>
                 <?php $this->render_organization_logs_tab( $org_id ); ?>
             <?php endif; ?>
@@ -3647,6 +3652,92 @@ class WPHD_Admin_Menu {
             });
         ";
         wp_add_inline_script( 'wp-helpdesk-admin', $script );
+    }
+
+    /**
+     * Render organization shifts tab.
+     *
+     * @since 1.0.0
+     * @param int $org_id Organization ID.
+     */
+    private function render_organization_shifts_tab( $org_id ) {
+        // Get timezone list for dropdown
+        $timezones = timezone_identifiers_list();
+        
+        // Check manage permission
+        $can_manage = WPHD_Access_Control::can_access('shifts_manage');
+        
+        // If not global permission, check org-level permission
+        if (!$can_manage) {
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_manage'])) {
+                    $can_manage = (bool) $org_permissions['access_control']['shifts_manage'];
+                }
+            }
+        }
+        ?>
+        <div style="margin-top: 20px;" id="wphd-shifts-container" data-org-id="<?php echo esc_attr($org_id); ?>">
+            <h3><?php esc_html_e( 'Organization Shifts', 'wp-helpdesk' ); ?></h3>
+            <p><?php esc_html_e( 'Manage shifts for this organization. Shifts define working hours and schedules for team members.', 'wp-helpdesk' ); ?></p>
+            
+            <?php if ($can_manage) : ?>
+            <div class="wphd-add-shift-form" style="margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
+                <h4><?php esc_html_e( 'Add New Shift', 'wp-helpdesk' ); ?></h4>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="wphd-shift-name"><?php esc_html_e( 'Shift Name', 'wp-helpdesk' ); ?> <span class="required">*</span></label>
+                        </th>
+                        <td>
+                            <input type="text" id="wphd-shift-name" class="regular-text" placeholder="<?php esc_attr_e( 'e.g., Morning Shift', 'wp-helpdesk' ); ?>">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="wphd-shift-start"><?php esc_html_e( 'Start Time', 'wp-helpdesk' ); ?> <span class="required">*</span></label>
+                        </th>
+                        <td>
+                            <input type="time" id="wphd-shift-start" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="wphd-shift-end"><?php esc_html_e( 'End Time', 'wp-helpdesk' ); ?> <span class="required">*</span></label>
+                        </th>
+                        <td>
+                            <input type="time" id="wphd-shift-end" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="wphd-shift-timezone"><?php esc_html_e( 'Timezone', 'wp-helpdesk' ); ?></label>
+                        </th>
+                        <td>
+                            <select id="wphd-shift-timezone" class="regular-text">
+                                <?php
+                                $current_tz = get_option('timezone_string', 'UTC');
+                                foreach ($timezones as $tz) :
+                                ?>
+                                    <option value="<?php echo esc_attr($tz); ?>" <?php selected($current_tz, $tz); ?>><?php echo esc_html($tz); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                <button type="button" id="wphd-add-shift-btn" class="button button-primary">
+                    <?php esc_html_e( 'Add Shift', 'wp-helpdesk' ); ?>
+                </button>
+                <span class="wphd-shift-message" style="margin-left: 10px; display: none;"></span>
+            </div>
+            <?php endif; ?>
+            
+            <h4><?php esc_html_e( 'Existing Shifts', 'wp-helpdesk' ); ?></h4>
+            <div id="wphd-shifts-list">
+                <p><?php esc_html_e( 'Loading shifts...', 'wp-helpdesk' ); ?></p>
+            </div>
+        </div>
+        <?php
     }
 
     /**

@@ -227,6 +227,16 @@ class WPHD_Access_Control {
 				'description' => __( 'Create, edit, delete, and complete action items', 'wp-helpdesk' ),
 				'default'     => false,
 			),
+			'shifts_view'                => array(
+				'label'       => __( 'View Shifts', 'wp-helpdesk' ),
+				'description' => __( 'View organization shifts', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'shifts_manage'              => array(
+				'label'       => __( 'Manage Shifts', 'wp-helpdesk' ),
+				'description' => __( 'Create, edit, and delete organization shifts', 'wp-helpdesk' ),
+				'default'     => false,
+			),
 		);
 
 		/**

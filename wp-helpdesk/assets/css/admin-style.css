@@ -488,3 +488,54 @@
 .wphd-add-action-item-form input[type="text"] {
     flex: 1;
 }
+
+/* Shifts Styles */
+.wphd-add-shift-form {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.wphd-add-shift-form h4 {
+    margin-top: 0;
+}
+
+.wphd-shift-message {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 3px;
+    margin-left: 10px;
+}
+
+.wphd-shift-message.notice-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.wphd-shift-message.notice-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+#wphd-shifts-list table {
+    margin-top: 15px;
+}
+
+#wphd-shifts-list .edit-shift-name,
+#wphd-shifts-list .edit-shift-start,
+#wphd-shifts-list .edit-shift-end,
+#wphd-shifts-list .edit-shift-tz {
+    width: 100%;
+    max-width: 200px;
+}
+
+#wphd-shifts-list .shift-actions {
+    white-space: nowrap;
+}
+
+#wphd-shifts-list .shift-actions .button {
+    margin-right: 5px;
+}
