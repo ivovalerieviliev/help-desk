@@ -606,20 +606,37 @@
             var $wrapper = $('<div class="wphd-searchable-wrapper"></div>');
             var $search = $('<input type="text" class="wphd-search-input widefat" placeholder="' + $select.data('placeholder') + '" style="margin-bottom: 5px;">');
             
+            // Store all options for filtering
+            var allOptions = [];
+            $select.find('option').each(function() {
+                allOptions.push({
+                    value: $(this).val(),
+                    text: $(this).text(),
+                    element: this
+                });
+            });
+            
             $select.before($wrapper);
             $wrapper.append($search);
             $wrapper.append($select);
             
             $search.on('keyup', function() {
                 var searchTerm = $(this).val().toLowerCase();
-                $select.find('option').each(function() {
-                    var optionText = $(this).text().toLowerCase();
-                    if (optionText.indexOf(searchTerm) > -1 || $(this).val() === '0') {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
+                
+                // Clear all options first
+                $select.empty();
+                
+                // Add back matching options
+                allOptions.forEach(function(option) {
+                    if (option.value === '0' || option.text.toLowerCase().indexOf(searchTerm) > -1) {
+                        $select.append($(option.element).clone());
                     }
                 });
+                
+                // If no results, show a message
+                if ($select.find('option').length === 0) {
+                    $select.append('<option value="">No matches found</option>');
+                }
             });
         });
     };

@@ -1178,7 +1178,10 @@ class WPHD_Admin_Menu {
                             $format_duration = function( $seconds ) {
                                 $hours = floor( $seconds / 3600 );
                                 $minutes = floor( ( $seconds % 3600 ) / 60 );
-                                if ( $hours > 0 ) {
+                                
+                                if ( $seconds < 60 ) {
+                                    return __( 'Less than a minute', 'wp-helpdesk' );
+                                } elseif ( $hours > 0 ) {
                                     return sprintf( _n( '%d hour', '%d hours', $hours, 'wp-helpdesk' ), $hours ) . 
                                            ( $minutes > 0 ? ' ' . sprintf( _n( '%d min', '%d mins', $minutes, 'wp-helpdesk' ), $minutes ) : '' );
                                 } else {
@@ -1194,9 +1197,9 @@ class WPHD_Admin_Menu {
                                         <strong><?php esc_html_e( 'Actual:', 'wp-helpdesk' ); ?></strong><br>
                                         <?php if ( $sla->first_response_at ) : ?>
                                             <?php if ( $first_response_breached ) : ?>
-                                                <span class="wphd-sla-breached">✗ <?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
+                                                <span class="wphd-sla-breached"><?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
                                             <?php else : ?>
-                                                <span class="wphd-sla-met">✓ <?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
+                                                <span class="wphd-sla-met"><?php echo esc_html( $format_duration( $first_response_elapsed ) ); ?></span>
                                             <?php endif; ?>
                                         <?php else : ?>
                                             <span class="wphd-sla-pending">
@@ -1222,9 +1225,9 @@ class WPHD_Admin_Menu {
                                         <strong><?php esc_html_e( 'Actual:', 'wp-helpdesk' ); ?></strong><br>
                                         <?php if ( $sla->resolved_at ) : ?>
                                             <?php if ( $resolution_breached ) : ?>
-                                                <span class="wphd-sla-breached">✗ <?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
+                                                <span class="wphd-sla-breached"><?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
                                             <?php else : ?>
-                                                <span class="wphd-sla-met">✓ <?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
+                                                <span class="wphd-sla-met"><?php echo esc_html( $format_duration( $resolution_elapsed ) ); ?></span>
                                             <?php endif; ?>
                                         <?php else : ?>
                                             <span class="wphd-sla-pending">
