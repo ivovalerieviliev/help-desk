@@ -191,12 +191,56 @@ class WPHD_REST_API {
         return current_user_can('manage_wphd_settings');
     }
     
-    public function check_shifts_view_permission() {
-        return WPHD_Access_Control::can_access('shifts_view');
+    public function check_shifts_view_permission($request) {
+        // Check global permission first
+        if (WPHD_Access_Control::can_access('shifts_view')) {
+            return true;
+        }
+        
+        // Check org-level permission if org_id is provided
+        $org_id = $request->get_param('org_id');
+        if ($org_id) {
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_view'])) {
+                    return (bool) $org_permissions['access_control']['shifts_view'];
+                }
+            }
+        }
+        
+        return false;
     }
     
-    public function check_shifts_manage_permission() {
-        return WPHD_Access_Control::can_access('shifts_manage');
+    public function check_shifts_manage_permission($request) {
+        // Check global permission first
+        if (WPHD_Access_Control::can_access('shifts_manage')) {
+            return true;
+        }
+        
+        // Check org-level permission if org_id is provided or can be derived from shift
+        $org_id = $request->get_param('org_id');
+        
+        // For shift-specific endpoints, get org_id from the shift
+        if (!$org_id) {
+            $shift_id = $request->get_param('id');
+            if ($shift_id) {
+                $shift = WPHD_Database::get_shift($shift_id);
+                if ($shift) {
+                    $org_id = $shift->organization_id;
+                }
+            }
+        }
+        
+        if ($org_id) {
+            $org_permissions = WPHD_Access_Control::get_organization_permissions($org_id);
+            if (isset($org_permissions['access_control_mode']) && 'custom' === $org_permissions['access_control_mode']) {
+                if (isset($org_permissions['access_control']['shifts_manage'])) {
+                    return (bool) $org_permissions['access_control']['shifts_manage'];
+                }
+            }
+        }
+        
+        return false;
     }
     
     public function get_tickets($request) {
@@ -569,6 +613,12 @@ class WPHD_REST_API {
         $end_time = sanitize_text_field($request->get_param('end_time'));
         $timezone = sanitize_text_field($request->get_param('timezone')) ?: 'UTC';
         
+        // Validate timezone
+        $valid_timezones = timezone_identifiers_list();
+        if (!in_array($timezone, $valid_timezones, true)) {
+            return new WP_Error('invalid_timezone', __('Invalid timezone specified', 'wp-helpdesk'), array('status' => 400));
+        }
+        
         if (empty($name) || empty($start_time) || empty($end_time)) {
             return new WP_Error('missing_fields', __('Name, start time, and end time are required', 'wp-helpdesk'), array('status' => 400));
         }
@@ -624,7 +674,14 @@ class WPHD_REST_API {
             $data['end_time'] = sanitize_text_field($request->get_param('end_time'));
         }
         if ($request->has_param('timezone')) {
-            $data['timezone'] = sanitize_text_field($request->get_param('timezone'));
+            $timezone = sanitize_text_field($request->get_param('timezone'));
+            // Validate timezone
+            $valid_timezones = timezone_identifiers_list();
+            if (in_array($timezone, $valid_timezones, true)) {
+                $data['timezone'] = $timezone;
+            } else {
+                return new WP_Error('invalid_timezone', __('Invalid timezone specified', 'wp-helpdesk'), array('status' => 400));
+            }
         }
         
         // Server-side validation if both times are provided

@@ -428,12 +428,19 @@ class WPHD_Database {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_shifts';
         
+        // Validate timezone
+        $timezone = isset($data['timezone']) ? sanitize_text_field($data['timezone']) : 'UTC';
+        $valid_timezones = timezone_identifiers_list();
+        if (!in_array($timezone, $valid_timezones, true)) {
+            $timezone = 'UTC'; // Fallback to UTC if invalid
+        }
+        
         $result = $wpdb->insert($table, array(
             'organization_id' => $org_id,
             'name' => sanitize_text_field($data['name']),
             'start_time' => sanitize_text_field($data['start_time']),
             'end_time' => sanitize_text_field($data['end_time']),
-            'timezone' => isset($data['timezone']) ? sanitize_text_field($data['timezone']) : 'UTC',
+            'timezone' => $timezone,
             'created_by' => get_current_user_id()
         ));
         
@@ -448,7 +455,13 @@ class WPHD_Database {
         if (isset($data['name'])) $update_data['name'] = sanitize_text_field($data['name']);
         if (isset($data['start_time'])) $update_data['start_time'] = sanitize_text_field($data['start_time']);
         if (isset($data['end_time'])) $update_data['end_time'] = sanitize_text_field($data['end_time']);
-        if (isset($data['timezone'])) $update_data['timezone'] = sanitize_text_field($data['timezone']);
+        if (isset($data['timezone'])) {
+            $timezone = sanitize_text_field($data['timezone']);
+            $valid_timezones = timezone_identifiers_list();
+            if (in_array($timezone, $valid_timezones, true)) {
+                $update_data['timezone'] = $timezone;
+            }
+        }
         
         return $wpdb->update($table, $update_data, array('id' => $id));
     }
