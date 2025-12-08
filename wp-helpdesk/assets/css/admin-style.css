@@ -625,7 +625,7 @@
 }
 
 .wphd-sla-met::before {
-    content: '✓';
+    content: '\2713';  /* Unicode for checkmark */
     margin-right: 5px;
 }
 
@@ -636,7 +636,7 @@
 }
 
 .wphd-sla-breached::before {
-    content: '✗';
+    content: '\2717';  /* Unicode for ballot X */
     margin-right: 5px;
 }
 

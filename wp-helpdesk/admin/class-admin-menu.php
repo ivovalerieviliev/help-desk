@@ -1164,15 +1164,31 @@ class WPHD_Admin_Menu {
                             // Calculate First Response elapsed time
                             $ticket_created = strtotime( $ticket->post_date );
                             $first_response_due = strtotime( $sla->first_response_due );
-                            $first_response_at = $sla->first_response_at ? strtotime( $sla->first_response_at ) : time();
-                            $first_response_elapsed = $first_response_at - $ticket_created;
-                            $first_response_breached = $first_response_elapsed > $configured_first_response;
+                            
+                            // For completed first response
+                            if ( $sla->first_response_at ) {
+                                $first_response_at = strtotime( $sla->first_response_at );
+                                $first_response_elapsed = $first_response_at - $ticket_created;
+                                $first_response_breached = $first_response_elapsed > $configured_first_response;
+                            } else {
+                                // Ongoing - no actual elapsed time yet, just time passed
+                                $first_response_elapsed = 0;
+                                $first_response_breached = false;
+                            }
                             
                             // Calculate Resolution elapsed time
                             $resolution_due = strtotime( $sla->resolution_due );
-                            $resolved_at = $sla->resolved_at ? strtotime( $sla->resolved_at ) : time();
-                            $resolution_elapsed = $resolved_at - $ticket_created;
-                            $resolution_breached = $resolution_elapsed > $configured_resolution;
+                            
+                            // For completed resolution
+                            if ( $sla->resolved_at ) {
+                                $resolved_at = strtotime( $sla->resolved_at );
+                                $resolution_elapsed = $resolved_at - $ticket_created;
+                                $resolution_breached = $resolution_elapsed > $configured_resolution;
+                            } else {
+                                // Ongoing - no actual elapsed time yet, just time passed
+                                $resolution_elapsed = 0;
+                                $resolution_breached = false;
+                            }
                             
                             // Helper function to format time duration
                             $format_duration = function( $seconds ) {
