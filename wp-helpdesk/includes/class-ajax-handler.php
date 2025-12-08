@@ -892,11 +892,6 @@ class WPHD_Ajax_Handler {
             wp_send_json_error(array('message' => __('Name, start time, and end time are required', 'wp-helpdesk')));
         }
         
-        // Server-side validation: start_time should be before end_time
-        if (strtotime($start_time) >= strtotime($end_time)) {
-            wp_send_json_error(array('message' => __('Start time must be before end time', 'wp-helpdesk')));
-        }
-        
         $data = array(
             'name' => $name,
             'start_time' => $start_time,
@@ -958,14 +953,6 @@ class WPHD_Ajax_Handler {
         if (isset($_POST['start_time'])) $data['start_time'] = sanitize_text_field($_POST['start_time']);
         if (isset($_POST['end_time'])) $data['end_time'] = sanitize_text_field($_POST['end_time']);
         if (isset($_POST['timezone'])) $data['timezone'] = sanitize_text_field($_POST['timezone']);
-        
-        // Server-side validation if both times are provided
-        $start = isset($data['start_time']) ? $data['start_time'] : $shift->start_time;
-        $end = isset($data['end_time']) ? $data['end_time'] : $shift->end_time;
-        
-        if (strtotime($start) >= strtotime($end)) {
-            wp_send_json_error(array('message' => __('Start time must be before end time', 'wp-helpdesk')));
-        }
         
         $result = WPHD_Database::update_shift($shift_id, $data);
         

@@ -397,12 +397,6 @@
                     return;
                 }
                 
-                // Validate start < end
-                if (startTime >= endTime) {
-                    self.showMessage('Start time must be before end time.', 'error');
-                    return;
-                }
-                
                 var $btn = $('#wphd-add-shift-btn');
                 $btn.prop('disabled', true).text(wpHelpDesk.i18n.saving || 'Saving...');
                 
@@ -495,12 +489,6 @@
                 // Client-side validation
                 if (!name || !startTime || !endTime) {
                     self.showMessage('Please fill in all required fields.', 'error');
-                    return;
-                }
-                
-                // Validate start < end
-                if (startTime >= endTime) {
-                    self.showMessage('Start time must be before end time.', 'error');
                     return;
                 }
                 
