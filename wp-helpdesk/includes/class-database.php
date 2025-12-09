@@ -542,11 +542,14 @@ class WPHD_Database {
             $sql .= $wpdb->prepare(" AND shift_date <= %s", $args['date_to']);
         }
         
-        $orderby = in_array($args['orderby'], array('id', 'shift_date', 'created_at'), true) ? $args['orderby'] : 'created_at';
+        // Validate orderby and order, then build SQL safely
+        $allowed_orderby = array('id', 'shift_date', 'created_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
         $order = 'ASC' === strtoupper($args['order']) ? 'ASC' : 'DESC';
         
-        // Use string building with validated values to avoid SQL injection
-        $sql .= sprintf(" ORDER BY %s %s", esc_sql($orderby), esc_sql($order));
+        // Build ORDER BY clause safely - orderby is validated against allowlist
+        // We cannot use wpdb->prepare for column names, so we validate and use direct concatenation
+        $sql .= " ORDER BY " . $orderby . " " . $order;
         $sql .= $wpdb->prepare(" LIMIT %d OFFSET %d", $args['limit'], $args['offset']);
         
         return $wpdb->get_results($sql);

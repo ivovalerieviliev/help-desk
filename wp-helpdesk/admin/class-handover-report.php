@@ -197,7 +197,7 @@ class WPHD_Handover_Report {
                     <button type="submit" name="submit" class="button button-primary button-large">
                         <?php esc_html_e( 'Create Report', 'wp-helpdesk' ); ?>
                     </button>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk' ) ); ?>" class="button button-large">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk' ) ); ?>" class="button button-large wphd-cancel-handover-btn">
                         <?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?>
                     </a>
                 </p>
@@ -267,9 +267,15 @@ class WPHD_Handover_Report {
                 $tickets_json = sanitize_textarea_field( stripslashes( $_POST[ $tickets_field ] ) );
                 $tickets_data = json_decode( $tickets_json, true );
                 
-                if ( is_array( $tickets_data ) && json_last_error() === JSON_ERROR_NONE ) {
+                // Check for JSON decode errors
+                if ( json_last_error() !== JSON_ERROR_NONE ) {
+                    error_log( 'WP HelpDesk: Invalid JSON in handover report for section ' . $section . ': ' . json_last_error_msg() );
+                    continue; // Skip this section and continue with others
+                }
+                
+                if ( is_array( $tickets_data ) ) {
                     foreach ( $tickets_data as $index => $ticket_data ) {
-                        if ( isset( $ticket_data['ticket_id'] ) ) {
+                        if ( isset( $ticket_data['ticket_id'] ) && is_numeric( $ticket_data['ticket_id'] ) ) {
                             WPHD_Database::add_handover_report_ticket(
                                 $report_id,
                                 intval( $ticket_data['ticket_id'] ),

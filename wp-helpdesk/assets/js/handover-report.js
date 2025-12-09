@@ -104,8 +104,8 @@
             return true;
         });
 
-        // Cancel button - check for unsaved data
-        $('a.button:contains("Cancel")').on('click', function(e) {
+        // Cancel button - check for unsaved data using specific class
+        $('.wphd-cancel-handover-btn').on('click', function(e) {
             const hasData = $('#shift_type').val() || 
                           ticketData.tasks_todo.length > 0 || 
                           ticketData.follow_up.length > 0 || 
@@ -172,12 +172,18 @@
     function searchTickets(query) {
         $('#wphd-ticket-search-results').html('<p class="wphd-loading">Searching...</p>');
 
+        // Ensure handover nonce is available
+        if (!wpHelpDesk.handoverNonce) {
+            $('#wphd-ticket-search-results').html('<p class="error">Security token missing. Please refresh the page.</p>');
+            return;
+        }
+
         $.ajax({
             url: wpHelpDesk.ajaxUrl,
             type: 'POST',
             data: {
                 action: 'wphd_search_tickets_for_handover',
-                nonce: wpHelpDesk.handoverNonce || wpHelpDesk.nonce,
+                nonce: wpHelpDesk.handoverNonce,
                 search: query
             },
             success: function(response) {
