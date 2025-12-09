@@ -212,6 +212,40 @@ class WPHD_Activator {
         ) $charset_collate;";
         dbDelta($sql_shifts);
         
+        // Handover Reports Table
+        $table_handover_reports = $wpdb->prefix . 'wphd_handover_reports';
+        $sql_handover_reports = "CREATE TABLE $table_handover_reports (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            shift_type varchar(50) NOT NULL,
+            shift_date datetime NOT NULL,
+            additional_instructions longtext,
+            status varchar(20) DEFAULT 'active',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY shift_date (shift_date)
+        ) $charset_collate;";
+        dbDelta($sql_handover_reports);
+        
+        // Handover Report Tickets Table
+        $table_handover_report_tickets = $wpdb->prefix . 'wphd_handover_report_tickets';
+        $sql_handover_report_tickets = "CREATE TABLE $table_handover_report_tickets (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            report_id bigint(20) unsigned NOT NULL,
+            ticket_id bigint(20) unsigned NOT NULL,
+            section_type varchar(50) NOT NULL,
+            special_instructions text,
+            display_order int(11) DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY report_id (report_id),
+            KEY ticket_id (ticket_id),
+            KEY section_type (section_type)
+        ) $charset_collate;";
+        dbDelta($sql_handover_report_tickets);
+        
         update_option('wphd_db_version', WPHD_VERSION);
     }
     
@@ -285,6 +319,8 @@ class WPHD_Activator {
             $admin->add_cap('manage_wphd_settings');
             $admin->add_cap('create_wphd_handovers');
             $admin->add_cap('view_wphd_handovers');
+            $admin->add_cap('create_wphd_handover_reports');
+            $admin->add_cap('view_wphd_handover_reports');
         }
         
         $editor = get_role('editor');
@@ -295,6 +331,8 @@ class WPHD_Activator {
             $editor->add_cap('view_wphd_analytics');
             $editor->add_cap('create_wphd_handovers');
             $editor->add_cap('view_wphd_handovers');
+            $editor->add_cap('create_wphd_handover_reports');
+            $editor->add_cap('view_wphd_handover_reports');
         }
     }
 }

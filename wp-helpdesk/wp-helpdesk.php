@@ -76,6 +76,7 @@ final class WP_HelpDesk {
         
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-menu.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-pages.php';
+        require_once WPHD_PLUGIN_DIR . 'admin/class-handover-report.php';
     }
     
     private function init_hooks() {
@@ -164,6 +165,7 @@ final class WP_HelpDesk {
         if (is_admin()) {
             WPHD_Admin_Menu::instance();
             WPHD_Admin_Pages::instance();
+            WPHD_Handover_Report::instance();
         }
     }
     

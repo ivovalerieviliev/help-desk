@@ -63,6 +63,8 @@ class WPHD_Database {
             $wpdb->prefix . 'wphd_organization_members',
             $wpdb->prefix . 'wphd_organization_logs',
             $wpdb->prefix . 'wphd_shifts',
+            $wpdb->prefix . 'wphd_handover_reports',
+            $wpdb->prefix . 'wphd_handover_report_tickets',
         );
         
         // Get all existing tables in a single query
@@ -473,5 +475,172 @@ class WPHD_Database {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_shifts';
         return $wpdb->delete($table, array('id' => $id));
+    }
+    
+    // Handover Report Methods
+    
+    /**
+     * Save a handover report to the database.
+     *
+     * @param array $data Report data.
+     * @return int|false Report ID on success, false on failure.
+     */
+    public static function save_handover_report($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        $result = $wpdb->insert($table, array(
+            'user_id' => isset($data['user_id']) ? intval($data['user_id']) : get_current_user_id(),
+            'shift_type' => sanitize_text_field($data['shift_type']),
+            'shift_date' => isset($data['shift_date']) ? $data['shift_date'] : current_time('mysql'),
+            'additional_instructions' => isset($data['additional_instructions']) ? wp_kses_post($data['additional_instructions']) : '',
+            'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active'
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    /**
+     * Get handover reports with optional filters.
+     *
+     * @param array $args Query arguments.
+     * @return array Array of report objects.
+     */
+    public static function get_handover_reports($args = array()) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        $defaults = array(
+            'user_id' => 0,
+            'shift_type' => '',
+            'status' => '',
+            'date_from' => '',
+            'date_to' => '',
+            'limit' => 20,
+            'offset' => 0,
+            'orderby' => 'created_at',
+            'order' => 'DESC'
+        );
+        
+        $args = wp_parse_args($args, $defaults);
+        
+        $sql = "SELECT * FROM $table WHERE 1=1";
+        
+        if ($args['user_id']) {
+            $sql .= $wpdb->prepare(" AND user_id = %d", $args['user_id']);
+        }
+        if ($args['shift_type']) {
+            $sql .= $wpdb->prepare(" AND shift_type = %s", $args['shift_type']);
+        }
+        if ($args['status']) {
+            $sql .= $wpdb->prepare(" AND status = %s", $args['status']);
+        }
+        if ($args['date_from']) {
+            $sql .= $wpdb->prepare(" AND shift_date >= %s", $args['date_from']);
+        }
+        if ($args['date_to']) {
+            $sql .= $wpdb->prepare(" AND shift_date <= %s", $args['date_to']);
+        }
+        
+        // Validate orderby and order, then build SQL safely
+        $allowed_orderby = array('id', 'shift_date', 'created_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
+        $order = 'ASC' === strtoupper($args['order']) ? 'ASC' : 'DESC';
+        
+        // Build ORDER BY clause safely - orderby is validated against allowlist
+        // We cannot use wpdb->prepare for column names, so we validate and use direct concatenation
+        $sql .= " ORDER BY " . $orderby . " " . $order;
+        $sql .= $wpdb->prepare(" LIMIT %d OFFSET %d", $args['limit'], $args['offset']);
+        
+        return $wpdb->get_results($sql);
+    }
+    
+    /**
+     * Get a single handover report by ID.
+     *
+     * @param int $report_id Report ID.
+     * @return object|null Report object or null if not found.
+     */
+    public static function get_handover_report($report_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $report_id
+        ));
+    }
+    
+    /**
+     * Get tickets associated with a handover report.
+     *
+     * @param int $report_id Report ID.
+     * @param string $section_type Optional section type filter.
+     * @return array Array of ticket objects.
+     */
+    public static function get_handover_report_tickets($report_id, $section_type = '') {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        
+        $sql = $wpdb->prepare("SELECT * FROM $table WHERE report_id = %d", $report_id);
+        
+        if ($section_type) {
+            $sql .= $wpdb->prepare(" AND section_type = %s", $section_type);
+        }
+        
+        $sql .= " ORDER BY display_order ASC, id ASC";
+        
+        return $wpdb->get_results($sql);
+    }
+    
+    /**
+     * Add a ticket to a handover report.
+     *
+     * @param int $report_id Report ID.
+     * @param int $ticket_id Ticket ID.
+     * @param string $section_type Section type (tasks_todo, follow_up, important_info).
+     * @param string $special_instructions Special instructions for the ticket.
+     * @param int $display_order Display order.
+     * @return int|false Insert ID on success, false on failure.
+     */
+    public static function add_handover_report_ticket($report_id, $ticket_id, $section_type, $special_instructions = '', $display_order = 0) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        
+        $result = $wpdb->insert($table, array(
+            'report_id' => intval($report_id),
+            'ticket_id' => intval($ticket_id),
+            'section_type' => sanitize_text_field($section_type),
+            'special_instructions' => sanitize_textarea_field($special_instructions),
+            'display_order' => intval($display_order)
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    /**
+     * Delete a handover report and its associated tickets.
+     *
+     * @param int $report_id Report ID.
+     * @return bool True on success, false on failure.
+     */
+    public static function delete_handover_report($report_id) {
+        global $wpdb;
+        
+        // Delete associated tickets first
+        $wpdb->delete(
+            $wpdb->prefix . 'wphd_handover_report_tickets',
+            array('report_id' => $report_id),
+            array('%d')
+        );
+        
+        // Delete the report
+        $result = $wpdb->delete(
+            $wpdb->prefix . 'wphd_handover_reports',
+            array('id' => $report_id),
+            array('%d')
+        );
+        
+        return $result !== false;
     }
 }

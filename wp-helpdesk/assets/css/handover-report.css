@@ -1,0 +1,345 @@
+/**
+ * Handover Report Styles
+ *
+ * Styles for the Create Handover Report page
+ */
+
+/* Main Container */
+.wphd-handover-report-wrap {
+    max-width: 1200px;
+}
+
+/* Postbox Styling */
+.wphd-handover-report-wrap .postbox {
+    margin-bottom: 20px;
+}
+
+.wphd-handover-report-wrap .postbox .inside {
+    padding: 20px;
+}
+
+/* Required Field Indicator */
+.required {
+    color: #dc3232;
+    font-weight: bold;
+}
+
+/* Add Ticket Button */
+.wphd-add-ticket-btn {
+    margin-bottom: 15px;
+}
+
+/* Ticket List Tables */
+.wphd-ticket-table {
+    margin-top: 15px;
+}
+
+.wphd-ticket-table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wphd-ticket-table td {
+    vertical-align: middle;
+}
+
+.wphd-ticket-table .wphd-special-instructions {
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Remove Button */
+.wphd-remove-ticket {
+    color: #dc3232;
+    border-color: #dc3232;
+}
+
+.wphd-remove-ticket:hover {
+    color: #fff;
+    background-color: #dc3232;
+    border-color: #dc3232;
+}
+
+/* Modal Styles */
+.wphd-modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.wphd-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 30px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 90%;
+    max-width: 700px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.wphd-modal-close {
+    color: #666;
+    float: right;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    margin-top: -10px;
+}
+
+.wphd-modal-close:hover,
+.wphd-modal-close:focus {
+    color: #000;
+}
+
+/* Search Container */
+.wphd-search-container {
+    margin-top: 20px;
+}
+
+#wphd-ticket-search-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+/* Search Results */
+#wphd-ticket-search-results {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.wphd-search-results-list {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.wphd-search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.wphd-search-result-item:last-child {
+    border-bottom: none;
+}
+
+.wphd-search-result-item:hover:not(.disabled) {
+    background-color: #f9f9f9;
+}
+
+.wphd-search-result-item.disabled {
+    opacity: 0.6;
+    background-color: #f5f5f5;
+}
+
+.wphd-ticket-info {
+    flex: 1;
+}
+
+.wphd-ticket-info strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #0073aa;
+}
+
+.wphd-ticket-meta {
+    font-size: 13px;
+    color: #666;
+}
+
+.wphd-add-ticket-result {
+    margin-left: 15px;
+    white-space: nowrap;
+}
+
+.wphd-add-ticket-result:disabled {
+    cursor: not-allowed;
+}
+
+/* Loading State */
+.wphd-loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Notification */
+.wphd-notification {
+    position: fixed;
+    top: 50px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 100001;
+    display: none;
+    min-width: 250px;
+}
+
+.wphd-notification.success {
+    background-color: #46b450;
+    color: #fff;
+}
+
+.wphd-notification.error {
+    background-color: #dc3232;
+    color: #fff;
+}
+
+/* Empty State */
+.wphd-ticket-list .description {
+    font-style: italic;
+    color: #666;
+    padding: 15px 0;
+}
+
+/* Form Actions */
+.wphd-handover-report-wrap .submit {
+    border-top: 1px solid #ddd;
+    margin-top: 30px;
+    padding-top: 20px;
+}
+
+.wphd-handover-report-wrap .submit .button {
+    margin-right: 10px;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+    .wphd-modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 20px;
+    }
+
+    .wphd-search-result-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .wphd-add-ticket-result {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    .wphd-ticket-table {
+        font-size: 13px;
+    }
+
+    .wphd-ticket-table th,
+    .wphd-ticket-table td {
+        padding: 8px 5px;
+    }
+}
+
+/* WordPress Editor Wrapper */
+.wphd-handover-report-wrap #wp-additional_instructions-wrap {
+    margin-top: 10px;
+}
+
+/* Highlighting for Search Results */
+.wphd-search-result-item .highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+
+/* Section Headers */
+.wphd-handover-report-wrap .postbox-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Info Icon */
+.wphd-info-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: #0073aa;
+    color: #fff;
+    font-size: 12px;
+    cursor: help;
+    margin-left: 5px;
+}
+
+/* Scrollbar Styling for Search Results */
+#wphd-ticket-search-results::-webkit-scrollbar {
+    width: 8px;
+}
+
+#wphd-ticket-search-results::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#wphd-ticket-search-results::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+#wphd-ticket-search-results::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Confirmation Dialog Overlay */
+.wphd-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 100002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wphd-confirm-dialog {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 4px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+}
+
+.wphd-confirm-dialog h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #333;
+}
+
+.wphd-confirm-dialog p {
+    margin-bottom: 20px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.wphd-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.wphd-confirm-actions .button {
+    margin: 0;
+}

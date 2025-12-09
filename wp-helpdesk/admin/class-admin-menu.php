@@ -196,6 +196,18 @@ class WPHD_Admin_Menu {
             array( $this, 'render_settings_page' )
         );
 
+        // Create Handover Report submenu
+        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Create Handover Report', 'wp-helpdesk' ),
+                __( 'Create Handover Report', 'wp-helpdesk' ),
+                'create_wphd_handover_reports',
+                $this->menu_slug . '-create-handover-report',
+                array( $this, 'render_create_handover_report_page' )
+            );
+        }
+
         // Reports submenu (Admin only).
         if ( WPHD_Access_Control::can_access( 'reports' ) ) {
             add_submenu_page(
@@ -254,6 +266,24 @@ class WPHD_Admin_Menu {
             true
         );
 
+        // Enqueue handover report assets on the create handover report page
+        if ( strpos( $hook, 'create-handover-report' ) !== false ) {
+            wp_enqueue_style(
+                'wp-helpdesk-handover-report',
+                WPHD_PLUGIN_URL . 'assets/css/handover-report.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-handover-report',
+                WPHD_PLUGIN_URL . 'assets/js/handover-report.js',
+                array( 'jquery', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
+        }
+
         // Enqueue Chart.js and reports.js on reports page
         if ( strpos( $hook, 'reports' ) !== false ) {
             wp_enqueue_script(
@@ -288,6 +318,7 @@ class WPHD_Admin_Menu {
             array(
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
+                'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'i18n'    => array(
                     'confirm_delete' => __( 'Are you sure you want to delete this item?', 'wp-helpdesk' ),
                     'saving'         => __( 'Saving...', 'wp-helpdesk' ),
@@ -1998,6 +2029,20 @@ class WPHD_Admin_Menu {
             __( 'Settings saved successfully.', 'wp-helpdesk' ),
             'success'
         );
+    }
+
+    /**
+     * Render the create handover report page.
+     *
+     * @since 1.0.0
+     */
+    public function render_create_handover_report_page() {
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_die( esc_html__( 'You do not have permission to create handover reports.', 'wp-helpdesk' ) );
+        }
+
+        // Render the page using the WPHD_Handover_Report class
+        WPHD_Handover_Report::instance()->render_create_page();
     }
 
     /**
@@ -4261,6 +4306,8 @@ class WPHD_Admin_Menu {
             'wphd_organizations' => 'Organizations',
             'wphd_organization_members' => 'Organization Members',
             'wphd_organization_logs' => 'Organization Logs',
+            'wphd_handover_reports' => 'Handover Reports',
+            'wphd_handover_report_tickets' => 'Handover Report Tickets',
         );
         
         // Get all existing tables in a single query for efficiency
