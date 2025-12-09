@@ -53,6 +53,9 @@ class WPHD_Handover_Report {
     private function __construct() {
         add_action( 'admin_post_wphd_create_handover_report', array( $this, 'handle_create_report' ) );
         add_action( 'wp_ajax_wphd_search_tickets_for_handover', array( $this, 'search_tickets' ) );
+        add_action( 'wp_ajax_wphd_check_duplicate_report', array( $this, 'ajax_check_duplicate_report' ) );
+        add_action( 'wp_ajax_wphd_merge_report_content', array( $this, 'ajax_merge_report_content' ) );
+        add_action( 'wp_ajax_wphd_save_ticket_to_shared_report', array( $this, 'ajax_save_ticket_to_shared_report' ) );
     }
 
     /**
@@ -68,13 +71,48 @@ class WPHD_Handover_Report {
         $current_user = wp_get_current_user();
         $shift_types = $this->get_shift_types();
         
+        // Get user's organization
+        $org_id = WPHD_Database::get_user_organization_id();
+        
+        // Check if user has an organization
+        if ( ! $org_id ) {
+            ?>
+            <div class="wrap wp-helpdesk-wrap wphd-handover-report-wrap">
+                <h1><?php esc_html_e( 'Create Handover Report', 'wp-helpdesk' ); ?></h1>
+                <div class="wphd-error-notice">
+                    <strong><?php esc_html_e( 'Organization Required', 'wp-helpdesk' ); ?></strong>
+                    <p><?php esc_html_e( 'You must be a member of an organization to create handover reports. Please contact your administrator.', 'wp-helpdesk' ); ?></p>
+                </div>
+            </div>
+            <?php
+            return;
+        }
+        
+        // Get organization info
+        global $wpdb;
+        $org_table = $wpdb->prefix . 'wphd_organizations';
+        $org = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $org_table WHERE id = %d", $org_id ) );
+        $org_name = $org ? $org->name : __( 'Unknown', 'wp-helpdesk' );
+        
         ?>
         <div class="wrap wp-helpdesk-wrap wphd-handover-report-wrap">
             <h1><?php esc_html_e( 'Create Handover Report', 'wp-helpdesk' ); ?></h1>
             
+            <!-- Organization Notice -->
+            <div class="wphd-organization-notice">
+                <strong><?php esc_html_e( 'Organization-Wide Report', 'wp-helpdesk' ); ?></strong>
+                <p>
+                    <?php
+                    /* translators: %s: Organization name */
+                    printf( esc_html__( 'This handover report is shared with all members of %s. Any tickets you add will be visible to your team members.', 'wp-helpdesk' ), '<strong>' . esc_html( $org_name ) . '</strong>' );
+                    ?>
+                </p>
+            </div>
+            
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="wphd-handover-report-form">
                 <?php wp_nonce_field( 'wphd_create_handover_report', 'wphd_handover_report_nonce' ); ?>
                 <input type="hidden" name="action" value="wphd_create_handover_report">
+                <input type="hidden" name="organization_id" value="<?php echo esc_attr( $org_id ); ?>">
                 
                 <!-- Shift Details Section -->
                 <div class="postbox">
@@ -240,14 +278,79 @@ class WPHD_Handover_Report {
         if ( empty( $_POST['shift_type'] ) ) {
             wp_die( esc_html__( 'Shift type is required.', 'wp-helpdesk' ) );
         }
+        
+        // Get organization ID
+        $org_id = isset( $_POST['organization_id'] ) ? intval( $_POST['organization_id'] ) : 0;
+        if ( ! $org_id ) {
+            wp_die( esc_html__( 'Organization ID is required.', 'wp-helpdesk' ) );
+        }
+        
+        $shift_type = sanitize_text_field( $_POST['shift_type'] );
+        $current_date = current_time( 'Y-m-d' );
+        
+        // Check if a completed report already exists for this organization, shift, and date
+        $existing_report = WPHD_Database::check_completed_report_exists( $org_id, $shift_type, $current_date );
+        
+        if ( $existing_report ) {
+            // Merge mode - existing completed report found
+            $report_id = $existing_report->id;
+            
+            // Process and merge tickets for each section
+            $sections = array( 'tasks_todo', 'follow_up', 'important_info' );
+            $new_tickets = array();
+            
+            foreach ( $sections as $section ) {
+                $tickets_field = $section . '_tickets';
+                if ( ! empty( $_POST[ $tickets_field ] ) ) {
+                    $tickets_json = sanitize_textarea_field( stripslashes( $_POST[ $tickets_field ] ) );
+                    $tickets_data = json_decode( $tickets_json, true );
+                    
+                    if ( json_last_error() === JSON_ERROR_NONE && is_array( $tickets_data ) ) {
+                        foreach ( $tickets_data as $index => $ticket_data ) {
+                            if ( isset( $ticket_data['ticket_id'] ) && is_numeric( $ticket_data['ticket_id'] ) ) {
+                                $new_tickets[] = array(
+                                    'ticket_id' => intval( $ticket_data['ticket_id'] ),
+                                    'section_type' => $section,
+                                    'special_instructions' => isset( $ticket_data['special_instructions'] ) ? sanitize_textarea_field( $ticket_data['special_instructions'] ) : '',
+                                    'display_order' => $index
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Merge tickets (avoiding duplicates)
+            $added_count = WPHD_Database::merge_report_tickets( $report_id, $new_tickets );
+            
+            // Append additional instructions if provided
+            if ( ! empty( $_POST['additional_instructions'] ) ) {
+                $instructions = wp_kses_post( $_POST['additional_instructions'] );
+                WPHD_Database::append_additional_instructions( $report_id, get_current_user_id(), $instructions );
+            }
+            
+            // Redirect with merge success message
+            wp_safe_redirect(
+                add_query_arg(
+                    array(
+                        'page'    => 'wp-helpdesk-handover-reports',
+                        'merged' => '1',
+                        'added'  => $added_count,
+                    ),
+                    admin_url( 'admin.php' )
+                )
+            );
+            exit;
+        }
 
         // Prepare report data
         $report_data = array(
             'user_id'                  => get_current_user_id(),
-            'shift_type'               => sanitize_text_field( $_POST['shift_type'] ),
+            'organization_id'          => $org_id,
+            'shift_type'               => $shift_type,
             'shift_date'               => current_time( 'mysql' ),
             'additional_instructions'  => isset( $_POST['additional_instructions'] ) ? wp_kses_post( $_POST['additional_instructions'] ) : '',
-            'status'                   => 'active',
+            'status'                   => 'completed',
         );
 
         // Save the report
@@ -432,5 +535,141 @@ class WPHD_Handover_Report {
             'afternoon' => __( 'Afternoon (14:00 - 22:00)', 'wp-helpdesk' ),
             'night'     => __( 'Night (22:00 - 06:00)', 'wp-helpdesk' ),
         );
+    }
+    
+    /**
+     * AJAX handler to check for duplicate reports.
+     *
+     * @since 1.0.0
+     */
+    public function ajax_check_duplicate_report() {
+        check_ajax_referer( 'wphd_create_handover', 'nonce' );
+
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+        }
+
+        $org_id = isset( $_POST['organization_id'] ) ? intval( $_POST['organization_id'] ) : 0;
+        $shift_type = isset( $_POST['shift_type'] ) ? sanitize_text_field( $_POST['shift_type'] ) : '';
+        $shift_date = isset( $_POST['shift_date'] ) ? sanitize_text_field( $_POST['shift_date'] ) : current_time( 'Y-m-d' );
+
+        if ( ! $org_id || ! $shift_type ) {
+            wp_send_json_error( array( 'message' => __( 'Missing required parameters.', 'wp-helpdesk' ) ) );
+        }
+
+        $existing_report = WPHD_Database::check_completed_report_exists( $org_id, $shift_type, $shift_date );
+
+        if ( $existing_report ) {
+            $creator = get_userdata( $existing_report->user_id );
+            $creator_name = $creator ? $creator->display_name : __( 'Unknown', 'wp-helpdesk' );
+            
+            wp_send_json_success( array(
+                'exists' => true,
+                'report_id' => $existing_report->id,
+                'created_by' => $creator_name,
+                'created_at' => mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $existing_report->created_at )
+            ) );
+        } else {
+            wp_send_json_success( array( 'exists' => false ) );
+        }
+    }
+    
+    /**
+     * AJAX handler to merge report content.
+     *
+     * @since 1.0.0
+     */
+    public function ajax_merge_report_content() {
+        check_ajax_referer( 'wphd_create_handover', 'nonce' );
+
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+        }
+
+        $report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
+        $new_tickets_json = isset( $_POST['new_tickets'] ) ? sanitize_textarea_field( stripslashes( $_POST['new_tickets'] ) ) : '';
+        $additional_instructions = isset( $_POST['additional_instructions'] ) ? wp_kses_post( $_POST['additional_instructions'] ) : '';
+
+        if ( ! $report_id ) {
+            wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
+        }
+
+        $new_tickets = json_decode( $new_tickets_json, true );
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            wp_send_json_error( array( 'message' => __( 'Invalid ticket data.', 'wp-helpdesk' ) ) );
+        }
+
+        // Merge tickets
+        $added_count = WPHD_Database::merge_report_tickets( $report_id, $new_tickets );
+
+        // Append additional instructions if provided
+        if ( ! empty( $additional_instructions ) ) {
+            WPHD_Database::append_additional_instructions( $report_id, get_current_user_id(), $additional_instructions );
+        }
+
+        wp_send_json_success( array(
+            'message' => __( 'Report updated successfully.', 'wp-helpdesk' ),
+            'added_tickets' => $added_count
+        ) );
+    }
+    
+    /**
+     * AJAX handler to save ticket to shared report draft.
+     *
+     * @since 1.0.0
+     */
+    public function ajax_save_ticket_to_shared_report() {
+        check_ajax_referer( 'wphd_create_handover', 'nonce' );
+
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+        }
+
+        $org_id = isset( $_POST['organization_id'] ) ? intval( $_POST['organization_id'] ) : 0;
+        $shift_type = isset( $_POST['shift_type'] ) ? sanitize_text_field( $_POST['shift_type'] ) : '';
+        $shift_date = isset( $_POST['shift_date'] ) ? sanitize_text_field( $_POST['shift_date'] ) : current_time( 'Y-m-d' );
+        $ticket_id = isset( $_POST['ticket_id'] ) ? intval( $_POST['ticket_id'] ) : 0;
+        $section_type = isset( $_POST['section_type'] ) ? sanitize_text_field( $_POST['section_type'] ) : '';
+        $special_instructions = isset( $_POST['special_instructions'] ) ? sanitize_textarea_field( $_POST['special_instructions'] ) : '';
+
+        if ( ! $org_id || ! $shift_type || ! $ticket_id || ! $section_type ) {
+            wp_send_json_error( array( 'message' => __( 'Missing required parameters.', 'wp-helpdesk' ) ) );
+        }
+
+        // Get or create draft report
+        $draft_report = WPHD_Database::get_organization_draft_report( $org_id, $shift_type, $shift_date );
+
+        if ( ! $draft_report ) {
+            // Create a new draft report
+            $report_data = array(
+                'user_id' => get_current_user_id(),
+                'organization_id' => $org_id,
+                'shift_type' => $shift_type,
+                'shift_date' => current_time( 'mysql' ),
+                'status' => 'draft'
+            );
+            $report_id = WPHD_Database::save_handover_report( $report_data );
+        } else {
+            $report_id = $draft_report->id;
+        }
+
+        if ( ! $report_id ) {
+            wp_send_json_error( array( 'message' => __( 'Failed to create or retrieve draft report.', 'wp-helpdesk' ) ) );
+        }
+
+        // Add ticket to report
+        $result = WPHD_Database::add_handover_report_ticket(
+            $report_id,
+            $ticket_id,
+            $section_type,
+            $special_instructions,
+            0
+        );
+
+        if ( $result ) {
+            wp_send_json_success( array( 'message' => __( 'Ticket saved to shared report.', 'wp-helpdesk' ) ) );
+        } else {
+            wp_send_json_error( array( 'message' => __( 'Failed to save ticket.', 'wp-helpdesk' ) ) );
+        }
     }
 }
