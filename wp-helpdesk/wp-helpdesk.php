@@ -44,6 +44,8 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'includes/class-ajax-handler.php';
         require_once WPHD_PLUGIN_DIR . 'includes/class-rest-api.php';
         require_once WPHD_PLUGIN_DIR . 'includes/class-access-control.php';
+        require_once WPHD_PLUGIN_DIR . 'includes/class-excel-generator.php';
+        require_once WPHD_PLUGIN_DIR . 'includes/class-pdf-generator.php';
         
         require_once WPHD_PLUGIN_DIR . 'features/tickets/class-ticket-cpt.php';
         require_once WPHD_PLUGIN_DIR . 'features/tickets/class-ticket-meta.php';
@@ -77,6 +79,7 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-menu.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-pages.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-handover-report.php';
+        require_once WPHD_PLUGIN_DIR . 'admin/class-handover-history.php';
     }
     
     private function init_hooks() {
@@ -166,6 +169,7 @@ final class WP_HelpDesk {
             WPHD_Admin_Menu::instance();
             WPHD_Admin_Pages::instance();
             WPHD_Handover_Report::instance();
+            WPHD_Handover_History::instance();
         }
     }
     

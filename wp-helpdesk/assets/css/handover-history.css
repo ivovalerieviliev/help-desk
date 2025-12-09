@@ -1,0 +1,315 @@
+/**
+ * Handover History Styles
+ *
+ * Styles for the handover history page including filters, table, and modal.
+ *
+ * @package WP_HelpDesk
+ * @since 1.0.0
+ */
+
+/* History Page Wrapper */
+.wphd-handover-history-wrap {
+	max-width: 1400px;
+}
+
+/* Filter Section */
+.wphd-history-filters {
+	background: #fff;
+	padding: 20px;
+	margin: 20px 0;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.wphd-filter-buttons {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 15px;
+}
+
+.wphd-filter-btn {
+	background: #f0f0f1;
+	border: 1px solid #c3c4c7;
+	color: #2c3338;
+	padding: 8px 16px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.wphd-filter-btn:hover {
+	background: #e5e5e5;
+	border-color: #999;
+}
+
+.wphd-filter-btn.active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+	font-weight: 600;
+}
+
+.wphd-filter-btn.active:hover {
+	background: #135e96;
+	border-color: #135e96;
+}
+
+/* Custom Date Range */
+.wphd-custom-date-range {
+	margin: 15px 0;
+	padding: 15px;
+	background: #f9f9f9;
+	border-radius: 4px;
+}
+
+.wphd-date-inputs {
+	display: flex;
+	gap: 20px;
+	flex-wrap: wrap;
+}
+
+.wphd-date-group {
+	flex: 1;
+	min-width: 280px;
+}
+
+.wphd-date-group label {
+	display: block;
+	margin-bottom: 5px;
+	font-weight: 600;
+	color: #2c3338;
+}
+
+.wphd-date-group input[type="date"],
+.wphd-date-group input[type="time"] {
+	width: 100%;
+	padding: 6px 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	margin-bottom: 8px;
+}
+
+.wphd-date-group input[type="time"] {
+	width: auto;
+	margin-left: 10px;
+}
+
+.wphd-apply-filter {
+	margin-top: 10px;
+}
+
+/* Reports Table */
+#wphd-reports-table-container {
+	background: #fff;
+	padding: 20px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.wphd-action-buttons {
+	white-space: nowrap;
+}
+
+.wphd-action-buttons .button {
+	margin-right: 5px;
+}
+
+.wphd-export-excel {
+	background: #28a745;
+	color: #fff;
+	border-color: #28a745;
+}
+
+.wphd-export-excel:hover {
+	background: #218838;
+	border-color: #1e7e34;
+	color: #fff;
+}
+
+.wphd-export-pdf {
+	background: #dc3545;
+	color: #fff;
+	border-color: #dc3545;
+}
+
+.wphd-export-pdf:hover {
+	background: #c82333;
+	border-color: #bd2130;
+	color: #fff;
+}
+
+.wphd-view-instructions {
+	color: #2271b1;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.wphd-view-instructions:hover {
+	color: #135e96;
+	text-decoration: underline;
+}
+
+/* Modal Popup */
+.wphd-modal {
+	display: none;
+	position: fixed;
+	z-index: 100000;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.6);
+	animation: wphd-fadeIn 0.3s ease;
+}
+
+@keyframes wphd-fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.wphd-modal-content {
+	background-color: #fff;
+	margin: 5% auto;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	width: 90%;
+	max-width: 600px;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+	animation: wphd-slideDown 0.3s ease;
+}
+
+@keyframes wphd-slideDown {
+	from {
+		transform: translateY(-50px);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+.wphd-instructions-modal-content {
+	max-width: 700px;
+}
+
+.wphd-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 20px;
+	border-bottom: 1px solid #c3c4c7;
+	background: #f9f9f9;
+}
+
+.wphd-modal-header h2 {
+	margin: 0;
+	font-size: 20px;
+	color: #2c3338;
+}
+
+.wphd-modal-close {
+	color: #50575e;
+	font-size: 28px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: color 0.2s ease;
+	line-height: 1;
+	padding: 0;
+	background: none;
+	border: none;
+}
+
+.wphd-modal-close:hover,
+.wphd-modal-close:focus {
+	color: #2c3338;
+}
+
+.wphd-modal-body {
+	padding: 20px;
+	max-height: 60vh;
+	overflow-y: auto;
+	line-height: 1.6;
+}
+
+.wphd-modal-footer {
+	padding: 15px 20px;
+	border-top: 1px solid #c3c4c7;
+	background: #f9f9f9;
+	text-align: right;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+	.wphd-filter-buttons {
+		flex-direction: column;
+	}
+	
+	.wphd-filter-btn {
+		width: 100%;
+	}
+	
+	.wphd-date-inputs {
+		flex-direction: column;
+	}
+	
+	.wphd-date-group {
+		min-width: 100%;
+	}
+	
+	.wphd-modal-content {
+		width: 95%;
+		margin: 10% auto;
+	}
+	
+	.wphd-action-buttons .button {
+		display: block;
+		width: 100%;
+		margin-bottom: 5px;
+	}
+}
+
+/* Loading State */
+.wphd-loading {
+	text-align: center;
+	padding: 40px;
+	color: #666;
+}
+
+.wphd-loading::before {
+	content: "";
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border: 3px solid #f3f3f3;
+	border-top: 3px solid #2271b1;
+	border-radius: 50%;
+	animation: wphd-spin 1s linear infinite;
+	margin-right: 10px;
+	vertical-align: middle;
+}
+
+@keyframes wphd-spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+/* Table Enhancements */
+.wp-list-table td {
+	vertical-align: middle;
+}
+
+.wp-list-table .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+	vertical-align: middle;
+	margin-right: 4px;
+}
+
+/* Button States */
+.button:disabled,
+.button[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
