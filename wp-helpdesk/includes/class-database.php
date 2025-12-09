@@ -654,9 +654,10 @@ class WPHD_Database {
     /**
      * Get organization draft report for a shift.
      *
+     * @since 1.0.0
      * @param int $org_id Organization ID.
-     * @param string $shift_type Shift type.
-     * @param string $date Date (Y-m-d format).
+     * @param string $shift_type Shift type (morning, afternoon, night).
+     * @param string $date Date in Y-m-d format.
      * @return object|null Report object or null if not found.
      */
     public static function get_organization_draft_report($org_id, $shift_type, $date) {

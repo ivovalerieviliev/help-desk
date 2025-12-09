@@ -518,6 +518,11 @@ class WPHD_Handover_History {
 		if ( strlen( $search_term ) < 2 ) {
 			wp_send_json_error( array( 'message' => __( 'Please enter at least 2 characters to search.', 'wp-helpdesk' ) ) );
 		}
+		
+		// Prevent DoS attacks from extremely long search terms
+		if ( strlen( $search_term ) > 200 ) {
+			wp_send_json_error( array( 'message' => __( 'Search term is too long. Please use fewer than 200 characters.', 'wp-helpdesk' ) ) );
+		}
 
 		$filters = array();
 		if ( $date_from ) {

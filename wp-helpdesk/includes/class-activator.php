@@ -217,7 +217,7 @@ class WPHD_Activator {
         $sql_handover_reports = "CREATE TABLE $table_handover_reports (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             user_id bigint(20) unsigned NOT NULL,
-            organization_id bigint(20) unsigned NOT NULL,
+            organization_id bigint(20) unsigned DEFAULT NULL,
             shift_type varchar(50) NOT NULL,
             shift_date datetime NOT NULL,
             additional_instructions longtext,

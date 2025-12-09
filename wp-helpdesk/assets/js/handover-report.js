@@ -431,8 +431,8 @@
      */
     function checkDuplicateReport(shiftType, orgId) {
         if (!wpHelpDesk.handoverNonce) {
-            // No nonce available, just submit the form
-            $('#wphd-handover-report-form').off('submit').submit();
+            // Show error - don't submit without nonce
+            showNotification('Security token missing. Please refresh the page.', 'error');
             return;
         }
 

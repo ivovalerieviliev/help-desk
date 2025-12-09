@@ -322,6 +322,12 @@
 	 * Perform search
 	 */
 	function performSearch(searchTerm) {
+		// Limit search term length to prevent DoS
+		if (searchTerm.length > 200) {
+			showNotice('error', 'Search term is too long. Please use fewer than 200 characters.');
+			return;
+		}
+		
 		// Show loading state
 		$('#wphd-reports-table-container').html('<p class="wphd-loading">Searching...</p>');
 		
