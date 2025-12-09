@@ -219,6 +219,30 @@ class WPHD_Admin_Menu {
                 array( $this, 'render_handover_history_page' )
             );
         }
+        
+        // Hidden View Handover Report page (no menu item)
+        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+            add_submenu_page(
+                null, // Hidden from menu
+                __( 'View Handover Report', 'wp-helpdesk' ),
+                __( 'View Handover Report', 'wp-helpdesk' ),
+                'create_wphd_handover_reports',
+                $this->menu_slug . '-handover-view',
+                array( $this, 'render_handover_view_page' )
+            );
+        }
+        
+        // Hidden Edit Handover Report page (no menu item)
+        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+            add_submenu_page(
+                null, // Hidden from menu
+                __( 'Edit Handover Report', 'wp-helpdesk' ),
+                __( 'Edit Handover Report', 'wp-helpdesk' ),
+                'create_wphd_handover_reports',
+                $this->menu_slug . '-handover-edit',
+                array( $this, 'render_handover_edit_page' )
+            );
+        }
 
         // Reports submenu (Admin only).
         if ( WPHD_Access_Control::can_access( 'reports' ) ) {
@@ -297,7 +321,7 @@ class WPHD_Admin_Menu {
         }
 
         // Enqueue handover history assets on the handover history page
-        if ( strpos( $hook, 'handover-reports' ) !== false ) {
+        if ( strpos( $hook, 'handover-reports' ) !== false || strpos( $hook, 'handover-view' ) !== false || strpos( $hook, 'handover-edit' ) !== false ) {
             wp_enqueue_style(
                 'wp-helpdesk-handover-history',
                 WPHD_PLUGIN_URL . 'assets/css/handover-history.css',
@@ -4467,5 +4491,361 @@ class WPHD_Admin_Menu {
         // Redirect to prevent resubmission
         wp_safe_redirect( admin_url( 'admin.php?page=' . $this->menu_slug . '-settings&tab=tools&repaired=1' ) );
         exit;
+    }
+    
+    /**
+     * Render the view handover report page.
+     *
+     * @since 1.0.0
+     */
+    public function render_handover_view_page() {
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_die( esc_html__( 'You do not have permission to view handover reports.', 'wp-helpdesk' ) );
+        }
+        
+        $report_id = isset( $_GET['report_id'] ) ? intval( $_GET['report_id'] ) : 0;
+        
+        if ( ! $report_id ) {
+            wp_die( esc_html__( 'Invalid report ID.', 'wp-helpdesk' ) );
+        }
+        
+        $report = WPHD_Database::get_handover_report( $report_id );
+        
+        if ( ! $report ) {
+            wp_die( esc_html__( 'Report not found.', 'wp-helpdesk' ) );
+        }
+        
+        // Get report tickets grouped by section
+        $tickets_by_section = array(
+            'tasks_todo' => array(),
+            'follow_up' => array(),
+            'important_info' => array()
+        );
+        
+        $report_tickets = WPHD_Database::get_handover_report_tickets( $report_id );
+        
+        foreach ( $report_tickets as $report_ticket ) {
+            $ticket = get_post( $report_ticket->ticket_id );
+            if ( ! $ticket ) {
+                continue;
+            }
+            
+            $section = $report_ticket->section_type;
+            if ( isset( $tickets_by_section[ $section ] ) ) {
+                $tickets_by_section[ $section ][] = array(
+                    'ticket' => $ticket,
+                    'special_instructions' => $report_ticket->special_instructions
+                );
+            }
+        }
+        
+        // Get user info
+        $user = get_userdata( $report->user_id );
+        $user_name = $user ? $user->display_name : __( 'Unknown', 'wp-helpdesk' );
+        
+        ?>
+        <div class="wrap wp-helpdesk-wrap wphd-view-mode-wrap">
+            <h1>
+                <?php esc_html_e( 'View Handover Report', 'wp-helpdesk' ); ?>
+                <button type="button" class="button button-primary" onclick="window.print();">
+                    <span class="dashicons dashicons-printer"></span>
+                    <?php esc_html_e( 'Print', 'wp-helpdesk' ); ?>
+                </button>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-handover-reports' ) ); ?>" class="button">
+                    <?php esc_html_e( 'Back to History', 'wp-helpdesk' ); ?>
+                </a>
+            </h1>
+            
+            <!-- Shift Details -->
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h2><?php esc_html_e( 'Shift Details', 'wp-helpdesk' ); ?></h2>
+                </div>
+                <div class="inside">
+                    <table class="form-table">
+                        <tr>
+                            <th><?php esc_html_e( 'Creator', 'wp-helpdesk' ); ?>:</th>
+                            <td><?php echo esc_html( $user_name ); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e( 'Shift Type', 'wp-helpdesk' ); ?>:</th>
+                            <td><?php echo esc_html( ucfirst( $report->shift_type ) ); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e( 'Shift Date', 'wp-helpdesk' ); ?>:</th>
+                            <td><?php echo esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $report->shift_date ) ); ?></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <?php foreach ( $tickets_by_section as $section => $tickets ) : ?>
+                <?php if ( ! empty( $tickets ) ) : ?>
+                    <div class="postbox">
+                        <div class="postbox-header">
+                            <h2>
+                                <?php
+                                switch ( $section ) {
+                                    case 'tasks_todo':
+                                        esc_html_e( 'Tasks to be Done', 'wp-helpdesk' );
+                                        break;
+                                    case 'follow_up':
+                                        esc_html_e( 'Follow-up Tickets', 'wp-helpdesk' );
+                                        break;
+                                    case 'important_info':
+                                        esc_html_e( 'Important Information', 'wp-helpdesk' );
+                                        break;
+                                }
+                                ?>
+                            </h2>
+                        </div>
+                        <div class="inside">
+                            <table class="wp-list-table widefat fixed striped">
+                                <thead>
+                                    <tr>
+                                        <th><?php esc_html_e( 'Ticket ID', 'wp-helpdesk' ); ?></th>
+                                        <th><?php esc_html_e( 'Title', 'wp-helpdesk' ); ?></th>
+                                        <?php if ( 'important_info' === $section ) : ?>
+                                            <th><?php esc_html_e( 'Special Instructions', 'wp-helpdesk' ); ?></th>
+                                        <?php endif; ?>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $tickets as $ticket_data ) : ?>
+                                        <tr>
+                                            <td><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk-tickets&ticket_id=' . $ticket_data['ticket']->ID ) ); ?>" target="_blank" class="wphd-ticket-link"><strong>#<?php echo esc_html( $ticket_data['ticket']->ID ); ?></strong></a></td>
+                                            <td><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk-tickets&ticket_id=' . $ticket_data['ticket']->ID ) ); ?>" target="_blank" class="wphd-ticket-link"><?php echo esc_html( $ticket_data['ticket']->post_title ); ?></a></td>
+                                            <?php if ( 'important_info' === $section ) : ?>
+                                                <td><?php echo esc_html( $ticket_data['special_instructions'] ); ?></td>
+                                            <?php endif; ?>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+            
+            <?php if ( ! empty( $report->additional_instructions ) ) : ?>
+                <div class="postbox">
+                    <div class="postbox-header">
+                        <h2><?php esc_html_e( 'Additional Instructions', 'wp-helpdesk' ); ?></h2>
+                    </div>
+                    <div class="inside">
+                        <?php echo wp_kses_post( $report->additional_instructions ); ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <div class="view-actions">
+                <button type="button" class="button button-primary" onclick="window.print();">
+                    <span class="dashicons dashicons-printer"></span>
+                    <?php esc_html_e( 'Print', 'wp-helpdesk' ); ?>
+                </button>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-handover-reports' ) ); ?>" class="button">
+                    <?php esc_html_e( 'Back to History', 'wp-helpdesk' ); ?>
+                </a>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render the edit handover report page.
+     *
+     * @since 1.0.0
+     */
+    public function render_handover_edit_page() {
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_die( esc_html__( 'You do not have permission to edit handover reports.', 'wp-helpdesk' ) );
+        }
+        
+        $report_id = isset( $_GET['report_id'] ) ? intval( $_GET['report_id'] ) : 0;
+        
+        if ( ! $report_id ) {
+            wp_die( esc_html__( 'Invalid report ID.', 'wp-helpdesk' ) );
+        }
+        
+        $report = WPHD_Database::get_handover_report( $report_id );
+        
+        if ( ! $report ) {
+            wp_die( esc_html__( 'Report not found.', 'wp-helpdesk' ) );
+        }
+        
+        // Get report tickets grouped by section
+        $tickets_by_section = array(
+            'tasks_todo' => array(),
+            'follow_up' => array(),
+            'important_info' => array()
+        );
+        
+        $report_tickets = WPHD_Database::get_handover_report_tickets( $report_id );
+        
+        foreach ( $report_tickets as $report_ticket ) {
+            $ticket = get_post( $report_ticket->ticket_id );
+            if ( ! $ticket ) {
+                continue;
+            }
+            
+            $section = $report_ticket->section_type;
+            if ( isset( $tickets_by_section[ $section ] ) ) {
+                $tickets_by_section[ $section ][] = array(
+                    'ticket_id' => $ticket->ID,
+                    'title' => $ticket->post_title,
+                    'special_instructions' => $report_ticket->special_instructions
+                );
+            }
+        }
+        
+        // Get user info
+        $user = get_userdata( $report->user_id );
+        $user_name = $user ? $user->display_name : __( 'Unknown', 'wp-helpdesk' );
+        
+        ?>
+        <div class="wrap wp-helpdesk-wrap wphd-edit-mode-wrap">
+            <h1><?php esc_html_e( 'Edit Handover Report', 'wp-helpdesk' ); ?></h1>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h2><?php esc_html_e( 'Shift Details (Read-Only)', 'wp-helpdesk' ); ?></h2>
+                </div>
+                <div class="inside">
+                    <div class="wphd-readonly-field">
+                        <label><?php esc_html_e( 'Creator', 'wp-helpdesk' ); ?>:</label>
+                        <?php echo esc_html( $user_name ); ?>
+                    </div>
+                    <div class="wphd-readonly-field">
+                        <label><?php esc_html_e( 'Shift Type', 'wp-helpdesk' ); ?>:</label>
+                        <?php echo esc_html( ucfirst( $report->shift_type ) ); ?>
+                    </div>
+                    <div class="wphd-readonly-field">
+                        <label><?php esc_html_e( 'Shift Date', 'wp-helpdesk' ); ?>:</label>
+                        <?php echo esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $report->shift_date ) ); ?>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="description">
+                <?php esc_html_e( 'Note: Edit mode is a simplified view. You can view the full editable report by using the Create Handover Report page.', 'wp-helpdesk' ); ?>
+            </p>
+            
+            <?php foreach ( $tickets_by_section as $section => $tickets ) : ?>
+                <div class="postbox">
+                    <div class="postbox-header">
+                        <h2>
+                            <?php
+                            switch ( $section ) {
+                                case 'tasks_todo':
+                                    esc_html_e( 'Tasks to be Done', 'wp-helpdesk' );
+                                    break;
+                                case 'follow_up':
+                                    esc_html_e( 'Follow-up Tickets', 'wp-helpdesk' );
+                                    break;
+                                case 'important_info':
+                                    esc_html_e( 'Important Information', 'wp-helpdesk' );
+                                    break;
+                            }
+                            ?>
+                        </h2>
+                    </div>
+                    <div class="inside">
+                        <?php if ( ! empty( $tickets ) ) : ?>
+                            <table class="wp-list-table widefat fixed striped">
+                                <thead>
+                                    <tr>
+                                        <th><?php esc_html_e( 'Ticket ID', 'wp-helpdesk' ); ?></th>
+                                        <th><?php esc_html_e( 'Title', 'wp-helpdesk' ); ?></th>
+                                        <?php if ( 'important_info' === $section ) : ?>
+                                            <th><?php esc_html_e( 'Special Instructions', 'wp-helpdesk' ); ?></th>
+                                        <?php endif; ?>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $tickets as $ticket_data ) : ?>
+                                        <tr>
+                                            <td><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk-tickets&ticket_id=' . $ticket_data['ticket_id'] ) ); ?>" target="_blank" class="wphd-ticket-link"><strong>#<?php echo esc_html( $ticket_data['ticket_id'] ); ?></strong></a></td>
+                                            <td><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk-tickets&ticket_id=' . $ticket_data['ticket_id'] ) ); ?>" target="_blank" class="wphd-ticket-link"><?php echo esc_html( $ticket_data['title'] ); ?></a></td>
+                                            <?php if ( 'important_info' === $section ) : ?>
+                                                <td><?php echo esc_html( $ticket_data['special_instructions'] ); ?></td>
+                                            <?php endif; ?>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p><em><?php esc_html_e( 'No tickets in this section.', 'wp-helpdesk' ); ?></em></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h2><?php esc_html_e( 'Additional Instructions', 'wp-helpdesk' ); ?></h2>
+                </div>
+                <div class="inside">
+                    <?php
+                    wp_editor(
+                        $report->additional_instructions,
+                        'edit_additional_instructions',
+                        array(
+                            'textarea_rows' => 10,
+                            'media_buttons' => false,
+                            'teeny'         => false,
+                            'tinymce'       => true,
+                        )
+                    );
+                    ?>
+                </div>
+            </div>
+            
+            <div class="edit-actions">
+                <button type="button" class="button button-primary" id="wphd-save-edit-btn" data-report-id="<?php echo esc_attr( $report_id ); ?>">
+                    <?php esc_html_e( 'Save Changes', 'wp-helpdesk' ); ?>
+                </button>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-handover-reports' ) ); ?>" class="button">
+                    <?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?>
+                </a>
+            </div>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            $('#wphd-save-edit-btn').on('click', function() {
+                const reportId = $(this).data('report-id');
+                const instructions = $('#edit_additional_instructions').val();
+                const button = $(this);
+                const originalText = button.text();
+                
+                button.prop('disabled', true).text('<?php esc_html_e( 'Saving...', 'wp-helpdesk' ); ?>');
+                
+                $.ajax({
+                    url: wpHelpDesk.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'wphd_update_handover_report',
+                        nonce: wpHelpDesk.nonce,
+                        report_id: reportId,
+                        additional_instructions: instructions,
+                        tickets_data: JSON.stringify({}) // Empty for now - tickets not editable in this view
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            window.location.href = '<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-handover-reports&updated=1' ) ); ?>';
+                        } else {
+                            alert(response.data.message || '<?php esc_html_e( 'Failed to update report.', 'wp-helpdesk' ); ?>');
+                            button.prop('disabled', false).text(originalText);
+                        }
+                    },
+                    error: function() {
+                        alert('<?php esc_html_e( 'An error occurred while saving.', 'wp-helpdesk' ); ?>');
+                        button.prop('disabled', false).text(originalText);
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
     }
 }

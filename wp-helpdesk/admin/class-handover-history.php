@@ -56,6 +56,9 @@ class WPHD_Handover_History {
 		add_action( 'wp_ajax_wphd_export_handover_excel', array( $this, 'export_to_excel' ) );
 		add_action( 'wp_ajax_wphd_export_handover_pdf', array( $this, 'export_to_pdf' ) );
 		add_action( 'wp_ajax_wphd_get_report_instructions', array( $this, 'ajax_get_instructions' ) );
+		add_action( 'wp_ajax_wphd_search_handover_reports', array( $this, 'ajax_search_reports' ) );
+		add_action( 'wp_ajax_wphd_get_report_details', array( $this, 'ajax_get_report_details' ) );
+		add_action( 'wp_ajax_wphd_update_handover_report', array( $this, 'ajax_update_report' ) );
 	}
 
 	/**
@@ -76,11 +79,27 @@ class WPHD_Handover_History {
 			</div>
 			<?php
 		}
+		
+		// Show merge success message
+		if ( isset( $_GET['merged'] ) && '1' === $_GET['merged'] ) {
+			$added_count = isset( $_GET['added'] ) ? intval( $_GET['added'] ) : 0;
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p>
+					<?php
+					/* translators: %d: Number of tickets added */
+					printf( esc_html__( 'Report updated successfully! %d new ticket(s) added.', 'wp-helpdesk' ), $added_count );
+					?>
+				</p>
+			</div>
+			<?php
+		}
 
 		?>
 		<div class="wrap wp-helpdesk-wrap wphd-handover-history-wrap">
 			<h1><?php esc_html_e( 'Handover Report History', 'wp-helpdesk' ); ?></h1>
 			
+			<?php $this->render_search_bar(); ?>
 			<?php $this->render_filter_section(); ?>
 			<?php $this->render_reports_table(); ?>
 		</div>
@@ -98,6 +117,26 @@ class WPHD_Handover_History {
 				<div class="wphd-modal-footer">
 					<button type="button" class="button wphd-close-modal-btn"><?php esc_html_e( 'Close', 'wp-helpdesk' ); ?></button>
 				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the search bar section.
+	 *
+	 * @since 1.0.0
+	 */
+	private function render_search_bar() {
+		?>
+		<div class="wphd-search-bar-container">
+			<div class="wphd-search-input-wrapper">
+				<span class="dashicons dashicons-search"></span>
+				<input 
+					type="text" 
+					id="wphd-handover-search-input" 
+					placeholder="<?php esc_attr_e( 'Search handovers by ticket ID, title, description, comments, or instructions...', 'wp-helpdesk' ); ?>"
+				>
 			</div>
 		</div>
 		<?php
@@ -224,6 +263,14 @@ class WPHD_Handover_History {
 							<?php endif; ?>
 						</td>
 						<td class="wphd-action-buttons">
+							<button type="button" class="button button-small wphd-view-btn" data-report-id="<?php echo esc_attr( $report->id ); ?>">
+								<span class="dashicons dashicons-visibility"></span>
+								<?php esc_html_e( 'View', 'wp-helpdesk' ); ?>
+							</button>
+							<button type="button" class="button button-small wphd-edit-btn" data-report-id="<?php echo esc_attr( $report->id ); ?>">
+								<span class="dashicons dashicons-edit"></span>
+								<?php esc_html_e( 'Edit', 'wp-helpdesk' ); ?>
+							</button>
 							<button type="button" class="button button-small wphd-export-excel" data-report-id="<?php echo esc_attr( $report->id ); ?>">
 								<span class="dashicons dashicons-media-spreadsheet"></span>
 								<?php esc_html_e( 'Excel', 'wp-helpdesk' ); ?>
@@ -450,5 +497,164 @@ class WPHD_Handover_History {
 		}
 
 		wp_send_json_success( array( 'instructions' => $report->additional_instructions ) );
+	}
+	
+	/**
+	 * AJAX handler for searching reports.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_search_reports() {
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+		}
+
+		$search_term = isset( $_POST['search_term'] ) ? sanitize_text_field( $_POST['search_term'] ) : '';
+		$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( $_POST['date_from'] ) : '';
+		$date_to = isset( $_POST['date_to'] ) ? sanitize_text_field( $_POST['date_to'] ) : '';
+
+		if ( strlen( $search_term ) < 2 ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter at least 2 characters to search.', 'wp-helpdesk' ) ) );
+		}
+		
+		// Prevent DoS attacks from extremely long search terms
+		if ( strlen( $search_term ) > 200 ) {
+			wp_send_json_error( array( 'message' => __( 'Search term is too long. Please use fewer than 200 characters.', 'wp-helpdesk' ) ) );
+		}
+
+		$filters = array();
+		if ( $date_from ) {
+			$filters['date_from'] = $date_from;
+		}
+		if ( $date_to ) {
+			$filters['date_to'] = $date_to;
+		}
+
+		$reports = WPHD_Database::search_handover_reports( $search_term, $filters );
+
+		ob_start();
+		$this->display_reports_table( $reports );
+		$html = ob_get_clean();
+
+		wp_send_json_success( array( 'html' => $html ) );
+	}
+	
+	/**
+	 * AJAX handler for getting report details.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_get_report_details() {
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+		}
+
+		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
+
+		if ( ! $report_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
+		}
+
+		$report = WPHD_Database::get_handover_report( $report_id );
+
+		if ( ! $report ) {
+			wp_send_json_error( array( 'message' => __( 'Report not found.', 'wp-helpdesk' ) ) );
+		}
+
+		// Get report tickets grouped by section
+		$tickets_data = array(
+			'tasks_todo' => array(),
+			'follow_up' => array(),
+			'important_info' => array()
+		);
+
+		$report_tickets = WPHD_Database::get_handover_report_tickets( $report_id );
+
+		foreach ( $report_tickets as $report_ticket ) {
+			$ticket = get_post( $report_ticket->ticket_id );
+			if ( ! $ticket ) {
+				continue;
+			}
+
+			$ticket_data = array(
+				'id' => $ticket->ID,
+				'title' => $ticket->post_title,
+				'special_instructions' => $report_ticket->special_instructions
+			);
+
+			$section = $report_ticket->section_type;
+			if ( isset( $tickets_data[ $section ] ) ) {
+				$tickets_data[ $section ][] = $ticket_data;
+			}
+		}
+
+		// Get additional instructions
+		$additional_instructions = WPHD_Database::get_additional_instructions( $report_id );
+
+		wp_send_json_success( array(
+			'report' => $report,
+			'tickets' => $tickets_data,
+			'additional_instructions_list' => $additional_instructions
+		) );
+	}
+	
+	/**
+	 * AJAX handler for updating a report.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_update_report() {
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+		}
+
+		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
+		$tickets_data_json = isset( $_POST['tickets_data'] ) ? sanitize_textarea_field( stripslashes( $_POST['tickets_data'] ) ) : '';
+		$additional_instructions = isset( $_POST['additional_instructions'] ) ? wp_kses_post( $_POST['additional_instructions'] ) : '';
+
+		if ( ! $report_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
+		}
+
+		$tickets_data = json_decode( $tickets_data_json, true );
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid ticket data.', 'wp-helpdesk' ) ) );
+		}
+
+		// Update additional instructions
+		if ( ! empty( $additional_instructions ) ) {
+			WPHD_Database::update_handover_report( $report_id, array(
+				'additional_instructions' => $additional_instructions
+			) );
+		}
+
+		// Clear existing tickets for this report
+		global $wpdb;
+		$wpdb->delete( 
+			$wpdb->prefix . 'wphd_handover_report_tickets',
+			array( 'report_id' => $report_id ),
+			array( '%d' )
+		);
+
+		// Add updated tickets
+		foreach ( $tickets_data as $section => $tickets ) {
+			foreach ( $tickets as $index => $ticket ) {
+				WPHD_Database::add_handover_report_ticket(
+					$report_id,
+					$ticket['ticket_id'],
+					$section,
+					isset( $ticket['special_instructions'] ) ? $ticket['special_instructions'] : '',
+					$index
+				);
+			}
+		}
+
+		wp_send_json_success( array( 'message' => __( 'Report updated successfully.', 'wp-helpdesk' ) ) );
 	}
 }

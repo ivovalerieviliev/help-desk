@@ -19,6 +19,8 @@
 		initFilterButtons();
 		initModal();
 		initExportButtons();
+		initSearchBar();
+		initViewEditButtons();
 	});
 
 	/**
@@ -283,5 +285,92 @@
 		}
 	`;
 	document.head.appendChild(style);
+	
+	/**
+	 * Initialize search bar
+	 */
+	function initSearchBar() {
+		let searchTimeout;
+		
+		$('#wphd-handover-search-input').on('keyup', function() {
+			const searchTerm = $(this).val();
+			
+			// Clear previous timeout
+			clearTimeout(searchTimeout);
+			
+			// If search is less than 2 characters, don't search
+			if (searchTerm.length > 0 && searchTerm.length < 2) {
+				return;
+			}
+			
+			// If search is empty, reload with current filter
+			if (searchTerm.length === 0) {
+				if (activeFilter) {
+					applyFilter();
+				}
+				return;
+			}
+			
+			// Debounce search - wait 300ms after user stops typing
+			searchTimeout = setTimeout(function() {
+				performSearch(searchTerm);
+			}, 300);
+		});
+	}
+	
+	/**
+	 * Perform search
+	 */
+	function performSearch(searchTerm) {
+		// Limit search term length to prevent DoS
+		if (searchTerm.length > 200) {
+			showNotice('error', 'Search term is too long. Please use fewer than 200 characters.');
+			return;
+		}
+		
+		// Show loading state
+		$('#wphd-reports-table-container').html('<p class="wphd-loading">Searching...</p>');
+		
+		$.ajax({
+			url: wpHelpDesk.ajaxUrl,
+			type: 'POST',
+			data: {
+				action: 'wphd_search_handover_reports',
+				nonce: wpHelpDesk.nonce,
+				search_term: searchTerm
+			},
+			success: function(response) {
+				if (response.success) {
+					$('#wphd-reports-table-container').html(response.data.html);
+					// Reinitialize event handlers for new content
+					initViewInstructions();
+					initExportButtons();
+					initViewEditButtons();
+				} else {
+					showNotice('error', response.data.message || 'Search failed.');
+				}
+			},
+			error: function() {
+				showNotice('error', 'An error occurred during search.');
+			}
+		});
+	}
+	
+	/**
+	 * Initialize View and Edit buttons
+	 */
+	function initViewEditButtons() {
+		// View button
+		$(document).on('click', '.wphd-view-btn', function() {
+			const reportId = $(this).data('report-id');
+			window.location.href = wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-handover-view&report_id=' + reportId;
+		});
+		
+		// Edit button
+		$(document).on('click', '.wphd-edit-btn', function() {
+			const reportId = $(this).data('report-id');
+			window.location.href = wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-handover-edit&report_id=' + reportId;
+		});
+	}
 
 })(jQuery);

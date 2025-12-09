@@ -4,14 +4,16 @@
  * Styles for the Create Handover Report page
  */
 
-/* Main Container */
+/* Main Container - Full Width */
 .wphd-handover-report-wrap {
-    max-width: 1200px;
+    max-width: 100%;
+    margin: 0;
 }
 
-/* Postbox Styling */
+/* Postbox Styling - Full Width */
 .wphd-handover-report-wrap .postbox {
     margin-bottom: 20px;
+    max-width: 100%;
 }
 
 .wphd-handover-report-wrap .postbox .inside {
@@ -32,6 +34,7 @@
 /* Ticket List Tables */
 .wphd-ticket-table {
     margin-top: 15px;
+    width: 100%;
 }
 
 .wphd-ticket-table th {
@@ -342,4 +345,97 @@
 
 .wphd-confirm-actions .button {
     margin: 0;
+}
+
+/* Clickable Ticket Links */
+.wphd-ticket-link {
+    color: #2271b1;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.wphd-ticket-link:hover {
+    color: #135e96;
+    text-decoration: underline;
+}
+
+/* Duplicate Report Dialog */
+.wphd-duplicate-dialog {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 4px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    max-width: 550px;
+    width: 90%;
+}
+
+.wphd-duplicate-dialog h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 20px;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.wphd-duplicate-dialog h3::before {
+    content: "⚠️";
+    margin-right: 10px;
+    font-size: 24px;
+}
+
+.wphd-duplicate-dialog .report-info {
+    background: #f9f9f9;
+    padding: 15px;
+    border-left: 4px solid #f39c12;
+    margin: 15px 0;
+    font-size: 14px;
+}
+
+.wphd-duplicate-dialog .report-info strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.wphd-duplicate-dialog ul {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.wphd-duplicate-dialog ul li {
+    margin-bottom: 8px;
+    color: #666;
+}
+
+/* Organization Notice */
+.wphd-organization-notice {
+    background: #e7f5fe;
+    border-left: 4px solid #2271b1;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.wphd-organization-notice strong {
+    color: #2271b1;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.wphd-organization-notice p {
+    margin: 5px 0 0 0;
+    color: #555;
+}
+
+/* Error Notice */
+.wphd-error-notice {
+    background: #fcf3f3;
+    border-left: 4px solid #dc3232;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.wphd-error-notice strong {
+    color: #dc3232;
+    display: block;
+    margin-bottom: 5px;
 }

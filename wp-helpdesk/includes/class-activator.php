@@ -217,6 +217,7 @@ class WPHD_Activator {
         $sql_handover_reports = "CREATE TABLE $table_handover_reports (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             user_id bigint(20) unsigned NOT NULL,
+            organization_id bigint(20) unsigned DEFAULT NULL,
             shift_type varchar(50) NOT NULL,
             shift_date datetime NOT NULL,
             additional_instructions longtext,
@@ -225,7 +226,9 @@ class WPHD_Activator {
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY user_id (user_id),
-            KEY shift_date (shift_date)
+            KEY organization_id (organization_id),
+            KEY shift_date (shift_date),
+            KEY status (status)
         ) $charset_collate;";
         dbDelta($sql_handover_reports);
         
@@ -245,6 +248,20 @@ class WPHD_Activator {
             KEY section_type (section_type)
         ) $charset_collate;";
         dbDelta($sql_handover_report_tickets);
+        
+        // Handover Additional Instructions Table
+        $table_handover_additional_instructions = $wpdb->prefix . 'wphd_handover_additional_instructions';
+        $sql_handover_additional_instructions = "CREATE TABLE $table_handover_additional_instructions (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            report_id bigint(20) unsigned NOT NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            content longtext NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY report_id (report_id),
+            KEY user_id (user_id)
+        ) $charset_collate;";
+        dbDelta($sql_handover_additional_instructions);
         
         update_option('wphd_db_version', WPHD_VERSION);
     }

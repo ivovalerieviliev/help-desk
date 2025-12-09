@@ -489,13 +489,20 @@ class WPHD_Database {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_handover_reports';
         
-        $result = $wpdb->insert($table, array(
+        $insert_data = array(
             'user_id' => isset($data['user_id']) ? intval($data['user_id']) : get_current_user_id(),
             'shift_type' => sanitize_text_field($data['shift_type']),
             'shift_date' => isset($data['shift_date']) ? $data['shift_date'] : current_time('mysql'),
             'additional_instructions' => isset($data['additional_instructions']) ? wp_kses_post($data['additional_instructions']) : '',
             'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active'
-        ));
+        );
+        
+        // Add organization_id if provided
+        if (isset($data['organization_id'])) {
+            $insert_data['organization_id'] = intval($data['organization_id']);
+        }
+        
+        $result = $wpdb->insert($table, $insert_data);
         
         return $result ? $wpdb->insert_id : false;
     }
@@ -642,5 +649,274 @@ class WPHD_Database {
         );
         
         return $result !== false;
+    }
+    
+    /**
+     * Get organization draft report for a shift.
+     *
+     * @since 1.0.0
+     * @param int $org_id Organization ID.
+     * @param string $shift_type Shift type (morning, afternoon, night).
+     * @param string $date Date in Y-m-d format.
+     * @return object|null Report object or null if not found.
+     */
+    public static function get_organization_draft_report($org_id, $shift_type, $date) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table 
+            WHERE organization_id = %d 
+            AND shift_type = %s 
+            AND DATE(shift_date) = %s 
+            AND status = 'draft'
+            ORDER BY created_at DESC
+            LIMIT 1",
+            $org_id,
+            $shift_type,
+            $date
+        ));
+    }
+    
+    /**
+     * Check if a completed report exists for organization, shift, and date.
+     *
+     * @param int $org_id Organization ID.
+     * @param string $shift_type Shift type.
+     * @param string $date Date (Y-m-d format).
+     * @return object|null Report object or null if not found.
+     */
+    public static function check_completed_report_exists($org_id, $shift_type, $date) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table 
+            WHERE organization_id = %d 
+            AND shift_type = %s 
+            AND DATE(shift_date) = %s 
+            AND status = 'completed'
+            ORDER BY created_at DESC
+            LIMIT 1",
+            $org_id,
+            $shift_type,
+            $date
+        ));
+    }
+    
+    /**
+     * Merge new tickets into an existing report (avoiding duplicates).
+     *
+     * @param int $report_id Existing report ID.
+     * @param array $new_tickets Array of new ticket data.
+     * @return int Number of tickets added.
+     */
+    public static function merge_report_tickets($report_id, $new_tickets) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        
+        // Get existing tickets in this report
+        $existing_tickets = $wpdb->get_results($wpdb->prepare(
+            "SELECT ticket_id, section_type FROM $table WHERE report_id = %d",
+            $report_id
+        ), ARRAY_A);
+        
+        // Create a lookup array for quick duplicate checking
+        $existing_lookup = array();
+        foreach ($existing_tickets as $ticket) {
+            $key = $ticket['ticket_id'] . '_' . $ticket['section_type'];
+            $existing_lookup[$key] = true;
+        }
+        
+        $added_count = 0;
+        
+        // Add only new tickets that don't already exist
+        foreach ($new_tickets as $ticket_data) {
+            $key = $ticket_data['ticket_id'] . '_' . $ticket_data['section_type'];
+            
+            if (!isset($existing_lookup[$key])) {
+                $result = self::add_handover_report_ticket(
+                    $report_id,
+                    $ticket_data['ticket_id'],
+                    $ticket_data['section_type'],
+                    isset($ticket_data['special_instructions']) ? $ticket_data['special_instructions'] : '',
+                    isset($ticket_data['display_order']) ? $ticket_data['display_order'] : 0
+                );
+                
+                if ($result) {
+                    $added_count++;
+                }
+            }
+        }
+        
+        return $added_count;
+    }
+    
+    /**
+     * Append additional instructions to a report.
+     *
+     * @param int $report_id Report ID.
+     * @param int $user_id User ID who is adding instructions.
+     * @param string $content Instructions content.
+     * @return int|false Insert ID on success, false on failure.
+     */
+    public static function append_additional_instructions($report_id, $user_id, $content) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_additional_instructions';
+        
+        $result = $wpdb->insert($table, array(
+            'report_id' => intval($report_id),
+            'user_id' => intval($user_id),
+            'content' => wp_kses_post($content)
+        ));
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    /**
+     * Get additional instructions for a report.
+     *
+     * @param int $report_id Report ID.
+     * @return array Array of instruction objects.
+     */
+    public static function get_additional_instructions($report_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_additional_instructions';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE report_id = %d ORDER BY created_at ASC",
+            $report_id
+        ));
+    }
+    
+    /**
+     * Search handover reports.
+     *
+     * @param string $search_term Search term.
+     * @param array $filters Additional filters.
+     * @return array Array of report IDs matching search.
+     */
+    public static function search_handover_reports($search_term, $filters = array()) {
+        global $wpdb;
+        $reports_table = $wpdb->prefix . 'wphd_handover_reports';
+        $tickets_table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        $posts_table = $wpdb->posts;
+        $comments_table = $wpdb->prefix . 'wphd_comments';
+        
+        $search_term = '%' . $wpdb->esc_like($search_term) . '%';
+        
+        // Build query to search across multiple fields
+        $sql = "SELECT DISTINCT r.* FROM $reports_table r
+                LEFT JOIN $tickets_table hrt ON r.id = hrt.report_id
+                LEFT JOIN $posts_table p ON hrt.ticket_id = p.ID
+                LEFT JOIN $comments_table c ON hrt.ticket_id = c.ticket_id
+                WHERE (
+                    p.ID LIKE %s
+                    OR p.post_title LIKE %s
+                    OR p.post_content LIKE %s
+                    OR c.content LIKE %s
+                    OR r.additional_instructions LIKE %s
+                    OR hrt.special_instructions LIKE %s
+                )";
+        
+        $params = array($search_term, $search_term, $search_term, $search_term, $search_term, $search_term);
+        
+        // Add date filters if provided
+        if (!empty($filters['date_from'])) {
+            $sql .= " AND r.shift_date >= %s";
+            $params[] = $filters['date_from'];
+        }
+        
+        if (!empty($filters['date_to'])) {
+            $sql .= " AND r.shift_date <= %s";
+            $params[] = $filters['date_to'];
+        }
+        
+        $sql .= " ORDER BY r.created_at DESC LIMIT 50";
+        
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+    
+    /**
+     * Update handover report.
+     *
+     * @param int $report_id Report ID.
+     * @param array $data Update data.
+     * @return bool True on success, false on failure.
+     */
+    public static function update_handover_report($report_id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_reports';
+        
+        $update_data = array();
+        
+        if (isset($data['additional_instructions'])) {
+            $update_data['additional_instructions'] = wp_kses_post($data['additional_instructions']);
+        }
+        
+        if (isset($data['status'])) {
+            $update_data['status'] = sanitize_text_field($data['status']);
+        }
+        
+        if (empty($update_data)) {
+            return false;
+        }
+        
+        $result = $wpdb->update(
+            $table,
+            $update_data,
+            array('id' => $report_id),
+            null,
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Remove a ticket from a handover report.
+     *
+     * @param int $report_id Report ID.
+     * @param int $ticket_id Ticket ID.
+     * @param string $section_type Section type (optional).
+     * @return bool True on success, false on failure.
+     */
+    public static function remove_handover_report_ticket($report_id, $ticket_id, $section_type = '') {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        
+        $where = array(
+            'report_id' => $report_id,
+            'ticket_id' => $ticket_id
+        );
+        
+        if ($section_type) {
+            $where['section_type'] = $section_type;
+        }
+        
+        return $wpdb->delete($table, $where) !== false;
+    }
+    
+    /**
+     * Get user's organization ID.
+     *
+     * @param int $user_id User ID (default: current user).
+     * @return int|null Organization ID or null if not found.
+     */
+    public static function get_user_organization_id($user_id = 0) {
+        global $wpdb;
+        
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
+        
+        $table = $wpdb->prefix . 'wphd_organization_members';
+        
+        $org_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT organization_id FROM $table WHERE user_id = %d LIMIT 1",
+            $user_id
+        ));
+        
+        return $org_id ? intval($org_id) : null;
     }
 }

@@ -80,6 +80,7 @@
         // Form submission validation
         $('#wphd-handover-report-form').on('submit', function(e) {
             const shiftType = $('#shift_type').val();
+            const orgId = $('input[name="organization_id"]').val();
             
             if (!shiftType) {
                 e.preventDefault();
@@ -90,9 +91,10 @@
             // Update hidden fields with ticket data before submission
             updateHiddenFields();
 
-            // Allow submission - user has seen the form and clicked Create Report button
-            // No additional confirmation needed as this is intentional action
-            return true;
+            // Check for duplicate report before submitting
+            e.preventDefault();
+            checkDuplicateReport(shiftType, orgId);
+            return false;
         });
 
         // Cancel button - check for unsaved data using specific class
@@ -337,7 +339,8 @@
             
             columns.forEach(function(col) {
                 if (col === 'id') {
-                    html += '<td><strong>#' + ticket.ticket_id + '</strong></td>';
+                    // Make ticket ID clickable
+                    html += '<td><a href="' + wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-tickets&ticket_id=' + ticket.ticket_id + '" target="_blank" class="wphd-ticket-link"><strong>#' + ticket.ticket_id + '</strong></a></td>';
                 } else if (col === 'special_instructions') {
                     html += '<td>';
                     html += '<input type="text" class="regular-text wphd-special-instructions" ';
@@ -346,7 +349,8 @@
                     html += 'placeholder="Add special instructions...">';
                     html += '</td>';
                 } else if (col === 'title') {
-                    html += '<td>' + escapeHtml(ticket.title) + '</td>';
+                    // Make ticket title clickable
+                    html += '<td><a href="' + wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-tickets&ticket_id=' + ticket.ticket_id + '" target="_blank" class="wphd-ticket-link">' + escapeHtml(ticket.title) + '</a></td>';
                 } else if (col === 'priority') {
                     html += '<td>' + escapeHtml(ticket.priority_label || ticket.priority || 'N/A') + '</td>';
                 } else if (col === 'category') {
@@ -420,6 +424,110 @@
             "'": '&#039;'
         };
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+    
+    /**
+     * Check for duplicate report before submitting
+     */
+    function checkDuplicateReport(shiftType, orgId) {
+        if (!wpHelpDesk.handoverNonce) {
+            // Show error - don't submit without nonce
+            showNotification('Security token missing. Please refresh the page.', 'error');
+            return;
+        }
+
+        $.ajax({
+            url: wpHelpDesk.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'wphd_check_duplicate_report',
+                nonce: wpHelpDesk.handoverNonce,
+                organization_id: orgId,
+                shift_type: shiftType,
+                shift_date: getCurrentDate()
+            },
+            success: function(response) {
+                if (response.success && response.data.exists) {
+                    // Show duplicate dialog
+                    showDuplicateDialog(response.data, shiftType);
+                } else {
+                    // No duplicate, submit the form
+                    $('#wphd-handover-report-form').off('submit').submit();
+                }
+            },
+            error: function() {
+                // On error, just submit the form
+                $('#wphd-handover-report-form').off('submit').submit();
+            }
+        });
+    }
+    
+    /**
+     * Show duplicate report dialog
+     */
+    function showDuplicateDialog(reportData, shiftType) {
+        const shiftLabels = {
+            'morning': 'Morning',
+            'afternoon': 'Afternoon',
+            'night': 'Night'
+        };
+        
+        const shiftLabel = shiftLabels[shiftType] || shiftType;
+        const currentDate = getCurrentDateFormatted();
+        
+        const dialogHtml = '<div class="wphd-confirm-overlay">' +
+            '<div class="wphd-duplicate-dialog">' +
+            '<h3>Report Already Exists</h3>' +
+            '<p>A handover report for the <strong>' + shiftLabel + '</strong> shift on <strong>' + currentDate + '</strong> has already been created for your organization.</p>' +
+            '<div class="report-info">' +
+            '<strong>Created by:</strong> ' + escapeHtml(reportData.created_by) + '<br>' +
+            '<strong>Created at:</strong> ' + escapeHtml(reportData.created_at) +
+            '</div>' +
+            '<p>Would you like to update the existing report with the new content you\'ve added?</p>' +
+            '<ul>' +
+            '<li>New tickets will be added (duplicates ignored)</li>' +
+            '<li>Additional instructions will be appended</li>' +
+            '</ul>' +
+            '<div class="wphd-confirm-actions">' +
+            '<button class="button button-primary wphd-update-report-yes">Yes, Update Report</button>' +
+            '<button class="button wphd-update-report-no">No, Cancel</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+        
+        $('body').append(dialogHtml);
+        
+        $('.wphd-update-report-yes').on('click', function() {
+            $('.wphd-confirm-overlay').remove();
+            // Submit the form - the backend will handle merging
+            $('#wphd-handover-report-form').off('submit').submit();
+        });
+        
+        $('.wphd-update-report-no, .wphd-confirm-overlay').on('click', function(e) {
+            if (e.target === this) {
+                $('.wphd-confirm-overlay').remove();
+            }
+        });
+    }
+    
+    /**
+     * Get current date in Y-m-d format
+     */
+    function getCurrentDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+    
+    /**
+     * Get current date formatted for display
+     */
+    function getCurrentDateFormatted() {
+        const now = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return now.toLocaleDateString('en-US', options);
     }
 
 })(jQuery);
