@@ -208,6 +208,18 @@ class WPHD_Admin_Menu {
             );
         }
 
+        // Handover History submenu
+        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Handover History', 'wp-helpdesk' ),
+                __( 'Handover History', 'wp-helpdesk' ),
+                'create_wphd_handover_reports',
+                $this->menu_slug . '-handover-reports',
+                array( $this, 'render_handover_history_page' )
+            );
+        }
+
         // Reports submenu (Admin only).
         if ( WPHD_Access_Control::can_access( 'reports' ) ) {
             add_submenu_page(
@@ -278,6 +290,24 @@ class WPHD_Admin_Menu {
             wp_enqueue_script(
                 'wp-helpdesk-handover-report',
                 WPHD_PLUGIN_URL . 'assets/js/handover-report.js',
+                array( 'jquery', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
+        }
+
+        // Enqueue handover history assets on the handover history page
+        if ( strpos( $hook, 'handover-reports' ) !== false ) {
+            wp_enqueue_style(
+                'wp-helpdesk-handover-history',
+                WPHD_PLUGIN_URL . 'assets/css/handover-history.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-handover-history',
+                WPHD_PLUGIN_URL . 'assets/js/handover-history.js',
                 array( 'jquery', 'wp-helpdesk-admin' ),
                 WPHD_VERSION,
                 true
@@ -2043,6 +2073,20 @@ class WPHD_Admin_Menu {
 
         // Render the page using the WPHD_Handover_Report class
         WPHD_Handover_Report::instance()->render_create_page();
+    }
+
+    /**
+     * Render the handover history page.
+     *
+     * @since 1.0.0
+     */
+    public function render_handover_history_page() {
+        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+            wp_die( esc_html__( 'You do not have permission to view handover reports.', 'wp-helpdesk' ) );
+        }
+
+        // Render the page using the WPHD_Handover_History class
+        WPHD_Handover_History::instance()->render_history_page();
     }
 
     /**
