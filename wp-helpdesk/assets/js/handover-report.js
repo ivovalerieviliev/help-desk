@@ -83,7 +83,7 @@
             
             if (!shiftType) {
                 e.preventDefault();
-                alert(wpHelpDesk.i18n.error || 'Please select a shift type.');
+                showNotification('Please select a shift type.', 'error');
                 return false;
             }
 
@@ -96,13 +96,15 @@
                              ticketData.important_info.length > 0;
 
             if (hasTickets) {
-                return confirm('Are you sure you want to create this handover report?');
+                // Better UX: Don't use confirm() - just submit
+                // User can cancel via the Cancel button
+                return true;
             }
 
             return true;
         });
 
-        // Cancel button confirmation
+        // Cancel button - check for unsaved data
         $('a.button:contains("Cancel")').on('click', function(e) {
             const hasData = $('#shift_type').val() || 
                           ticketData.tasks_todo.length > 0 || 
@@ -110,10 +112,38 @@
                           ticketData.important_info.length > 0;
 
             if (hasData) {
-                if (!confirm('Are you sure you want to cancel? Any unsaved data will be lost.')) {
-                    e.preventDefault();
-                    return false;
-                }
+                e.preventDefault();
+                showCancelConfirmation($(this).attr('href'));
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Show cancel confirmation modal
+     */
+    function showCancelConfirmation(cancelUrl) {
+        // Create a simple confirmation using notification system
+        const confirmHtml = '<div class="wphd-confirm-overlay">' +
+            '<div class="wphd-confirm-dialog">' +
+            '<h3>Confirm Cancellation</h3>' +
+            '<p>Are you sure you want to cancel? Any unsaved data will be lost.</p>' +
+            '<div class="wphd-confirm-actions">' +
+            '<button class="button button-primary wphd-confirm-yes">Yes, Cancel</button>' +
+            '<button class="button wphd-confirm-no">No, Continue Editing</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+        
+        $('body').append(confirmHtml);
+        
+        $('.wphd-confirm-yes').on('click', function() {
+            window.location.href = cancelUrl;
+        });
+        
+        $('.wphd-confirm-no, .wphd-confirm-overlay').on('click', function(e) {
+            if (e.target === this) {
+                $('.wphd-confirm-overlay').remove();
             }
         });
     }
@@ -147,7 +177,7 @@
             type: 'POST',
             data: {
                 action: 'wphd_search_tickets_for_handover',
-                nonce: wpHelpDesk.nonce,
+                nonce: wpHelpDesk.handoverNonce || wpHelpDesk.nonce,
                 search: query
             },
             success: function(response) {
@@ -243,9 +273,42 @@
      * Remove ticket from section
      */
     function removeTicketFromSection(section, ticketId) {
-        ticketData[section] = ticketData[section].filter(t => t.ticket_id !== ticketId);
-        renderTicketList(section);
-        updateHiddenFields();
+        // Show simple confirmation
+        showRemoveConfirmation(function() {
+            ticketData[section] = ticketData[section].filter(t => t.ticket_id !== ticketId);
+            renderTicketList(section);
+            updateHiddenFields();
+            showNotification('Ticket removed successfully', 'success');
+        });
+    }
+
+    /**
+     * Show remove confirmation
+     */
+    function showRemoveConfirmation(callback) {
+        const confirmHtml = '<div class="wphd-confirm-overlay">' +
+            '<div class="wphd-confirm-dialog">' +
+            '<h3>Confirm Removal</h3>' +
+            '<p>Are you sure you want to remove this ticket from the section?</p>' +
+            '<div class="wphd-confirm-actions">' +
+            '<button class="button button-primary wphd-confirm-yes">Yes, Remove</button>' +
+            '<button class="button wphd-confirm-no">Cancel</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+        
+        $('body').append(confirmHtml);
+        
+        $('.wphd-confirm-yes').on('click', function() {
+            $('.wphd-confirm-overlay').remove();
+            callback();
+        });
+        
+        $('.wphd-confirm-no, .wphd-confirm-overlay').on('click', function(e) {
+            if (e.target === this) {
+                $('.wphd-confirm-overlay').remove();
+            }
+        });
     }
 
     /**
@@ -313,9 +376,7 @@
         $('.wphd-remove-ticket').on('click', function() {
             const section = $(this).data('section');
             const ticketId = $(this).data('ticket-id');
-            if (confirm('Are you sure you want to remove this ticket?')) {
-                removeTicketFromSection(section, ticketId);
-            }
+            removeTicketFromSection(section, ticketId);
         });
 
         // Bind special instructions input events

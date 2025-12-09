@@ -224,9 +224,10 @@ class WPHD_Handover_Report {
      * @since 1.0.0
      */
     public function handle_create_report() {
-        // Verify nonce
-        if ( ! isset( $_POST['wphd_handover_report_nonce'] ) || 
-             ! wp_verify_nonce( $_POST['wphd_handover_report_nonce'], 'wphd_create_handover_report' ) ) {
+        // Verify nonce - sanitize before checking
+        $nonce = isset( $_POST['wphd_handover_report_nonce'] ) ? sanitize_text_field( $_POST['wphd_handover_report_nonce'] ) : '';
+        
+        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'wphd_create_handover_report' ) ) {
             wp_die( esc_html__( 'Security check failed.', 'wp-helpdesk' ) );
         }
 
@@ -262,9 +263,11 @@ class WPHD_Handover_Report {
         foreach ( $sections as $section ) {
             $tickets_field = $section . '_tickets';
             if ( ! empty( $_POST[ $tickets_field ] ) ) {
-                $tickets_data = json_decode( stripslashes( $_POST[ $tickets_field ] ), true );
+                // Sanitize JSON input before decoding
+                $tickets_json = sanitize_textarea_field( stripslashes( $_POST[ $tickets_field ] ) );
+                $tickets_data = json_decode( $tickets_json, true );
                 
-                if ( is_array( $tickets_data ) ) {
+                if ( is_array( $tickets_data ) && json_last_error() === JSON_ERROR_NONE ) {
                     foreach ( $tickets_data as $index => $ticket_data ) {
                         if ( isset( $ticket_data['ticket_id'] ) ) {
                             WPHD_Database::add_handover_report_ticket(
@@ -299,7 +302,7 @@ class WPHD_Handover_Report {
      * @since 1.0.0
      */
     public function search_tickets() {
-        check_ajax_referer( 'wphd_nonce', 'nonce' );
+        check_ajax_referer( 'wphd_search_tickets_handover', 'nonce' );
 
         if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );

@@ -318,6 +318,7 @@ class WPHD_Admin_Menu {
             array(
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
+                'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'i18n'    => array(
                     'confirm_delete' => __( 'Are you sure you want to delete this item?', 'wp-helpdesk' ),
                     'saving'         => __( 'Saving...', 'wp-helpdesk' ),
@@ -4305,6 +4306,8 @@ class WPHD_Admin_Menu {
             'wphd_organizations' => 'Organizations',
             'wphd_organization_members' => 'Organization Members',
             'wphd_organization_logs' => 'Organization Logs',
+            'wphd_handover_reports' => 'Handover Reports',
+            'wphd_handover_report_tickets' => 'Handover Report Tickets',
         );
         
         // Get all existing tables in a single query for efficiency

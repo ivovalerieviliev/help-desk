@@ -545,7 +545,8 @@ class WPHD_Database {
         $orderby = in_array($args['orderby'], array('id', 'shift_date', 'created_at'), true) ? $args['orderby'] : 'created_at';
         $order = 'ASC' === strtoupper($args['order']) ? 'ASC' : 'DESC';
         
-        $sql .= " ORDER BY {$orderby} {$order}";
+        // Use string building with validated values to avoid SQL injection
+        $sql .= sprintf(" ORDER BY %s %s", esc_sql($orderby), esc_sql($order));
         $sql .= $wpdb->prepare(" LIMIT %d OFFSET %d", $args['limit'], $args['offset']);
         
         return $wpdb->get_results($sql);
