@@ -90,17 +90,8 @@
             // Update hidden fields with ticket data before submission
             updateHiddenFields();
 
-            // Confirmation if form has data
-            const hasTickets = ticketData.tasks_todo.length > 0 || 
-                             ticketData.follow_up.length > 0 || 
-                             ticketData.important_info.length > 0;
-
-            if (hasTickets) {
-                // Better UX: Don't use confirm() - just submit
-                // User can cancel via the Cancel button
-                return true;
-            }
-
+            // Allow submission - user has seen the form and clicked Create Report button
+            // No additional confirmation needed as this is intentional action
             return true;
         });
 

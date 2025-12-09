@@ -227,7 +227,7 @@ class WPHD_Handover_Report {
         // Verify nonce - sanitize before checking
         $nonce = isset( $_POST['wphd_handover_report_nonce'] ) ? sanitize_text_field( $_POST['wphd_handover_report_nonce'] ) : '';
         
-        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'wphd_create_handover_report' ) ) {
+        if ( ! wp_verify_nonce( $nonce, 'wphd_create_handover_report' ) ) {
             wp_die( esc_html__( 'Security check failed.', 'wp-helpdesk' ) );
         }
 
