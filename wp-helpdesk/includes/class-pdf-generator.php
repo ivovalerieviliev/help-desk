@@ -31,6 +31,12 @@ class WPHD_PDF_Generator {
 	 * @return string|false File URL on success, false on failure.
 	 */
 	public function generate_handover_report_pdf( $report_id ) {
+		// Validate report_id
+		$report_id = absint( $report_id );
+		if ( $report_id < 1 ) {
+			return false;
+		}
+
 		$report = WPHD_Database::get_handover_report( $report_id );
 
 		if ( ! $report ) {
@@ -49,18 +55,25 @@ class WPHD_PDF_Generator {
 		// Generate HTML content
 		$html = $this->generate_pdf_html( $report, $creator_name, $tasks_todo, $follow_up, $important_info );
 
-		// Create file
+		// Create file with WordPress filesystem
 		$upload_dir = wp_upload_dir();
-		$filename   = 'handover-report-' . $report_id . '-' . gmdate( 'Y-m-d-His' ) . '.html';
-		$file_path  = $upload_dir['path'] . '/' . $filename;
+		$filename   = 'handover-report-' . absint( $report_id ) . '-' . gmdate( 'Y-m-d-His' ) . '.html';
+		$file_path  = trailingslashit( $upload_dir['path'] ) . sanitize_file_name( $filename );
 
-		// Save HTML file (can be printed to PDF by browser)
-		if ( ! file_put_contents( $file_path, $html ) ) {
+		// Use WordPress filesystem
+		global $wp_filesystem;
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		WP_Filesystem();
+
+		// Write to file using WordPress filesystem
+		if ( ! $wp_filesystem->put_contents( $file_path, $html, FS_CHMOD_FILE ) ) {
 			return false;
 		}
 
 		// Return download URL
-		return $upload_dir['url'] . '/' . $filename;
+		return trailingslashit( $upload_dir['url'] ) . sanitize_file_name( $filename );
 	}
 
 	/**

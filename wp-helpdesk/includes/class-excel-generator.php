@@ -31,6 +31,12 @@ class WPHD_Excel_Generator {
 	 * @return string|false File URL on success, false on failure.
 	 */
 	public function generate_handover_report_excel( $report_id ) {
+		// Validate report_id
+		$report_id = absint( $report_id );
+		if ( $report_id < 1 ) {
+			return false;
+		}
+
 		$report = WPHD_Database::get_handover_report( $report_id );
 
 		if ( ! $report ) {
@@ -149,25 +155,39 @@ class WPHD_Excel_Generator {
 			$csv_data[] = array( wp_strip_all_tags( $report->additional_instructions ) );
 		}
 
-		// Create file
+		// Create file with WordPress filesystem
 		$upload_dir = wp_upload_dir();
-		$filename   = 'handover-report-' . $report_id . '-' . gmdate( 'Y-m-d-His' ) . '.csv';
-		$file_path  = $upload_dir['path'] . '/' . $filename;
+		$filename   = 'handover-report-' . absint( $report_id ) . '-' . gmdate( 'Y-m-d-His' ) . '.csv';
+		$file_path  = trailingslashit( $upload_dir['path'] ) . sanitize_file_name( $filename );
 
-		// Generate CSV content
-		$fp = fopen( $file_path, 'w' );
-		if ( ! $fp ) {
+		// Use WordPress filesystem
+		global $wp_filesystem;
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		WP_Filesystem();
+
+		// Generate CSV content in memory
+		ob_start();
+		$temp_fp = fopen( 'php://output', 'w' );
+		if ( ! $temp_fp ) {
 			return false;
 		}
 
 		foreach ( $csv_data as $row ) {
-			fputcsv( $fp, $row );
+			fputcsv( $temp_fp, $row );
 		}
 
-		fclose( $fp );
+		fclose( $temp_fp );
+		$csv_content = ob_get_clean();
+
+		// Write to file using WordPress filesystem
+		if ( ! $wp_filesystem->put_contents( $file_path, $csv_content, FS_CHMOD_FILE ) ) {
+			return false;
+		}
 
 		// Return download URL
-		return $upload_dir['url'] . '/' . $filename;
+		return trailingslashit( $upload_dir['url'] ) . sanitize_file_name( $filename );
 	}
 
 	/**

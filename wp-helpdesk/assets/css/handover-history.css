@@ -294,6 +294,11 @@
 	100% { transform: rotate(360deg); }
 }
 
+/* Spinning animation for dashicons */
+.dashicons.spin {
+	animation: wphd-spin 1s linear infinite;
+}
+
 /* Table Enhancements */
 .wp-list-table td {
 	vertical-align: middle;

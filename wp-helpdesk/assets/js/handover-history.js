@@ -281,10 +281,6 @@
 		.dashicons.spin {
 			animation: wphd-spin 1s linear infinite;
 		}
-		@keyframes wphd-spin {
-			from { transform: rotate(0deg); }
-			to { transform: rotate(360deg); }
-		}
 	`;
 	document.head.appendChild(style);
 

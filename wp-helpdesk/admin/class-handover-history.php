@@ -369,7 +369,7 @@ class WPHD_Handover_History {
 
 		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
 
-		if ( ! $report_id ) {
+		if ( ! $report_id || $report_id < 1 ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
 		}
 
@@ -380,7 +380,6 @@ class WPHD_Handover_History {
 		}
 
 		// Use the Excel generator class
-		require_once WPHD_PLUGIN_DIR . 'includes/class-excel-generator.php';
 		$generator = new WPHD_Excel_Generator();
 		$file_path = $generator->generate_handover_report_excel( $report_id );
 
@@ -405,7 +404,7 @@ class WPHD_Handover_History {
 
 		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
 
-		if ( ! $report_id ) {
+		if ( ! $report_id || $report_id < 1 ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
 		}
 
@@ -416,7 +415,6 @@ class WPHD_Handover_History {
 		}
 
 		// Use the PDF generator class
-		require_once WPHD_PLUGIN_DIR . 'includes/class-pdf-generator.php';
 		$generator = new WPHD_PDF_Generator();
 		$file_path = $generator->generate_handover_report_pdf( $report_id );
 
