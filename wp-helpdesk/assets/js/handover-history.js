@@ -394,7 +394,7 @@
 		// Column labels
 		const columnLabels = {
 			id: 'Ticket ID',
-			title: 'Title',
+			title: 'Ticket Title',
 			reporter: 'Reporter',
 			category: 'Category',
 			priority: 'Priority',
@@ -511,7 +511,9 @@
 		function searchTickets(query) {
 			$('#wphd-ticket-search-results').html('<p class="wphd-loading">Searching...</p>');
 
-			if (!wpHelpDesk.handoverNonce) {
+			// Use handoverNonce if available, otherwise fall back to nonce
+			const nonce = wpHelpDesk.handoverNonce || wpHelpDesk.nonce;
+			if (!nonce) {
 				$('#wphd-ticket-search-results').html('<p class="error">Security token missing. Please refresh the page.</p>');
 				return;
 			}
@@ -521,7 +523,7 @@
 				type: 'POST',
 				data: {
 					action: 'wphd_search_tickets_for_handover',
-					nonce: wpHelpDesk.handoverNonce,
+					nonce: nonce,
 					search: query
 				},
 				success: function(response) {

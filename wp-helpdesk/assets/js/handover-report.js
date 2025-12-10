@@ -25,11 +25,11 @@
     // Column labels
     const columnLabels = {
         id: 'Ticket ID',
-        title: 'Title',
+        title: 'Ticket Title',
         reporter: 'Reporter',
         category: 'Category',
         priority: 'Priority',
-        created_at: 'Created',
+        created_at: 'Creation Date & Time',
         due_date: 'Due Date',
         special_instructions: 'Special Instructions'
     };

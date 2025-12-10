@@ -264,42 +264,42 @@ class WPHD_PDF_Generator {
 	 * @return string HTML table.
 	 */
 	private function render_tickets_table( $tickets, $section_type = 'tasks_todo' ) {
-		// Define columns for each section
-		$section_columns = array(
+		// Define columns and their data sources for each section
+		$section_config = array(
 			'tasks_todo' => array(
-				'Ticket ID',
-				'Ticket Title',
-				'Reporter',
-				'Category',
-				'Creation Date & Time',
-				'Due Date',
+				array( 'label' => 'Ticket ID', 'field' => 'ticket_id' ),
+				array( 'label' => 'Ticket Title', 'field' => 'ticket_title' ),
+				array( 'label' => 'Reporter', 'field' => 'reporter' ),
+				array( 'label' => 'Category', 'field' => 'category' ),
+				array( 'label' => 'Creation Date & Time', 'field' => 'created_date' ),
+				array( 'label' => 'Due Date', 'field' => 'due_date' ),
 			),
 			'follow_up' => array(
-				'Ticket ID',
-				'Ticket Title',
-				'Reporter',
-				'Category',
-				'Priority',
-				'Creation Date & Time',
+				array( 'label' => 'Ticket ID', 'field' => 'ticket_id' ),
+				array( 'label' => 'Ticket Title', 'field' => 'ticket_title' ),
+				array( 'label' => 'Reporter', 'field' => 'reporter' ),
+				array( 'label' => 'Category', 'field' => 'category' ),
+				array( 'label' => 'Priority', 'field' => 'priority' ),
+				array( 'label' => 'Creation Date & Time', 'field' => 'created_date' ),
 			),
 			'important_info' => array(
-				'Ticket ID',
-				'Title',
-				'Reporter',
-				'Priority',
-				'Special Instructions',
+				array( 'label' => 'Ticket ID', 'field' => 'ticket_id' ),
+				array( 'label' => 'Ticket Title', 'field' => 'ticket_title' ),
+				array( 'label' => 'Reporter', 'field' => 'reporter' ),
+				array( 'label' => 'Priority', 'field' => 'priority' ),
+				array( 'label' => 'Special Instructions', 'field' => 'special_instructions' ),
 			),
 		);
 
-		$columns = isset( $section_columns[ $section_type ] ) ? $section_columns[ $section_type ] : $section_columns['tasks_todo'];
+		$columns = isset( $section_config[ $section_type ] ) ? $section_config[ $section_type ] : $section_config['tasks_todo'];
 
 		ob_start();
 		?>
 		<table class="tickets-table">
 			<thead>
 				<tr>
-					<?php foreach ( $columns as $column_label ) : ?>
-						<th><?php echo esc_html( $column_label ); ?></th>
+					<?php foreach ( $columns as $column ) : ?>
+						<th><?php echo esc_html( $column['label'] ); ?></th>
 					<?php endforeach; ?>
 				</tr>
 			</thead>
@@ -311,7 +311,7 @@ class WPHD_PDF_Generator {
 						continue;
 					}
 
-					// Get ticket metadata
+					// Prepare all possible field values
 					$reporter_id = $ticket->post_author;
 					$reporter = get_userdata( $reporter_id );
 					$reporter_name = $reporter ? $reporter->display_name : __( 'Unknown', 'wp-helpdesk' );
@@ -319,36 +319,23 @@ class WPHD_PDF_Generator {
 					$category = get_post_meta( $ticket->ID, '_wphd_category', true );
 					$priority = get_post_meta( $ticket->ID, '_wphd_priority', true );
 					$due_date = get_post_meta( $ticket->ID, '_wphd_due_date', true );
-					$created_date = get_the_date( 'M j, Y g:i A', $ticket->ID );
 
-					// Get labels
-					$category_label = $this->get_category_label( $category );
-					$priority_label = $this->get_priority_label( $priority );
-					$due_date_formatted = $due_date ? mysql2date( 'M j, Y', $due_date ) : __( 'N/A', 'wp-helpdesk' );
+					// Build field values array
+					$field_values = array(
+						'ticket_id' => '#' . $ticket->ID,
+						'ticket_title' => $ticket->post_title,
+						'reporter' => $reporter_name,
+						'category' => $this->get_category_label( $category ),
+						'priority' => $this->get_priority_label( $priority ),
+						'created_date' => get_the_date( 'M j, Y g:i A', $ticket->ID ),
+						'due_date' => $due_date ? mysql2date( 'M j, Y', $due_date ) : __( 'N/A', 'wp-helpdesk' ),
+						'special_instructions' => $ticket_data->special_instructions,
+					);
 					?>
 					<tr>
-						<?php if ( 'important_info' === $section_type ) : ?>
-							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
-							<td><?php echo esc_html( $ticket->post_title ); ?></td>
-							<td><?php echo esc_html( $reporter_name ); ?></td>
-							<td><?php echo esc_html( $priority_label ); ?></td>
-							<td><?php echo esc_html( $ticket_data->special_instructions ); ?></td>
-						<?php elseif ( 'follow_up' === $section_type ) : ?>
-							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
-							<td><?php echo esc_html( $ticket->post_title ); ?></td>
-							<td><?php echo esc_html( $reporter_name ); ?></td>
-							<td><?php echo esc_html( $category_label ); ?></td>
-							<td><?php echo esc_html( $priority_label ); ?></td>
-							<td><?php echo esc_html( $created_date ); ?></td>
-						<?php else : ?>
-							<!-- tasks_todo -->
-							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
-							<td><?php echo esc_html( $ticket->post_title ); ?></td>
-							<td><?php echo esc_html( $reporter_name ); ?></td>
-							<td><?php echo esc_html( $category_label ); ?></td>
-							<td><?php echo esc_html( $created_date ); ?></td>
-							<td><?php echo esc_html( $due_date_formatted ); ?></td>
-						<?php endif; ?>
+						<?php foreach ( $columns as $column ) : ?>
+							<td><?php echo esc_html( isset( $field_values[ $column['field'] ] ) ? $field_values[ $column['field'] ] : '' ); ?></td>
+						<?php endforeach; ?>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>

@@ -622,6 +622,12 @@ class WPHD_Handover_History {
 		if ( ! $report_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
 		}
+		
+		// Validate shift type against allowed values
+		$allowed_shift_types = array( 'morning', 'afternoon', 'evening', 'night' );
+		if ( ! empty( $shift_type ) && ! in_array( $shift_type, $allowed_shift_types, true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid shift type.', 'wp-helpdesk' ) ) );
+		}
 
 		$tickets_data = json_decode( $tickets_data_json, true );
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
@@ -745,10 +751,9 @@ class WPHD_Handover_History {
 								</th>
 								<td>
 									<select name="shift_type" id="wphd-shift-type" class="widefat">
-										<option value="morning" <?php selected( $report->shift_type, 'morning' ); ?>><?php esc_html_e( 'Morning', 'wp-helpdesk' ); ?></option>
-										<option value="afternoon" <?php selected( $report->shift_type, 'afternoon' ); ?>><?php esc_html_e( 'Afternoon', 'wp-helpdesk' ); ?></option>
-										<option value="evening" <?php selected( $report->shift_type, 'evening' ); ?>><?php esc_html_e( 'Evening', 'wp-helpdesk' ); ?></option>
-										<option value="night" <?php selected( $report->shift_type, 'night' ); ?>><?php esc_html_e( 'Night', 'wp-helpdesk' ); ?></option>
+										<?php foreach ( $shift_types as $key => $label ) : ?>
+											<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $report->shift_type, $key ); ?>><?php echo esc_html( $label ); ?></option>
+										<?php endforeach; ?>
 									</select>
 								</td>
 							</tr>
@@ -875,7 +880,7 @@ class WPHD_Handover_History {
 
 		$column_labels = array(
 			'id' => __( 'Ticket ID', 'wp-helpdesk' ),
-			'title' => __( 'Title', 'wp-helpdesk' ),
+			'title' => __( 'Ticket Title', 'wp-helpdesk' ),
 			'reporter' => __( 'Reporter', 'wp-helpdesk' ),
 			'category' => __( 'Category', 'wp-helpdesk' ),
 			'priority' => __( 'Priority', 'wp-helpdesk' ),
