@@ -374,6 +374,7 @@ class WPHD_Admin_Menu {
                 'adminUrl' => admin_url(),
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
                 'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
+                'createHandoverNonce' => wp_create_nonce( 'wphd_create_handover' ),
                 'i18n'    => array(
                     'confirm_delete' => __( 'Are you sure you want to delete this item?', 'wp-helpdesk' ),
                     'saving'         => __( 'Saving...', 'wp-helpdesk' ),
