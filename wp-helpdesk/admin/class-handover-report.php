@@ -64,7 +64,7 @@ class WPHD_Handover_Report {
      * @since 1.0.0
      */
     public function render_create_page() {
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_die( esc_html__( 'You do not have permission to create handover reports.', 'wp-helpdesk' ) );
         }
 
@@ -270,7 +270,7 @@ class WPHD_Handover_Report {
         }
 
         // Check permissions
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_die( esc_html__( 'You do not have permission to create handover reports.', 'wp-helpdesk' ) );
         }
 
@@ -413,7 +413,7 @@ class WPHD_Handover_Report {
     public function search_tickets() {
         check_ajax_referer( 'wphd_search_tickets_handover', 'nonce' );
 
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
         }
 
@@ -545,7 +545,7 @@ class WPHD_Handover_Report {
     public function ajax_check_duplicate_report() {
         check_ajax_referer( 'wphd_create_handover', 'nonce' );
 
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
         }
 
@@ -582,7 +582,7 @@ class WPHD_Handover_Report {
     public function ajax_merge_report_content() {
         check_ajax_referer( 'wphd_create_handover', 'nonce' );
 
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_edit' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
         }
 
@@ -621,7 +621,7 @@ class WPHD_Handover_Report {
     public function ajax_save_ticket_to_shared_report() {
         check_ajax_referer( 'wphd_create_handover', 'nonce' );
 
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
         }
 

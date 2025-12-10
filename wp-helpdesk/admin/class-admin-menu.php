@@ -197,48 +197,48 @@ class WPHD_Admin_Menu {
         );
 
         // Create Handover Report submenu
-        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( WPHD_Access_Control::can_access( 'handover_create' ) ) {
             add_submenu_page(
                 $this->menu_slug,
                 __( 'Create Handover Report', 'wp-helpdesk' ),
                 __( 'Create Handover Report', 'wp-helpdesk' ),
-                'create_wphd_handover_reports',
+                $this->capability,
                 $this->menu_slug . '-create-handover-report',
                 array( $this, 'render_create_handover_report_page' )
             );
         }
 
         // Handover History submenu
-        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( WPHD_Access_Control::can_access( 'handover_view' ) ) {
             add_submenu_page(
                 $this->menu_slug,
                 __( 'Handover History', 'wp-helpdesk' ),
                 __( 'Handover History', 'wp-helpdesk' ),
-                'create_wphd_handover_reports',
+                $this->capability,
                 $this->menu_slug . '-handover-reports',
                 array( $this, 'render_handover_history_page' )
             );
         }
         
         // Hidden View Handover Report page (no menu item)
-        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( WPHD_Access_Control::can_access( 'handover_view' ) ) {
             add_submenu_page(
                 null, // Hidden from menu
                 __( 'View Handover Report', 'wp-helpdesk' ),
                 __( 'View Handover Report', 'wp-helpdesk' ),
-                'create_wphd_handover_reports',
+                $this->capability,
                 $this->menu_slug . '-handover-view',
                 array( $this, 'render_handover_view_page' )
             );
         }
         
         // Hidden Edit Handover Report page (no menu item)
-        if ( current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( WPHD_Access_Control::can_access( 'handover_edit' ) ) {
             add_submenu_page(
                 null, // Hidden from menu
                 __( 'Edit Handover Report', 'wp-helpdesk' ),
                 __( 'Edit Handover Report', 'wp-helpdesk' ),
-                'create_wphd_handover_reports',
+                $this->capability,
                 $this->menu_slug . '-handover-edit',
                 array( $this, 'render_handover_edit_page' )
             );
@@ -371,6 +371,7 @@ class WPHD_Admin_Menu {
             'wpHelpDesk',
             array(
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'adminUrl' => admin_url(),
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
                 'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'i18n'    => array(
@@ -4499,7 +4500,7 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_handover_view_page() {
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
             wp_die( esc_html__( 'You do not have permission to view handover reports.', 'wp-helpdesk' ) );
         }
         
@@ -4657,7 +4658,7 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_handover_edit_page() {
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_edit' ) ) {
             wp_die( esc_html__( 'You do not have permission to edit handover reports.', 'wp-helpdesk' ) );
         }
         
