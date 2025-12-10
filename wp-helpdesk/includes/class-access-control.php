@@ -237,6 +237,31 @@ class WPHD_Access_Control {
 				'description' => __( 'Create, edit, and delete organization shifts', 'wp-helpdesk' ),
 				'default'     => false,
 			),
+			'handover_view'              => array(
+				'label'       => __( 'View Handover Reports', 'wp-helpdesk' ),
+				'description' => __( 'Can view handover reports and history', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'handover_create'            => array(
+				'label'       => __( 'Create Handover Reports', 'wp-helpdesk' ),
+				'description' => __( 'Can create new handover reports', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'handover_edit'              => array(
+				'label'       => __( 'Edit Handover Reports', 'wp-helpdesk' ),
+				'description' => __( 'Can edit existing handover reports', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'handover_delete'            => array(
+				'label'       => __( 'Delete Handover Reports', 'wp-helpdesk' ),
+				'description' => __( 'Can delete handover reports', 'wp-helpdesk' ),
+				'default'     => false,
+			),
+			'handover_export'            => array(
+				'label'       => __( 'Export Handover Reports', 'wp-helpdesk' ),
+				'description' => __( 'Can export reports to Excel/PDF', 'wp-helpdesk' ),
+				'default'     => true,
+			),
 		);
 
 		/**

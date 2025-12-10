@@ -430,7 +430,7 @@
      * Check for duplicate report before submitting
      */
     function checkDuplicateReport(shiftType, orgId) {
-        if (!wpHelpDesk.handoverNonce) {
+        if (!wpHelpDesk.createHandoverNonce) {
             // Show error - don't submit without nonce
             showNotification('Security token missing. Please refresh the page.', 'error');
             return;
@@ -441,7 +441,7 @@
             type: 'POST',
             data: {
                 action: 'wphd_check_duplicate_report',
-                nonce: wpHelpDesk.handoverNonce,
+                nonce: wpHelpDesk.createHandoverNonce,
                 organization_id: orgId,
                 shift_type: shiftType,
                 shift_date: getCurrentDate()
