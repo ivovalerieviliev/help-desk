@@ -855,6 +855,14 @@ class WPHD_Handover_History {
 				</div>
 			</div>
 		</div>
+		
+		<script>
+		jQuery(document).ready(function() {
+			if (typeof window.initHandoverEditPage === 'function') {
+				window.initHandoverEditPage();
+			}
+		});
+		</script>
 		<?php
 	}
 
