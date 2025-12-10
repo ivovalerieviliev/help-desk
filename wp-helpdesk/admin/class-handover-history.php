@@ -615,6 +615,7 @@ class WPHD_Handover_History {
 		}
 
 		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
+		$shift_type = isset( $_POST['shift_type'] ) ? sanitize_text_field( $_POST['shift_type'] ) : '';
 		$tickets_data_json = isset( $_POST['tickets_data'] ) ? sanitize_textarea_field( stripslashes( $_POST['tickets_data'] ) ) : '';
 		$additional_instructions = isset( $_POST['additional_instructions'] ) ? wp_kses_post( $_POST['additional_instructions'] ) : '';
 
@@ -627,11 +628,17 @@ class WPHD_Handover_History {
 			wp_send_json_error( array( 'message' => __( 'Invalid ticket data.', 'wp-helpdesk' ) ) );
 		}
 
-		// Update additional instructions
+		// Update shift type and additional instructions
+		$update_data = array();
+		if ( ! empty( $shift_type ) ) {
+			$update_data['shift_type'] = $shift_type;
+		}
 		if ( ! empty( $additional_instructions ) ) {
-			WPHD_Database::update_handover_report( $report_id, array(
-				'additional_instructions' => $additional_instructions
-			) );
+			$update_data['additional_instructions'] = $additional_instructions;
+		}
+		
+		if ( ! empty( $update_data ) ) {
+			WPHD_Database::update_handover_report( $report_id, $update_data );
 		}
 
 		// Clear existing tickets for this report
@@ -656,5 +663,324 @@ class WPHD_Handover_History {
 		}
 
 		wp_send_json_success( array( 'message' => __( 'Report updated successfully.', 'wp-helpdesk' ) ) );
+	}
+	
+	/**
+	 * Render the edit page for a handover report.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_edit_page() {
+		if ( ! WPHD_Access_Control::can_access( 'handover_edit' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit handover reports.', 'wp-helpdesk' ) );
+		}
+
+		$report_id = isset( $_GET['report_id'] ) ? intval( $_GET['report_id'] ) : 0;
+
+		if ( ! $report_id ) {
+			wp_die( esc_html__( 'Invalid report ID.', 'wp-helpdesk' ) );
+		}
+
+		$report = WPHD_Database::get_handover_report( $report_id );
+
+		if ( ! $report ) {
+			wp_die( esc_html__( 'Report not found.', 'wp-helpdesk' ) );
+		}
+
+		// Get report creator info
+		$user = get_userdata( $report->user_id );
+		$creator_name = $user ? $user->display_name : __( 'Unknown', 'wp-helpdesk' );
+
+		// Get all tickets for this report
+		$tasks_todo = WPHD_Database::get_handover_report_tickets( $report_id, 'tasks_todo' );
+		$follow_up = WPHD_Database::get_handover_report_tickets( $report_id, 'follow_up' );
+		$important_info = WPHD_Database::get_handover_report_tickets( $report_id, 'important_info' );
+
+		$shift_types = array(
+			'morning'   => __( 'Morning (06:00 - 14:00)', 'wp-helpdesk' ),
+			'afternoon' => __( 'Afternoon (14:00 - 22:00)', 'wp-helpdesk' ),
+			'evening'   => __( 'Evening (18:00 - 02:00)', 'wp-helpdesk' ),
+			'night'     => __( 'Night (22:00 - 06:00)', 'wp-helpdesk' ),
+		);
+
+		?>
+		<div class="wrap wp-helpdesk-wrap wphd-handover-edit-wrap">
+			<h1><?php esc_html_e( 'Edit Handover Report', 'wp-helpdesk' ); ?></h1>
+
+			<form method="post" action="#" id="wphd-handover-edit-form">
+				<input type="hidden" name="report_id" id="wphd-report-id" value="<?php echo esc_attr( $report_id ); ?>">
+
+				<!-- Shift Details Section -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2><?php esc_html_e( 'Shift Details', 'wp-helpdesk' ); ?></h2>
+					</div>
+					<div class="inside">
+						<table class="form-table">
+							<tr>
+								<th scope="row">
+									<label><?php esc_html_e( 'Created By', 'wp-helpdesk' ); ?></label>
+								</th>
+								<td>
+									<strong><?php echo esc_html( $creator_name ); ?></strong>
+									<p class="description">
+										<?php
+										echo esc_html(
+											sprintf(
+												/* translators: %s: formatted date and time */
+												__( 'Created on: %s', 'wp-helpdesk' ),
+												mysql2date(
+													get_option( 'date_format' ) . ' ' . __( 'at', 'wp-helpdesk' ) . ' ' . get_option( 'time_format' ),
+													$report->created_at
+												)
+											)
+										);
+										?>
+									</p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="wphd-shift-type"><?php esc_html_e( 'Shift Type', 'wp-helpdesk' ); ?> <span class="required">*</span></label>
+								</th>
+								<td>
+									<select name="shift_type" id="wphd-shift-type" class="widefat">
+										<option value="morning" <?php selected( $report->shift_type, 'morning' ); ?>><?php esc_html_e( 'Morning', 'wp-helpdesk' ); ?></option>
+										<option value="afternoon" <?php selected( $report->shift_type, 'afternoon' ); ?>><?php esc_html_e( 'Afternoon', 'wp-helpdesk' ); ?></option>
+										<option value="evening" <?php selected( $report->shift_type, 'evening' ); ?>><?php esc_html_e( 'Evening', 'wp-helpdesk' ); ?></option>
+										<option value="night" <?php selected( $report->shift_type, 'night' ); ?>><?php esc_html_e( 'Night', 'wp-helpdesk' ); ?></option>
+									</select>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</div>
+
+				<!-- Tasks to be Done Section -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2><?php esc_html_e( 'Tasks to be Done', 'wp-helpdesk' ); ?></h2>
+					</div>
+					<div class="inside">
+						<p class="description"><?php esc_html_e( 'Tickets that need to be completed', 'wp-helpdesk' ); ?></p>
+						<button type="button" class="button wphd-add-ticket-btn" data-section="tasks_todo">
+							<?php esc_html_e( 'Add Ticket', 'wp-helpdesk' ); ?>
+						</button>
+						<div class="wphd-ticket-list" id="tasks_todo_list">
+							<?php echo $this->render_ticket_table_edit( $tasks_todo, 'tasks_todo' ); ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- Follow-up Tickets Section -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2><?php esc_html_e( 'Follow-up Tickets', 'wp-helpdesk' ); ?></h2>
+					</div>
+					<div class="inside">
+						<p class="description"><?php esc_html_e( 'Tickets requiring follow-up by the next shift', 'wp-helpdesk' ); ?></p>
+						<button type="button" class="button wphd-add-ticket-btn" data-section="follow_up">
+							<?php esc_html_e( 'Add Ticket', 'wp-helpdesk' ); ?>
+						</button>
+						<div class="wphd-ticket-list" id="follow_up_list">
+							<?php echo $this->render_ticket_table_edit( $follow_up, 'follow_up' ); ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- Important Information Section -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2><?php esc_html_e( 'Important Information', 'wp-helpdesk' ); ?></h2>
+					</div>
+					<div class="inside">
+						<p class="description"><?php esc_html_e( 'Tickets containing important internal knowledge messages', 'wp-helpdesk' ); ?></p>
+						<button type="button" class="button wphd-add-ticket-btn" data-section="important_info">
+							<?php esc_html_e( 'Add Ticket', 'wp-helpdesk' ); ?>
+						</button>
+						<div class="wphd-ticket-list" id="important_info_list">
+							<?php echo $this->render_ticket_table_edit( $important_info, 'important_info' ); ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- Additional Instructions Section -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2><?php esc_html_e( 'Additional Instructions', 'wp-helpdesk' ); ?></h2>
+					</div>
+					<div class="inside">
+						<p class="description"><?php esc_html_e( 'Free-form additional instructions for the next shift', 'wp-helpdesk' ); ?></p>
+						<?php
+						wp_editor(
+							$report->additional_instructions,
+							'wphd-additional-instructions',
+							array(
+								'textarea_name' => 'additional_instructions',
+								'textarea_rows' => 10,
+								'media_buttons' => false,
+								'teeny'         => false,
+								'tinymce'       => true,
+							)
+						);
+						?>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<p class="submit">
+					<button type="submit" name="submit" class="button button-primary button-large">
+						<?php esc_html_e( 'Update Report', 'wp-helpdesk' ); ?>
+					</button>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-helpdesk-handover-reports' ) ); ?>" class="button button-large">
+						<?php esc_html_e( 'Cancel', 'wp-helpdesk' ); ?>
+					</a>
+				</p>
+			</form>
+		</div>
+
+		<!-- Ticket Search Modal -->
+		<div id="wphd-ticket-search-modal" class="wphd-modal" style="display: none;">
+			<div class="wphd-modal-content">
+				<span class="wphd-modal-close">&times;</span>
+				<h2><?php esc_html_e( 'Search and Add Ticket', 'wp-helpdesk' ); ?></h2>
+				<div class="wphd-search-container">
+					<input type="text" id="wphd-ticket-search-input" class="regular-text" placeholder="<?php esc_attr_e( 'Search by Ticket ID or Title...', 'wp-helpdesk' ); ?>">
+					<div id="wphd-ticket-search-results"></div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render ticket table for edit page.
+	 *
+	 * @since 1.0.0
+	 * @param array  $tickets Array of ticket objects.
+	 * @param string $section Section type.
+	 * @return string HTML table.
+	 */
+	private function render_ticket_table_edit( $tickets, $section ) {
+		if ( empty( $tickets ) ) {
+			return '<p class="description">' . esc_html__( 'No tickets added yet.', 'wp-helpdesk' ) . '</p>';
+		}
+
+		// Column configurations for different sections
+		$section_columns = array(
+			'tasks_todo' => array( 'id', 'title', 'reporter', 'category', 'created_at', 'due_date' ),
+			'follow_up' => array( 'id', 'title', 'reporter', 'category', 'priority', 'created_at' ),
+			'important_info' => array( 'id', 'title', 'reporter', 'priority', 'special_instructions' ),
+		);
+
+		$column_labels = array(
+			'id' => __( 'Ticket ID', 'wp-helpdesk' ),
+			'title' => __( 'Title', 'wp-helpdesk' ),
+			'reporter' => __( 'Reporter', 'wp-helpdesk' ),
+			'category' => __( 'Category', 'wp-helpdesk' ),
+			'priority' => __( 'Priority', 'wp-helpdesk' ),
+			'created_at' => __( 'Creation Date & Time', 'wp-helpdesk' ),
+			'due_date' => __( 'Due Date', 'wp-helpdesk' ),
+			'special_instructions' => __( 'Special Instructions', 'wp-helpdesk' ),
+		);
+
+		$columns = isset( $section_columns[ $section ] ) ? $section_columns[ $section ] : array( 'id', 'title' );
+
+		ob_start();
+		?>
+		<table class="wp-list-table widefat fixed striped wphd-ticket-table">
+			<thead>
+				<tr>
+					<?php foreach ( $columns as $col ) : ?>
+						<th><?php echo esc_html( $column_labels[ $col ] ); ?></th>
+					<?php endforeach; ?>
+					<th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $tickets as $ticket_data ) : ?>
+					<?php
+					$ticket = get_post( $ticket_data->ticket_id );
+					if ( ! $ticket ) {
+						continue;
+					}
+
+					$reporter_id = $ticket->post_author;
+					$reporter = get_userdata( $reporter_id );
+					$category = get_post_meta( $ticket->ID, '_wphd_category', true );
+					$priority = get_post_meta( $ticket->ID, '_wphd_priority', true );
+					$due_date = get_post_meta( $ticket->ID, '_wphd_due_date', true );
+
+					// Get labels
+					$category_label = $this->get_meta_label( 'wphd_categories', $category );
+					$priority_label = $this->get_meta_label( 'wphd_priorities', $priority );
+					?>
+					<tr data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>">
+						<?php foreach ( $columns as $col ) : ?>
+							<td>
+								<?php
+								switch ( $col ) {
+									case 'id':
+										echo '<strong>#' . esc_html( $ticket->ID ) . '</strong>';
+										break;
+									case 'title':
+										echo esc_html( $ticket->post_title );
+										break;
+									case 'reporter':
+										echo esc_html( $reporter ? $reporter->display_name : __( 'Unknown', 'wp-helpdesk' ) );
+										break;
+									case 'category':
+										echo esc_html( $category_label );
+										break;
+									case 'priority':
+										echo esc_html( $priority_label );
+										break;
+									case 'created_at':
+										echo esc_html( get_the_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ticket->ID ) );
+										break;
+									case 'due_date':
+										echo esc_html( $due_date ? mysql2date( get_option( 'date_format' ), $due_date ) : __( 'N/A', 'wp-helpdesk' ) );
+										break;
+									case 'special_instructions':
+										?>
+										<input type="text" class="regular-text wphd-special-instructions" 
+											value="<?php echo esc_attr( $ticket_data->special_instructions ); ?>" 
+											placeholder="<?php esc_attr_e( 'Add special instructions...', 'wp-helpdesk' ); ?>">
+										<?php
+										break;
+								}
+								?>
+							</td>
+						<?php endforeach; ?>
+						<td class="wphd-ticket-actions">
+							<button type="button" class="button-link wphd-remove-ticket" data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
+								<span class="dashicons dashicons-no-alt"></span>
+							</button>
+							<input type="hidden" name="tickets[<?php echo esc_attr( $section ); ?>][]" value="<?php echo esc_attr( $ticket->ID ); ?>">
+						</td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Get meta label (category, priority, etc).
+	 *
+	 * @since 1.0.0
+	 * @param string $option_name Option name.
+	 * @param string $slug Slug to find.
+	 * @return string Label.
+	 */
+	private function get_meta_label( $option_name, $slug ) {
+		$items = get_option( $option_name, array() );
+		foreach ( $items as $item ) {
+			if ( $item['slug'] === $slug ) {
+				return $item['name'];
+			}
+		}
+		return ucfirst( $slug );
 	}
 }

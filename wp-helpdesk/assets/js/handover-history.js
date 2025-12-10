@@ -373,4 +373,385 @@
 		});
 	}
 
+	/**
+	 * Initialize edit page functionality
+	 */
+	window.initHandoverEditPage = function() {
+		let currentSection = '';
+		const ticketData = {
+			tasks_todo: [],
+			follow_up: [],
+			important_info: []
+		};
+
+		// Column configurations for different sections
+		const sectionColumns = {
+			tasks_todo: ['id', 'title', 'reporter', 'category', 'created_at', 'due_date'],
+			follow_up: ['id', 'title', 'reporter', 'category', 'priority', 'created_at'],
+			important_info: ['id', 'title', 'reporter', 'priority', 'special_instructions']
+		};
+
+		// Column labels
+		const columnLabels = {
+			id: 'Ticket ID',
+			title: 'Title',
+			reporter: 'Reporter',
+			category: 'Category',
+			priority: 'Priority',
+			created_at: 'Creation Date & Time',
+			due_date: 'Due Date',
+			special_instructions: 'Special Instructions'
+		};
+
+		// Load existing tickets from the page
+		loadExistingTickets();
+
+		// Add ticket button click
+		$('.wphd-add-ticket-btn').on('click', function(e) {
+			e.preventDefault();
+			currentSection = $(this).data('section');
+			openTicketSearchModal();
+		});
+
+		// Close modal
+		$('.wphd-modal-close').on('click', function() {
+			closeTicketSearchModal();
+		});
+
+		// Click outside modal to close
+		$(window).on('click', function(e) {
+			if ($(e.target).is('#wphd-ticket-search-modal')) {
+				closeTicketSearchModal();
+			}
+		});
+
+		// Ticket search input with debounce
+		let searchTimeout;
+		$('#wphd-ticket-search-input').on('keyup', function() {
+			clearTimeout(searchTimeout);
+			const searchQuery = $(this).val();
+
+			if (searchQuery.length < 2) {
+				$('#wphd-ticket-search-results').html('');
+				return;
+			}
+
+			searchTimeout = setTimeout(function() {
+				searchTickets(searchQuery);
+			}, 300);
+		});
+
+		// Form submission
+		$('#wphd-handover-edit-form').on('submit', function(e) {
+			e.preventDefault();
+			updateReport();
+			return false;
+		});
+
+		// Remove ticket buttons
+		$(document).on('click', '.wphd-remove-ticket', function() {
+			const section = $(this).data('section');
+			const ticketId = $(this).data('ticket-id');
+			removeTicketFromSection(section, ticketId);
+		});
+
+		// Special instructions input events
+		$(document).on('change', '.wphd-special-instructions', function() {
+			const section = $(this).closest('tr').find('.wphd-remove-ticket').data('section');
+			const ticketId = $(this).closest('tr').data('ticket-id');
+			const value = $(this).val();
+			
+			// Update the ticket data
+			const ticket = ticketData[section].find(t => t.ticket_id === ticketId);
+			if (ticket) {
+				ticket.special_instructions = value;
+			}
+		});
+
+		/**
+		 * Load existing tickets from the page
+		 */
+		function loadExistingTickets() {
+			['tasks_todo', 'follow_up', 'important_info'].forEach(function(section) {
+				ticketData[section] = [];
+				$('#' + section + '_list table tbody tr').each(function() {
+					const ticketId = $(this).data('ticket-id');
+					if (ticketId) {
+						const ticket = {
+							ticket_id: ticketId,
+							special_instructions: $(this).find('.wphd-special-instructions').val() || ''
+						};
+						ticketData[section].push(ticket);
+					}
+				});
+			});
+		}
+
+		/**
+		 * Open the ticket search modal
+		 */
+		function openTicketSearchModal() {
+			$('#wphd-ticket-search-modal').fadeIn();
+			$('#wphd-ticket-search-input').val('').focus();
+			$('#wphd-ticket-search-results').html('');
+		}
+
+		/**
+		 * Close the ticket search modal
+		 */
+		function closeTicketSearchModal() {
+			$('#wphd-ticket-search-modal').fadeOut();
+			$('#wphd-ticket-search-input').val('');
+			$('#wphd-ticket-search-results').html('');
+		}
+
+		/**
+		 * Search for tickets via AJAX
+		 */
+		function searchTickets(query) {
+			$('#wphd-ticket-search-results').html('<p class="wphd-loading">Searching...</p>');
+
+			if (!wpHelpDesk.handoverNonce) {
+				$('#wphd-ticket-search-results').html('<p class="error">Security token missing. Please refresh the page.</p>');
+				return;
+			}
+
+			$.ajax({
+				url: wpHelpDesk.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'wphd_search_tickets_for_handover',
+					nonce: wpHelpDesk.handoverNonce,
+					search: query
+				},
+				success: function(response) {
+					if (response.success && response.data.tickets) {
+						displaySearchResults(response.data.tickets);
+					} else {
+						$('#wphd-ticket-search-results').html('<p>No tickets found.</p>');
+					}
+				},
+				error: function() {
+					$('#wphd-ticket-search-results').html('<p class="error">Search failed. Please try again.</p>');
+				}
+			});
+		}
+
+		/**
+		 * Display search results
+		 */
+		function displaySearchResults(tickets) {
+			if (tickets.length === 0) {
+				$('#wphd-ticket-search-results').html('<p>No tickets found.</p>');
+				return;
+			}
+
+			let html = '<div class="wphd-search-results-list">';
+			
+			tickets.forEach(function(ticket) {
+				const alreadyAdded = ticketData[currentSection].some(t => t.ticket_id === ticket.id);
+				const disabledClass = alreadyAdded ? 'disabled' : '';
+				const disabledAttr = alreadyAdded ? 'disabled' : '';
+
+				html += '<div class="wphd-search-result-item ' + disabledClass + '">';
+				html += '<div class="wphd-ticket-info">';
+				html += '<strong>#' + ticket.id + ' - ' + escapeHtml(ticket.title) + '</strong><br>';
+				html += '<span class="wphd-ticket-meta">';
+				html += 'Status: ' + escapeHtml(ticket.status_label) + ' | ';
+				html += 'Priority: ' + escapeHtml(ticket.priority_label) + ' | ';
+				html += 'Reporter: ' + escapeHtml(ticket.reporter);
+				html += '</span>';
+				html += '</div>';
+				html += '<button type="button" class="button button-small wphd-add-ticket-result" ';
+				html += 'data-ticket-id="' + ticket.id + '" ' + disabledAttr + '>';
+				html += alreadyAdded ? 'Added' : 'Add';
+				html += '</button>';
+				html += '</div>';
+			});
+
+			html += '</div>';
+
+			$('#wphd-ticket-search-results').html(html);
+
+			$('.wphd-add-ticket-result').on('click', function() {
+				const ticketId = $(this).data('ticket-id');
+				const ticket = tickets.find(t => t.id === ticketId);
+				if (ticket) {
+					addTicketToSection(ticket);
+					$(this).prop('disabled', true).text('Added');
+					$(this).closest('.wphd-search-result-item').addClass('disabled');
+				}
+			});
+		}
+
+		/**
+		 * Add ticket to a section
+		 */
+		function addTicketToSection(ticket) {
+			const ticketEntry = {
+				ticket_id: ticket.id,
+				title: ticket.title,
+				status: ticket.status,
+				status_label: ticket.status_label,
+				priority: ticket.priority,
+				priority_label: ticket.priority_label,
+				category: ticket.category,
+				category_label: ticket.category_label,
+				reporter: ticket.reporter,
+				created_at: ticket.created_at,
+				due_date: ticket.due_date || '',
+				special_instructions: ''
+			};
+
+			ticketData[currentSection].push(ticketEntry);
+			renderTicketList(currentSection);
+			showNotice('Ticket #' + ticket.id + ' added successfully!', 'success');
+		}
+
+		/**
+		 * Remove ticket from section
+		 */
+		function removeTicketFromSection(section, ticketId) {
+			if (confirm('Are you sure you want to remove this ticket from the section?')) {
+				ticketData[section] = ticketData[section].filter(t => t.ticket_id !== ticketId);
+				renderTicketList(section);
+				showNotice('Ticket removed successfully', 'success');
+			}
+		}
+
+		/**
+		 * Render ticket list for a section
+		 */
+		function renderTicketList(section) {
+			const listContainer = $('#' + section + '_list');
+			const tickets = ticketData[section];
+			const columns = sectionColumns[section];
+
+			if (tickets.length === 0) {
+				listContainer.html('<p class="description">No tickets added yet.</p>');
+				return;
+			}
+
+			let html = '<table class="wp-list-table widefat fixed striped wphd-ticket-table">';
+			html += '<thead><tr>';
+			
+			columns.forEach(function(col) {
+				html += '<th>' + columnLabels[col] + '</th>';
+			});
+			
+			html += '<th>Actions</th>';
+			html += '</tr></thead>';
+			html += '<tbody>';
+
+			tickets.forEach(function(ticket, index) {
+				html += '<tr data-ticket-id="' + ticket.ticket_id + '">';
+				
+				columns.forEach(function(col) {
+					if (col === 'id') {
+						html += '<td><strong>#' + ticket.ticket_id + '</strong></td>';
+					} else if (col === 'special_instructions') {
+						html += '<td>';
+						html += '<input type="text" class="regular-text wphd-special-instructions" ';
+						html += 'value="' + escapeHtml(ticket.special_instructions || '') + '" ';
+						html += 'placeholder="Add special instructions...">';
+						html += '</td>';
+					} else if (col === 'title') {
+						html += '<td>' + escapeHtml(ticket.title) + '</td>';
+					} else if (col === 'priority') {
+						html += '<td>' + escapeHtml(ticket.priority_label || ticket.priority || 'N/A') + '</td>';
+					} else if (col === 'category') {
+						html += '<td>' + escapeHtml(ticket.category_label || ticket.category || 'N/A') + '</td>';
+					} else {
+						html += '<td>' + escapeHtml(ticket[col] || 'N/A') + '</td>';
+					}
+				});
+
+				html += '<td class="wphd-ticket-actions">';
+				html += '<button type="button" class="button-link wphd-remove-ticket" ';
+				html += 'data-section="' + section + '" data-ticket-id="' + ticket.ticket_id + '">';
+				html += '<span class="dashicons dashicons-no-alt"></span>';
+				html += '</button>';
+				html += '</td>';
+				html += '</tr>';
+			});
+
+			html += '</tbody></table>';
+
+			listContainer.html(html);
+		}
+
+		/**
+		 * Update report via AJAX
+		 */
+		function updateReport() {
+			const reportId = $('#wphd-report-id').val();
+			const shiftType = $('#wphd-shift-type').val();
+			
+			// Get additional instructions from editor
+			let additionalInstructions = '';
+			if (typeof tinyMCE !== 'undefined' && tinyMCE.get('wphd-additional-instructions')) {
+				additionalInstructions = tinyMCE.get('wphd-additional-instructions').getContent();
+			} else {
+				additionalInstructions = $('#wphd-additional-instructions').val();
+			}
+
+			$.ajax({
+				url: wpHelpDesk.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'wphd_update_handover_report',
+					nonce: wpHelpDesk.nonce,
+					report_id: reportId,
+					shift_type: shiftType,
+					tickets_data: JSON.stringify(ticketData),
+					additional_instructions: additionalInstructions
+				},
+				success: function(response) {
+					if (response.success) {
+						showNotice(response.data.message, 'success');
+						setTimeout(function() {
+							window.location.href = wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-handover-reports';
+						}, 1500);
+					} else {
+						showNotice(response.data.message || 'Failed to update report', 'error');
+					}
+				},
+				error: function() {
+					showNotice('Network error. Please try again.', 'error');
+				}
+			});
+		}
+
+		/**
+		 * Show notification message
+		 */
+		function showNotice(message, type) {
+			const noticeClass = 'notice notice-' + type + ' is-dismissible';
+			const notice = $('<div class="' + noticeClass + '"><p>' + message + '</p></div>');
+			
+			$('.wphd-handover-edit-wrap h1').after(notice);
+			
+			setTimeout(function() {
+				notice.fadeOut(function() {
+					$(this).remove();
+				});
+			}, 5000);
+		}
+
+		/**
+		 * Escape HTML to prevent XSS
+		 */
+		function escapeHtml(text) {
+			if (!text) return '';
+			const map = {
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#039;'
+			};
+			return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+		}
+	};
+
 })(jQuery);

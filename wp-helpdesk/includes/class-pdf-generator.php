@@ -212,21 +212,21 @@ class WPHD_PDF_Generator {
 			<?php if ( ! empty( $tasks_todo ) ) : ?>
 			<div class="section">
 				<div class="section-header"><?php esc_html_e( 'Tasks To Be Done', 'wp-helpdesk' ); ?></div>
-				<?php echo $this->render_tickets_table( $tasks_todo ); ?>
+				<?php echo $this->render_tickets_table( $tasks_todo, 'tasks_todo' ); ?>
 			</div>
 			<?php endif; ?>
 
 			<?php if ( ! empty( $follow_up ) ) : ?>
 			<div class="section">
 				<div class="section-header"><?php esc_html_e( 'Follow-up Tickets', 'wp-helpdesk' ); ?></div>
-				<?php echo $this->render_tickets_table( $follow_up ); ?>
+				<?php echo $this->render_tickets_table( $follow_up, 'follow_up' ); ?>
 			</div>
 			<?php endif; ?>
 
 			<?php if ( ! empty( $important_info ) ) : ?>
 			<div class="section">
 				<div class="section-header"><?php esc_html_e( 'Important Information', 'wp-helpdesk' ); ?></div>
-				<?php echo $this->render_tickets_table( $important_info ); ?>
+				<?php echo $this->render_tickets_table( $important_info, 'important_info' ); ?>
 			</div>
 			<?php endif; ?>
 
@@ -259,20 +259,48 @@ class WPHD_PDF_Generator {
 	 * Render tickets table HTML.
 	 *
 	 * @since 1.0.0
-	 * @param array $tickets Array of ticket objects.
+	 * @param array  $tickets Array of ticket objects.
+	 * @param string $section_type Section type (tasks_todo, follow_up, important_info).
 	 * @return string HTML table.
 	 */
-	private function render_tickets_table( $tickets ) {
+	private function render_tickets_table( $tickets, $section_type = 'tasks_todo' ) {
+		// Define columns for each section
+		$section_columns = array(
+			'tasks_todo' => array(
+				'Ticket ID',
+				'Ticket Title',
+				'Reporter',
+				'Category',
+				'Creation Date & Time',
+				'Due Date',
+			),
+			'follow_up' => array(
+				'Ticket ID',
+				'Ticket Title',
+				'Reporter',
+				'Category',
+				'Priority',
+				'Creation Date & Time',
+			),
+			'important_info' => array(
+				'Ticket ID',
+				'Title',
+				'Reporter',
+				'Priority',
+				'Special Instructions',
+			),
+		);
+
+		$columns = isset( $section_columns[ $section_type ] ) ? $section_columns[ $section_type ] : $section_columns['tasks_todo'];
+
 		ob_start();
 		?>
 		<table class="tickets-table">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'Ticket ID', 'wp-helpdesk' ); ?></th>
-					<th><?php esc_html_e( 'Title', 'wp-helpdesk' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
-					<th><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
-					<th><?php esc_html_e( 'Instructions', 'wp-helpdesk' ); ?></th>
+					<?php foreach ( $columns as $column_label ) : ?>
+						<th><?php echo esc_html( $column_label ); ?></th>
+					<?php endforeach; ?>
 				</tr>
 			</thead>
 			<tbody>
@@ -282,19 +310,85 @@ class WPHD_PDF_Generator {
 					if ( ! $ticket ) {
 						continue;
 					}
+
+					// Get ticket metadata
+					$reporter_id = $ticket->post_author;
+					$reporter = get_userdata( $reporter_id );
+					$reporter_name = $reporter ? $reporter->display_name : __( 'Unknown', 'wp-helpdesk' );
+					
+					$category = get_post_meta( $ticket->ID, '_wphd_category', true );
+					$priority = get_post_meta( $ticket->ID, '_wphd_priority', true );
+					$due_date = get_post_meta( $ticket->ID, '_wphd_due_date', true );
+					$created_date = get_the_date( 'M j, Y g:i A', $ticket->ID );
+
+					// Get labels
+					$category_label = $this->get_category_label( $category );
+					$priority_label = $this->get_priority_label( $priority );
+					$due_date_formatted = $due_date ? mysql2date( 'M j, Y', $due_date ) : __( 'N/A', 'wp-helpdesk' );
 					?>
 					<tr>
-						<td>#<?php echo esc_html( $ticket->ID ); ?></td>
-						<td><?php echo esc_html( $ticket->post_title ); ?></td>
-						<td><?php echo esc_html( get_post_meta( $ticket->ID, '_wphd_status', true ) ); ?></td>
-						<td><?php echo esc_html( get_post_meta( $ticket->ID, '_wphd_priority', true ) ); ?></td>
-						<td><?php echo esc_html( $ticket_data->special_instructions ); ?></td>
+						<?php if ( 'important_info' === $section_type ) : ?>
+							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
+							<td><?php echo esc_html( $ticket->post_title ); ?></td>
+							<td><?php echo esc_html( $reporter_name ); ?></td>
+							<td><?php echo esc_html( $priority_label ); ?></td>
+							<td><?php echo esc_html( $ticket_data->special_instructions ); ?></td>
+						<?php elseif ( 'follow_up' === $section_type ) : ?>
+							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
+							<td><?php echo esc_html( $ticket->post_title ); ?></td>
+							<td><?php echo esc_html( $reporter_name ); ?></td>
+							<td><?php echo esc_html( $category_label ); ?></td>
+							<td><?php echo esc_html( $priority_label ); ?></td>
+							<td><?php echo esc_html( $created_date ); ?></td>
+						<?php else : ?>
+							<!-- tasks_todo -->
+							<td>#<?php echo esc_html( $ticket->ID ); ?></td>
+							<td><?php echo esc_html( $ticket->post_title ); ?></td>
+							<td><?php echo esc_html( $reporter_name ); ?></td>
+							<td><?php echo esc_html( $category_label ); ?></td>
+							<td><?php echo esc_html( $created_date ); ?></td>
+							<td><?php echo esc_html( $due_date_formatted ); ?></td>
+						<?php endif; ?>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
 		</table>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Get category label.
+	 *
+	 * @since 1.0.0
+	 * @param string $category Category slug.
+	 * @return string Category label.
+	 */
+	private function get_category_label( $category ) {
+		$categories = get_option( 'wphd_categories', array() );
+		foreach ( $categories as $cat ) {
+			if ( $cat['slug'] === $category ) {
+				return $cat['name'];
+			}
+		}
+		return ucfirst( $category );
+	}
+
+	/**
+	 * Get priority label.
+	 *
+	 * @since 1.0.0
+	 * @param string $priority Priority slug.
+	 * @return string Priority label.
+	 */
+	private function get_priority_label( $priority ) {
+		$priorities = get_option( 'wphd_priorities', array() );
+		foreach ( $priorities as $p ) {
+			if ( $p['slug'] === $priority ) {
+				return $p['name'];
+			}
+		}
+		return ucfirst( $priority );
 	}
 
 	/**
