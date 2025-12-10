@@ -410,7 +410,7 @@ class WPHD_Handover_History {
 	public function export_to_excel() {
 		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
-		if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
+		if ( ! WPHD_Access_Control::can_access( 'handover_export' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
 		}
 
@@ -445,7 +445,7 @@ class WPHD_Handover_History {
 	public function export_to_pdf() {
 		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
-		if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
+		if ( ! WPHD_Access_Control::can_access( 'handover_export' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
 		}
 
@@ -610,7 +610,7 @@ class WPHD_Handover_History {
 	public function ajax_update_report() {
 		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
-		if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
+		if ( ! WPHD_Access_Control::can_access( 'handover_edit' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
 		}
 

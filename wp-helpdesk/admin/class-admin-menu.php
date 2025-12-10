@@ -2093,7 +2093,7 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_create_handover_report_page() {
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_die( esc_html__( 'You do not have permission to create handover reports.', 'wp-helpdesk' ) );
         }
 
@@ -2107,7 +2107,7 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     public function render_handover_history_page() {
-        if ( ! current_user_can( 'create_wphd_handover_reports' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
             wp_die( esc_html__( 'You do not have permission to view handover reports.', 'wp-helpdesk' ) );
         }
 

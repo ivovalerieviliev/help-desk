@@ -545,7 +545,7 @@ class WPHD_Handover_Report {
     public function ajax_check_duplicate_report() {
         check_ajax_referer( 'wphd_create_handover', 'nonce' );
 
-        if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
+        if ( ! WPHD_Access_Control::can_access( 'handover_create' ) ) {
             wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
         }
 
