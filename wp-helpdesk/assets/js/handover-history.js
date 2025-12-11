@@ -409,7 +409,13 @@
 		function getTicketDataFromElement($element) {
 			const section = $element.attr('data-section');
 			const ticketIdStr = $element.attr('data-ticket-id');
-			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : null;
+			let ticketId = null;
+			
+			if (ticketIdStr) {
+				const parsed = parseInt(ticketIdStr, 10);
+				// Only use the parsed value if it's a valid number
+				ticketId = !isNaN(parsed) ? parsed : null;
+			}
 			
 			return { section, ticketId };
 		}
@@ -495,13 +501,16 @@
 			['tasks_todo', 'follow_up', 'important_info'].forEach(function(section) {
 				ticketData[section] = [];
 				$('#' + section + '_list table tbody tr').each(function() {
-					const ticketId = $(this).data('ticket-id');
-					if (ticketId) {
-						const ticket = {
-							ticket_id: ticketId,
-							special_instructions: $(this).find('.wphd-special-instructions').val() || ''
-						};
-						ticketData[section].push(ticket);
+					const ticketIdStr = $(this).attr('data-ticket-id');
+					if (ticketIdStr) {
+						const ticketId = parseInt(ticketIdStr, 10);
+						if (!isNaN(ticketId)) {
+							const ticket = {
+								ticket_id: ticketId,
+								special_instructions: $(this).find('.wphd-special-instructions').val() || ''
+							};
+							ticketData[section].push(ticket);
+						}
 					}
 				});
 			});

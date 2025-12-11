@@ -297,7 +297,7 @@ class WPHD_Handover_Report {
             
             // Debug logging
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'WP HelpDesk: Merging report ' . $report_id . ' for org ' . $org_id . ', shift ' . $shift_type );
+                error_log( 'WP HelpDesk: Merging report ' . $report_id . ' for shift ' . $shift_type );
             }
             
             // Process and merge tickets for each section
