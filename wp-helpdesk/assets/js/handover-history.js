@@ -371,6 +371,46 @@
 			const reportId = $(this).data('report-id');
 			window.location.href = wpHelpDesk.adminUrl + 'admin.php?page=wp-helpdesk-handover-edit&report_id=' + reportId;
 		});
+		
+		// Delete button
+		$(document).on('click', '.wphd-delete-btn', function() {
+			const reportId = $(this).data('report-id');
+			
+			if (!confirm('Are you sure you want to delete this handover report? This action cannot be undone.')) {
+				return;
+			}
+			
+			const button = $(this);
+			const originalText = button.html();
+			
+			button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Deleting...');
+			
+			$.ajax({
+				url: wpHelpDesk.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'wphd_delete_handover_report',
+					nonce: wpHelpDesk.nonce,
+					report_id: reportId
+				},
+				success: function(response) {
+					if (response.success) {
+						showNotice('success', response.data.message || 'Handover report deleted successfully!');
+						// Remove the row from the table
+						button.closest('tr').fadeOut(function() {
+							$(this).remove();
+						});
+					} else {
+						showNotice('error', response.data.message || 'Failed to delete handover report. Please try again.');
+						button.prop('disabled', false).html(originalText);
+					}
+				},
+				error: function() {
+					showNotice('error', 'Network error. Please try again.');
+					button.prop('disabled', false).html(originalText);
+				}
+			});
+		});
 	}
 
 	/**

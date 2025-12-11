@@ -361,9 +361,9 @@ class WPHD_Handover_Report {
             wp_safe_redirect(
                 add_query_arg(
                     array(
-                        'page'    => 'wp-helpdesk-handover-reports',
-                        'merged' => '1',
-                        'added'  => $added_count,
+                        'page'         => 'wp-helpdesk-handover-reports',
+                        'wphd_message' => urlencode( sprintf( __( 'Report updated successfully! %d new ticket(s) added.', 'wp-helpdesk' ), $added_count ) ),
+                        'wphd_type'    => 'success',
                     ),
                     admin_url( 'admin.php' )
                 )
@@ -385,7 +385,17 @@ class WPHD_Handover_Report {
         $report_id = WPHD_Database::save_handover_report( $report_data );
 
         if ( ! $report_id ) {
-            wp_die( esc_html__( 'Failed to create handover report.', 'wp-helpdesk' ) );
+            wp_safe_redirect(
+                add_query_arg(
+                    array(
+                        'page'         => 'wp-helpdesk-handover-reports',
+                        'wphd_message' => urlencode( __( 'Failed to create handover report. Please try again.', 'wp-helpdesk' ) ),
+                        'wphd_type'    => 'error',
+                    ),
+                    admin_url( 'admin.php' )
+                )
+            );
+            exit;
         }
 
         // Process and save tickets for each section
@@ -424,8 +434,9 @@ class WPHD_Handover_Report {
         wp_safe_redirect(
             add_query_arg(
                 array(
-                    'page'    => 'wp-helpdesk-handover-reports',
-                    'created' => '1',
+                    'page'         => 'wp-helpdesk-handover-reports',
+                    'wphd_message' => urlencode( __( 'Handover report created successfully!', 'wp-helpdesk' ) ),
+                    'wphd_type'    => 'success',
                 ),
                 admin_url( 'admin.php' )
             )
@@ -636,7 +647,7 @@ class WPHD_Handover_Report {
         }
 
         wp_send_json_success( array(
-            'message' => __( 'Report updated successfully.', 'wp-helpdesk' ),
+            'message' => sprintf( __( 'Report updated successfully! %d new ticket(s) added.', 'wp-helpdesk' ), $added_count ),
             'added_tickets' => $added_count
         ) );
     }

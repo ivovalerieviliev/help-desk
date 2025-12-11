@@ -858,6 +858,10 @@ class WPHD_Database {
             $update_data['status'] = sanitize_text_field($data['status']);
         }
         
+        if (isset($data['shift_type'])) {
+            $update_data['shift_type'] = sanitize_text_field($data['shift_type']);
+        }
+        
         if (empty($update_data)) {
             return false;
         }

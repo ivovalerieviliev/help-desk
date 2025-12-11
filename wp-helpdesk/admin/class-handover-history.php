@@ -59,6 +59,10 @@ class WPHD_Handover_History {
 		add_action( 'wp_ajax_wphd_search_handover_reports', array( $this, 'ajax_search_reports' ) );
 		add_action( 'wp_ajax_wphd_get_report_details', array( $this, 'ajax_get_report_details' ) );
 		add_action( 'wp_ajax_wphd_update_handover_report', array( $this, 'ajax_update_report' ) );
+		add_action( 'wp_ajax_wphd_delete_handover_report', array( $this, 'ajax_delete_report' ) );
+		
+		// Register admin notices
+		add_action( 'admin_notices', array( $this, 'display_admin_notices' ) );
 	}
 
 	/**
@@ -69,30 +73,6 @@ class WPHD_Handover_History {
 	public function render_history_page() {
 		if ( ! WPHD_Access_Control::can_access( 'handover_view' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view handover reports.', 'wp-helpdesk' ) );
-		}
-
-		// Show success message if redirected from create page
-		if ( isset( $_GET['created'] ) && '1' === $_GET['created'] ) {
-			?>
-			<div class="notice notice-success is-dismissible">
-				<p><?php esc_html_e( 'Handover report created successfully!', 'wp-helpdesk' ); ?></p>
-			</div>
-			<?php
-		}
-		
-		// Show merge success message
-		if ( isset( $_GET['merged'] ) && '1' === $_GET['merged'] ) {
-			$added_count = isset( $_GET['added'] ) ? intval( $_GET['added'] ) : 0;
-			?>
-			<div class="notice notice-success is-dismissible">
-				<p>
-					<?php
-					/* translators: %d: Number of tickets added */
-					printf( esc_html__( 'Report updated successfully! %d new ticket(s) added.', 'wp-helpdesk' ), $added_count );
-					?>
-				</p>
-			</div>
-			<?php
 		}
 
 		?>
@@ -279,6 +259,12 @@ class WPHD_Handover_History {
 								<span class="dashicons dashicons-pdf"></span>
 								<?php esc_html_e( 'PDF', 'wp-helpdesk' ); ?>
 							</button>
+							<?php if ( WPHD_Access_Control::can_access( 'handover_delete' ) ) : ?>
+							<button type="button" class="button button-small button-link-delete wphd-delete-btn" data-report-id="<?php echo esc_attr( $report->id ); ?>">
+								<span class="dashicons dashicons-trash"></span>
+								<?php esc_html_e( 'Delete', 'wp-helpdesk' ); ?>
+							</button>
+							<?php endif; ?>
 						</td>
 					</tr>
 				<?php endforeach; ?>
@@ -668,7 +654,7 @@ class WPHD_Handover_History {
 			}
 		}
 
-		wp_send_json_success( array( 'message' => __( 'Report updated successfully.', 'wp-helpdesk' ) ) );
+		wp_send_json_success( array( 'message' => __( 'Handover report updated successfully!', 'wp-helpdesk' ) ) );
 	}
 	
 	/**
@@ -995,5 +981,57 @@ class WPHD_Handover_History {
 			}
 		}
 		return ucfirst( $slug );
+	}
+	
+	/**
+	 * Display admin notices for handover operations.
+	 *
+	 * @since 1.0.0
+	 */
+	public function display_admin_notices() {
+		// Only show on handover pages
+		if ( ! isset( $_GET['page'] ) || strpos( $_GET['page'], 'wp-helpdesk-handover' ) === false ) {
+			return;
+		}
+		
+		if ( isset( $_GET['wphd_message'] ) ) {
+			$message = sanitize_text_field( wp_unslash( $_GET['wphd_message'] ) );
+			$type = isset( $_GET['wphd_type'] ) ? sanitize_text_field( wp_unslash( $_GET['wphd_type'] ) ) : 'success';
+			
+			// Validate type
+			$allowed_types = array( 'success', 'error', 'warning', 'info' );
+			if ( ! in_array( $type, $allowed_types, true ) ) {
+				$type = 'success';
+			}
+			
+			echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		}
+	}
+	
+	/**
+	 * AJAX handler for deleting a handover report.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_delete_report() {
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
+
+		if ( ! WPHD_Access_Control::can_access( 'handover_delete' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-helpdesk' ) ) );
+		}
+
+		$report_id = isset( $_POST['report_id'] ) ? intval( $_POST['report_id'] ) : 0;
+
+		if ( ! $report_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid report ID.', 'wp-helpdesk' ) ) );
+		}
+
+		$result = WPHD_Database::delete_handover_report( $report_id );
+
+		if ( $result ) {
+			wp_send_json_success( array( 'message' => __( 'Handover report deleted successfully!', 'wp-helpdesk' ) ) );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Failed to delete handover report. Please try again.', 'wp-helpdesk' ) ) );
+		}
 	}
 }
