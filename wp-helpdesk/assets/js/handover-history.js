@@ -450,15 +450,15 @@
 
 		// Remove ticket buttons - using delegated event handler
 		$(document).on('click', '.wphd-remove-ticket-btn', function() {
-			const section = $(this).data('section');
-			const ticketId = $(this).data('ticket-id');
+			const section = $(this).attr('data-section');
+			const ticketId = parseInt($(this).attr('data-ticket-id'), 10);
 			removeTicketFromSection(section, ticketId);
 		});
 
 		// Special instructions input events
 		$(document).on('change', '.wphd-special-instructions', function() {
-			const section = $(this).closest('tr').find('.wphd-remove-ticket').data('section');
-			const ticketId = $(this).closest('tr').data('ticket-id');
+			const section = $(this).closest('tr').attr('data-section');
+			const ticketId = parseInt($(this).closest('tr').attr('data-ticket-id'), 10);
 			const value = $(this).val();
 			
 			// Update the ticket data

@@ -928,7 +928,7 @@ class WPHD_Handover_History {
 					$category_label = $this->get_meta_label( 'wphd_categories', $category );
 					$priority_label = $this->get_meta_label( 'wphd_priorities', $priority );
 					?>
-					<tr data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>">
+					<tr data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
 						<?php foreach ( $columns as $col ) : ?>
 							<td>
 								<?php
