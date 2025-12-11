@@ -928,7 +928,7 @@ class WPHD_Handover_History {
 					$category_label = $this->get_meta_label( 'wphd_categories', $category );
 					$priority_label = $this->get_meta_label( 'wphd_priorities', $priority );
 					?>
-					<tr data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>">
+					<tr data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
 						<?php foreach ( $columns as $col ) : ?>
 							<td>
 								<?php
@@ -966,7 +966,7 @@ class WPHD_Handover_History {
 							</td>
 						<?php endforeach; ?>
 						<td class="wphd-ticket-actions">
-							<button type="button" class="button-link wphd-remove-ticket" data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
+							<button type="button" class="button-link wphd-remove-ticket-btn" data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
 								<span class="dashicons dashicons-no-alt"></span>
 							</button>
 							<input type="hidden" name="tickets[<?php echo esc_attr( $section ); ?>][]" value="<?php echo esc_attr( $ticket->ID ); ?>">

@@ -403,6 +403,23 @@
 			special_instructions: 'Special Instructions'
 		};
 
+		/**
+		 * Helper function to extract ticket data from element
+		 */
+		function getTicketDataFromElement($element) {
+			const section = $element.attr('data-section');
+			const ticketIdStr = $element.attr('data-ticket-id');
+			let ticketId = null;
+			
+			if (ticketIdStr) {
+				const parsed = parseInt(ticketIdStr, 10);
+				// Only use the parsed value if it's a valid number
+				ticketId = !isNaN(parsed) ? parsed : null;
+			}
+			
+			return { section, ticketId };
+		}
+
 		// Load existing tickets from the page
 		loadExistingTickets();
 
@@ -448,21 +465,30 @@
 			return false;
 		});
 
-		// Remove ticket buttons
-		$(document).on('click', '.wphd-remove-ticket', function() {
-			const section = $(this).data('section');
-			const ticketId = $(this).data('ticket-id');
-			removeTicketFromSection(section, ticketId);
+		// Remove ticket buttons - using delegated event handler
+		$(document).on('click', '.wphd-remove-ticket-btn', function() {
+			const data = getTicketDataFromElement($(this));
+			
+			if (!data.ticketId || !data.section) {
+				console.error('Missing ticket ID or section');
+				return;
+			}
+			
+			removeTicketFromSection(data.section, data.ticketId);
 		});
 
 		// Special instructions input events
 		$(document).on('change', '.wphd-special-instructions', function() {
-			const section = $(this).closest('tr').find('.wphd-remove-ticket').data('section');
-			const ticketId = $(this).closest('tr').data('ticket-id');
+			const data = getTicketDataFromElement($(this).closest('tr'));
 			const value = $(this).val();
 			
+			if (!data.ticketId || !data.section) {
+				console.error('Missing ticket ID or section for special instructions');
+				return;
+			}
+			
 			// Update the ticket data
-			const ticket = ticketData[section].find(t => t.ticket_id === ticketId);
+			const ticket = ticketData[data.section].find(t => t.ticket_id === data.ticketId);
 			if (ticket) {
 				ticket.special_instructions = value;
 			}
@@ -475,13 +501,16 @@
 			['tasks_todo', 'follow_up', 'important_info'].forEach(function(section) {
 				ticketData[section] = [];
 				$('#' + section + '_list table tbody tr').each(function() {
-					const ticketId = $(this).data('ticket-id');
-					if (ticketId) {
-						const ticket = {
-							ticket_id: ticketId,
-							special_instructions: $(this).find('.wphd-special-instructions').val() || ''
-						};
-						ticketData[section].push(ticket);
+					const ticketIdStr = $(this).attr('data-ticket-id');
+					if (ticketIdStr) {
+						const ticketId = parseInt(ticketIdStr, 10);
+						if (!isNaN(ticketId)) {
+							const ticket = {
+								ticket_id: ticketId,
+								special_instructions: $(this).find('.wphd-special-instructions').val() || ''
+							};
+							ticketData[section].push(ticket);
+						}
 					}
 				});
 			});
@@ -646,7 +675,7 @@
 			html += '<tbody>';
 
 			tickets.forEach(function(ticket, index) {
-				html += '<tr data-ticket-id="' + ticket.ticket_id + '">';
+				html += '<tr data-ticket-id="' + ticket.ticket_id + '" data-section="' + section + '">';
 				
 				columns.forEach(function(col) {
 					if (col === 'id') {
@@ -669,7 +698,7 @@
 				});
 
 				html += '<td class="wphd-ticket-actions">';
-				html += '<button type="button" class="button-link wphd-remove-ticket" ';
+				html += '<button type="button" class="button-link wphd-remove-ticket-btn" ';
 				html += 'data-section="' + section + '" data-ticket-id="' + ticket.ticket_id + '">';
 				html += '<span class="dashicons dashicons-no-alt"></span>';
 				html += '</button>';

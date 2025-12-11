@@ -499,6 +499,8 @@
         
         $('.wphd-update-report-yes').on('click', function() {
             $('.wphd-confirm-overlay').remove();
+            // Update hidden fields with current ticket data before submitting
+            updateHiddenFields();
             // Submit the form - the backend will handle merging
             $('#wphd-handover-report-form').off('submit').submit();
         });
