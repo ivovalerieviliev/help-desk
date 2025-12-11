@@ -714,6 +714,28 @@ class WPHD_Handover_Report {
     }
     
     /**
+     * Get current shift type based on current time.
+     *
+     * @since 1.0.0
+     * @return string Shift type (morning, afternoon, night).
+     */
+    private function get_current_shift_type() {
+        $current_hour = intval( current_time( 'H' ) );
+        
+        // These hours can be made configurable in settings later
+        // Morning: 06:00 - 14:00
+        // Afternoon: 14:00 - 22:00
+        // Night: 22:00 - 06:00
+        if ( $current_hour >= 6 && $current_hour < 14 ) {
+            return 'morning';
+        } elseif ( $current_hour >= 14 && $current_hour < 22 ) {
+            return 'afternoon';
+        } else {
+            return 'night';
+        }
+    }
+    
+    /**
      * AJAX handler to add ticket to handover from ticket details page.
      *
      * @since 1.0.0
@@ -742,16 +764,7 @@ class WPHD_Handover_Report {
 
         // Get or create today's draft report for this organization
         $current_date = current_time( 'Y-m-d' );
-        
-        // Get shift type based on current time
-        $current_hour = intval( current_time( 'H' ) );
-        if ( $current_hour >= 6 && $current_hour < 14 ) {
-            $shift_type = 'morning';
-        } elseif ( $current_hour >= 14 && $current_hour < 22 ) {
-            $shift_type = 'afternoon';
-        } else {
-            $shift_type = 'night';
-        }
+        $shift_type = $this->get_current_shift_type();
         
         $draft_report = WPHD_Database::get_organization_draft_report( $org_id, $shift_type, $current_date );
 
