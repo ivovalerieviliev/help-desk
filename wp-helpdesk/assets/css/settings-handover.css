@@ -1,0 +1,160 @@
+/**
+ * Handover Settings Styles
+ *
+ * @package WP_HelpDesk
+ * @since 1.0.0
+ */
+
+.wphd-settings-handover-wrap {
+    max-width: 1200px;
+}
+
+.wphd-settings-section {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.wphd-settings-section h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.wphd-sections-table {
+    margin-top: 20px;
+}
+
+.wphd-sections-table th {
+    font-weight: 600;
+}
+
+.wphd-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.wphd-status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.wphd-status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.wphd-action-buttons {
+    white-space: nowrap;
+}
+
+.wphd-action-buttons .button {
+    margin-right: 5px;
+}
+
+.wphd-action-buttons .dashicons {
+    font-size: 16px;
+    vertical-align: middle;
+    margin-right: 3px;
+}
+
+/* Modal Styles */
+.wphd-modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.wphd-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.wphd-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wphd-modal-header h2 {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.wphd-modal-close {
+    color: #666;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.wphd-modal-close:hover,
+.wphd-modal-close:focus {
+    color: #000;
+}
+
+.wphd-modal-content form {
+    padding: 20px;
+}
+
+.wphd-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #ddd;
+    text-align: right;
+    background: #f6f7f7;
+}
+
+.wphd-modal-footer .button {
+    margin-left: 10px;
+}
+
+/* Form elements */
+.required {
+    color: #d63638;
+}
+
+.wphd-settings-handover-wrap .form-table th {
+    width: 200px;
+}
+
+.wphd-settings-handover-wrap .form-table td {
+    padding: 15px 10px;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .wphd-modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    .wphd-sections-table {
+        font-size: 12px;
+    }
+    
+    .wphd-action-buttons .button {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+}

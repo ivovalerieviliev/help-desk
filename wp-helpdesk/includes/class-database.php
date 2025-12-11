@@ -65,6 +65,7 @@ class WPHD_Database {
             $wpdb->prefix . 'wphd_shifts',
             $wpdb->prefix . 'wphd_handover_reports',
             $wpdb->prefix . 'wphd_handover_report_tickets',
+            $wpdb->prefix . 'wphd_handover_sections',
         );
         
         // Get all existing tables in a single query
@@ -922,5 +923,137 @@ class WPHD_Database {
         ));
         
         return $org_id ? intval($org_id) : null;
+    }
+    
+    /**
+     * Get all handover sections.
+     *
+     * @since 1.0.0
+     * @param bool $active_only Whether to get only active sections.
+     * @return array Array of section objects.
+     */
+    public static function get_handover_sections($active_only = true) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        $sql = "SELECT * FROM $table";
+        
+        if ($active_only) {
+            $sql .= " WHERE is_active = 1";
+        }
+        
+        $sql .= " ORDER BY display_order ASC";
+        
+        return $wpdb->get_results($sql);
+    }
+    
+    /**
+     * Get a single handover section by ID.
+     *
+     * @since 1.0.0
+     * @param int $section_id Section ID.
+     * @return object|null Section object or null if not found.
+     */
+    public static function get_handover_section($section_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE id = %d",
+            $section_id
+        ));
+    }
+    
+    /**
+     * Create a new handover section.
+     *
+     * @since 1.0.0
+     * @param array $data Section data.
+     * @return int|false Section ID on success, false on failure.
+     */
+    public static function create_handover_section($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        $insert_data = array(
+            'name' => sanitize_text_field($data['name']),
+            'slug' => sanitize_title($data['slug']),
+            'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : '',
+            'display_order' => isset($data['display_order']) ? intval($data['display_order']) : 0,
+            'is_active' => isset($data['is_active']) ? intval($data['is_active']) : 1
+        );
+        
+        $result = $wpdb->insert($table, $insert_data);
+        
+        return $result ? $wpdb->insert_id : false;
+    }
+    
+    /**
+     * Update a handover section.
+     *
+     * @since 1.0.0
+     * @param int $section_id Section ID.
+     * @param array $data Update data.
+     * @return bool True on success, false on failure.
+     */
+    public static function update_handover_section($section_id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        $update_data = array();
+        
+        if (isset($data['name'])) {
+            $update_data['name'] = sanitize_text_field($data['name']);
+        }
+        
+        if (isset($data['slug'])) {
+            $update_data['slug'] = sanitize_title($data['slug']);
+        }
+        
+        if (isset($data['description'])) {
+            $update_data['description'] = sanitize_textarea_field($data['description']);
+        }
+        
+        if (isset($data['display_order'])) {
+            $update_data['display_order'] = intval($data['display_order']);
+        }
+        
+        if (isset($data['is_active'])) {
+            $update_data['is_active'] = intval($data['is_active']);
+        }
+        
+        if (empty($update_data)) {
+            return false;
+        }
+        
+        $result = $wpdb->update(
+            $table,
+            $update_data,
+            array('id' => $section_id),
+            null,
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Delete a handover section.
+     *
+     * @since 1.0.0
+     * @param int $section_id Section ID.
+     * @return bool True on success, false on failure.
+     */
+    public static function delete_handover_section($section_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        $result = $wpdb->delete(
+            $table,
+            array('id' => $section_id),
+            array('%d')
+        );
+        
+        return $result !== false;
     }
 }
