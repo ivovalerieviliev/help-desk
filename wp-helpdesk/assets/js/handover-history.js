@@ -448,8 +448,8 @@
 			return false;
 		});
 
-		// Remove ticket buttons
-		$(document).on('click', '.wphd-remove-ticket', function() {
+		// Remove ticket buttons - using delegated event handler
+		$(document).on('click', '.wphd-remove-ticket-btn', function() {
 			const section = $(this).data('section');
 			const ticketId = $(this).data('ticket-id');
 			removeTicketFromSection(section, ticketId);

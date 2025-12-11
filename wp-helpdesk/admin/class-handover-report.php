@@ -295,6 +295,9 @@ class WPHD_Handover_Report {
             // Merge mode - existing completed report found
             $report_id = $existing_report->id;
             
+            // Debug logging
+            error_log( 'WP HelpDesk: Merging report ' . $report_id . ' for org ' . $org_id . ', shift ' . $shift_type );
+            
             // Process and merge tickets for each section
             $sections = array( 'tasks_todo', 'follow_up', 'important_info' );
             $new_tickets = array();
@@ -304,6 +307,10 @@ class WPHD_Handover_Report {
                 if ( ! empty( $_POST[ $tickets_field ] ) ) {
                     $tickets_json = sanitize_textarea_field( stripslashes( $_POST[ $tickets_field ] ) );
                     $tickets_data = json_decode( $tickets_json, true );
+                    
+                    // Debug logging
+                    error_log( 'WP HelpDesk: Section ' . $section . ' JSON: ' . $tickets_json );
+                    error_log( 'WP HelpDesk: Section ' . $section . ' parsed: ' . print_r( $tickets_data, true ) );
                     
                     if ( json_last_error() === JSON_ERROR_NONE && is_array( $tickets_data ) ) {
                         foreach ( $tickets_data as $index => $ticket_data ) {
@@ -316,17 +323,26 @@ class WPHD_Handover_Report {
                                 );
                             }
                         }
+                    } else {
+                        error_log( 'WP HelpDesk: JSON error for section ' . $section . ': ' . json_last_error_msg() );
                     }
                 }
             }
             
+            // Debug logging
+            error_log( 'WP HelpDesk: Total new tickets to merge: ' . count( $new_tickets ) );
+            
             // Merge tickets (avoiding duplicates)
             $added_count = WPHD_Database::merge_report_tickets( $report_id, $new_tickets );
+            
+            // Debug logging
+            error_log( 'WP HelpDesk: Actually added ' . $added_count . ' new tickets' );
             
             // Append additional instructions if provided
             if ( ! empty( $_POST['additional_instructions'] ) ) {
                 $instructions = wp_kses_post( $_POST['additional_instructions'] );
                 WPHD_Database::append_additional_instructions( $report_id, get_current_user_id(), $instructions );
+                error_log( 'WP HelpDesk: Appended additional instructions' );
             }
             
             // Redirect with merge success message

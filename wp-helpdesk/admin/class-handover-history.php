@@ -966,7 +966,7 @@ class WPHD_Handover_History {
 							</td>
 						<?php endforeach; ?>
 						<td class="wphd-ticket-actions">
-							<button type="button" class="button-link wphd-remove-ticket" data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
+							<button type="button" class="button-link wphd-remove-ticket-btn" data-ticket-id="<?php echo esc_attr( $ticket->ID ); ?>" data-section="<?php echo esc_attr( $section ); ?>">
 								<span class="dashicons dashicons-no-alt"></span>
 							</button>
 							<input type="hidden" name="tickets[<?php echo esc_attr( $section ); ?>][]" value="<?php echo esc_attr( $ticket->ID ); ?>">
