@@ -403,6 +403,17 @@
 			special_instructions: 'Special Instructions'
 		};
 
+		/**
+		 * Helper function to extract ticket data from element
+		 */
+		function getTicketDataFromElement($element) {
+			const section = $element.attr('data-section');
+			const ticketIdStr = $element.attr('data-ticket-id');
+			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : null;
+			
+			return { section, ticketId };
+		}
+
 		// Load existing tickets from the page
 		loadExistingTickets();
 
@@ -450,32 +461,28 @@
 
 		// Remove ticket buttons - using delegated event handler
 		$(document).on('click', '.wphd-remove-ticket-btn', function() {
-			const section = $(this).attr('data-section');
-			const ticketIdStr = $(this).attr('data-ticket-id');
-			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : 0;
+			const data = getTicketDataFromElement($(this));
 			
-			if (!ticketId || !section) {
+			if (!data.ticketId || !data.section) {
 				console.error('Missing ticket ID or section');
 				return;
 			}
 			
-			removeTicketFromSection(section, ticketId);
+			removeTicketFromSection(data.section, data.ticketId);
 		});
 
 		// Special instructions input events
 		$(document).on('change', '.wphd-special-instructions', function() {
-			const section = $(this).closest('tr').attr('data-section');
-			const ticketIdStr = $(this).closest('tr').attr('data-ticket-id');
-			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : 0;
+			const data = getTicketDataFromElement($(this).closest('tr'));
 			const value = $(this).val();
 			
-			if (!ticketId || !section) {
+			if (!data.ticketId || !data.section) {
 				console.error('Missing ticket ID or section for special instructions');
 				return;
 			}
 			
 			// Update the ticket data
-			const ticket = ticketData[section].find(t => t.ticket_id === ticketId);
+			const ticket = ticketData[data.section].find(t => t.ticket_id === data.ticketId);
 			if (ticket) {
 				ticket.special_instructions = value;
 			}

@@ -310,13 +310,12 @@ class WPHD_Handover_Report {
                     $tickets_json = sanitize_textarea_field( stripslashes( $_POST[ $tickets_field ] ) );
                     $tickets_data = json_decode( $tickets_json, true );
                     
-                    // Debug logging
-                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                        error_log( 'WP HelpDesk: Section ' . $section . ' JSON: ' . $tickets_json );
-                        error_log( 'WP HelpDesk: Section ' . $section . ' parsed: ' . print_r( $tickets_data, true ) );
-                    }
-                    
                     if ( json_last_error() === JSON_ERROR_NONE && is_array( $tickets_data ) ) {
+                        // Debug logging - count only, not raw data
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                            error_log( 'WP HelpDesk: Section ' . $section . ' has ' . count( $tickets_data ) . ' tickets' );
+                        }
+                        
                         foreach ( $tickets_data as $index => $ticket_data ) {
                             if ( isset( $ticket_data['ticket_id'] ) && is_numeric( $ticket_data['ticket_id'] ) ) {
                                 $new_tickets[] = array(
