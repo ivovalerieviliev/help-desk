@@ -659,7 +659,7 @@
 			html += '<tbody>';
 
 			tickets.forEach(function(ticket, index) {
-				html += '<tr data-ticket-id="' + ticket.ticket_id + '">';
+				html += '<tr data-ticket-id="' + ticket.ticket_id + '" data-section="' + section + '">';
 				
 				columns.forEach(function(col) {
 					if (col === 'id') {
@@ -682,7 +682,7 @@
 				});
 
 				html += '<td class="wphd-ticket-actions">';
-				html += '<button type="button" class="button-link wphd-remove-ticket" ';
+				html += '<button type="button" class="button-link wphd-remove-ticket-btn" ';
 				html += 'data-section="' + section + '" data-ticket-id="' + ticket.ticket_id + '">';
 				html += '<span class="dashicons dashicons-no-alt"></span>';
 				html += '</button>';
