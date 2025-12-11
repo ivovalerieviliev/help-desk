@@ -26,6 +26,7 @@ class WPHD_Ticket_Meta {
     public function add_meta_boxes() {
         add_meta_box('wphd_ticket_details', __('Ticket Details', 'wp-helpdesk'), array($this, 'render_details_box'), 'wphd_ticket', 'side', 'high');
         add_meta_box('wphd_ticket_sla', __('SLA Information', 'wp-helpdesk'), array($this, 'render_sla_box'), 'wphd_ticket', 'side', 'default');
+        add_meta_box('wphd_ticket_handover', __('Handover Report', 'wp-helpdesk'), array($this, 'render_handover_box'), 'wphd_ticket', 'side', 'default');
     }
     
     public function render_details_box($post) {
@@ -138,6 +139,136 @@ class WPHD_Ticket_Meta {
                 }
             }
         }
+    }
+    
+    /**
+     * Render handover report metabox.
+     *
+     * @param WP_Post $post The post object.
+     */
+    public function render_handover_box($post) {
+        // Get active handover sections
+        $sections = WPHD_Database::get_handover_sections(true);
+        
+        if (empty($sections)) {
+            echo '<p>' . esc_html__('No handover sections available.', 'wp-helpdesk') . '</p>';
+            return;
+        }
+        
+        // Get user's organization
+        $org_id = WPHD_Database::get_user_organization_id();
+        
+        if (!$org_id) {
+            echo '<p>' . esc_html__('You must be a member of an organization to add tickets to handover reports.', 'wp-helpdesk') . '</p>';
+            return;
+        }
+        
+        // Get current date
+        $current_date = current_time('Y-m-d');
+        
+        // Get all reports for today where this ticket is included
+        global $wpdb;
+        $reports_table = $wpdb->prefix . 'wphd_handover_reports';
+        $report_tickets_table = $wpdb->prefix . 'wphd_handover_report_tickets';
+        
+        $current_assignments = $wpdb->get_results($wpdb->prepare(
+            "SELECT hr.id, hr.shift_type, hr.created_at, hrt.section_type
+            FROM $reports_table hr
+            INNER JOIN $report_tickets_table hrt ON hr.id = hrt.report_id
+            WHERE hrt.ticket_id = %d
+            AND DATE(hr.shift_date) = %s
+            ORDER BY hr.created_at DESC",
+            $post->ID,
+            $current_date
+        ));
+        
+        ?>
+        <div class="wphd-handover-metabox">
+            <p><strong><?php esc_html_e('Add this ticket to handover sections:', 'wp-helpdesk'); ?></strong></p>
+            
+            <div class="wphd-handover-sections">
+                <?php foreach ($sections as $section) : ?>
+                    <label class="wphd-section-checkbox">
+                        <input type="checkbox" 
+                               class="wphd-handover-section-checkbox" 
+                               name="wphd_handover_sections[]" 
+                               value="<?php echo esc_attr($section->slug); ?>">
+                        <?php echo esc_html($section->name); ?>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            
+            <p>
+                <label for="wphd-handover-instructions"><strong><?php esc_html_e('Special Instructions (optional):', 'wp-helpdesk'); ?></strong></label>
+                <textarea id="wphd-handover-instructions" 
+                          class="widefat" 
+                          rows="3" 
+                          placeholder="<?php esc_attr_e('Add any special instructions for this ticket...', 'wp-helpdesk'); ?>"></textarea>
+            </p>
+            
+            <p>
+                <button type="button" 
+                        id="wphd-add-to-handover-btn" 
+                        class="button button-primary button-large" 
+                        data-ticket-id="<?php echo esc_attr($post->ID); ?>" 
+                        data-org-id="<?php echo esc_attr($org_id); ?>">
+                    <?php esc_html_e('Add to Handover Report', 'wp-helpdesk'); ?>
+                </button>
+            </p>
+            
+            <?php if (!empty($current_assignments)) : ?>
+                <hr>
+                <p><strong><?php esc_html_e('Currently in:', 'wp-helpdesk'); ?></strong></p>
+                <ul class="wphd-current-assignments">
+                    <?php foreach ($current_assignments as $assignment) : ?>
+                        <?php
+                        $shift_labels = array(
+                            'morning' => __('Morning', 'wp-helpdesk'),
+                            'afternoon' => __('Afternoon', 'wp-helpdesk'),
+                            'night' => __('Night', 'wp-helpdesk'),
+                        );
+                        $shift_label = isset($shift_labels[$assignment->shift_type]) ? $shift_labels[$assignment->shift_type] : ucfirst($assignment->shift_type);
+                        
+                        $section_obj = null;
+                        foreach ($sections as $s) {
+                            if ($s->slug === $assignment->section_type) {
+                                $section_obj = $s;
+                                break;
+                            }
+                        }
+                        $section_name = $section_obj ? $section_obj->name : $assignment->section_type;
+                        
+                        $date_str = mysql2date(get_option('date_format') . ' - ' . $shift_label, $assignment->created_at);
+                        ?>
+                        <li><?php echo esc_html($section_name . ' (' . $date_str . ')'); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+        
+        <style>
+        .wphd-handover-metabox {
+            padding: 0;
+        }
+        .wphd-handover-sections {
+            margin: 10px 0;
+        }
+        .wphd-section-checkbox {
+            display: block;
+            margin: 5px 0;
+        }
+        .wphd-section-checkbox input {
+            margin-right: 5px;
+        }
+        .wphd-current-assignments {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .wphd-current-assignments li {
+            margin: 3px 0;
+        }
+        </style>
+        <?php
     }
     
     public static function get_status_info($slug) {

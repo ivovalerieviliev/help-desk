@@ -263,7 +263,73 @@ class WPHD_Activator {
         ) $charset_collate;";
         dbDelta($sql_handover_additional_instructions);
         
+        // Handover Sections Table (for configurable sections)
+        $table_handover_sections = $wpdb->prefix . 'wphd_handover_sections';
+        $sql_handover_sections = "CREATE TABLE $table_handover_sections (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            name varchar(100) NOT NULL,
+            slug varchar(50) NOT NULL,
+            description text,
+            display_order int(11) DEFAULT 0,
+            is_active tinyint(1) DEFAULT 1,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY slug (slug),
+            KEY is_active (is_active),
+            KEY display_order (display_order)
+        ) $charset_collate;";
+        dbDelta($sql_handover_sections);
+        
+        // Insert default sections if they don't exist
+        self::create_default_handover_sections();
+        
         update_option('wphd_db_version', WPHD_VERSION);
+    }
+    
+    /**
+     * Create default handover sections.
+     *
+     * @since 1.0.0
+     */
+    private static function create_default_handover_sections() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'wphd_handover_sections';
+        
+        // Check if sections already exist
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        
+        if ($count > 0) {
+            return; // Sections already exist
+        }
+        
+        $default_sections = array(
+            array(
+                'name' => 'Tasks to be Done',
+                'slug' => 'tasks_todo',
+                'description' => 'Tickets that need to be completed',
+                'display_order' => 1,
+                'is_active' => 1
+            ),
+            array(
+                'name' => 'Follow-up Tickets',
+                'slug' => 'follow_up',
+                'description' => 'Tickets requiring follow-up by the next shift',
+                'display_order' => 2,
+                'is_active' => 1
+            ),
+            array(
+                'name' => 'Important Information',
+                'slug' => 'important_info',
+                'description' => 'Tickets containing important internal knowledge messages',
+                'display_order' => 3,
+                'is_active' => 1
+            )
+        );
+        
+        foreach ($default_sections as $section) {
+            $wpdb->insert($table, $section);
+        }
     }
     
     private static function create_default_options() {
