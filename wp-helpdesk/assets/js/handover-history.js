@@ -451,15 +451,28 @@
 		// Remove ticket buttons - using delegated event handler
 		$(document).on('click', '.wphd-remove-ticket-btn', function() {
 			const section = $(this).attr('data-section');
-			const ticketId = parseInt($(this).attr('data-ticket-id'), 10);
+			const ticketIdStr = $(this).attr('data-ticket-id');
+			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : 0;
+			
+			if (!ticketId || !section) {
+				console.error('Missing ticket ID or section');
+				return;
+			}
+			
 			removeTicketFromSection(section, ticketId);
 		});
 
 		// Special instructions input events
 		$(document).on('change', '.wphd-special-instructions', function() {
 			const section = $(this).closest('tr').attr('data-section');
-			const ticketId = parseInt($(this).closest('tr').attr('data-ticket-id'), 10);
+			const ticketIdStr = $(this).closest('tr').attr('data-ticket-id');
+			const ticketId = ticketIdStr ? parseInt(ticketIdStr, 10) : 0;
 			const value = $(this).val();
+			
+			if (!ticketId || !section) {
+				console.error('Missing ticket ID or section for special instructions');
+				return;
+			}
 			
 			// Update the ticket data
 			const ticket = ticketData[section].find(t => t.ticket_id === ticketId);
