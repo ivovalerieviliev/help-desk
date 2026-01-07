@@ -150,9 +150,27 @@ class WPHD_Excel_Generator {
 		}
 
 		// Additional Instructions
-		if ( ! empty( $report->additional_instructions ) ) {
+		$instructions_entries = WPHD_Database::get_additional_instructions( $report_id );
+		
+		// If no entries in separate table, use original additional_instructions
+		if ( empty( $instructions_entries ) && ! empty( $report->additional_instructions ) ) {
 			$csv_data[] = array( __( 'ADDITIONAL INSTRUCTIONS', 'wp-helpdesk' ) );
 			$csv_data[] = array( wp_strip_all_tags( $report->additional_instructions ) );
+		} elseif ( ! empty( $instructions_entries ) ) {
+			$csv_data[] = array( __( 'ADDITIONAL INSTRUCTIONS', 'wp-helpdesk' ) );
+			
+			foreach ( $instructions_entries as $instruction ) {
+				$user = get_userdata( $instruction->user_id );
+				$user_name = $user ? $user->display_name : __( 'Unknown User', 'wp-helpdesk' );
+				$date_time = mysql2date( get_option( 'date_format' ) . ' ' . __( 'at', 'wp-helpdesk' ) . ' ' . get_option( 'time_format' ), $instruction->created_at );
+				
+				$csv_data[] = array( '─────────────────────────────────────' );
+				$csv_data[] = array( sprintf( __( 'Added by: %s', 'wp-helpdesk' ), $user_name ) );
+				$csv_data[] = array( sprintf( __( 'Date: %s', 'wp-helpdesk' ), $date_time ) );
+				$csv_data[] = array( '─────────────────────────────────────' );
+				$csv_data[] = array( wp_strip_all_tags( $instruction->content ) );
+				$csv_data[] = array(); // Empty row
+			}
 		}
 
 		// Create file with WordPress filesystem

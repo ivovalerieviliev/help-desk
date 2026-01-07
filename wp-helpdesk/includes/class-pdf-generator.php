@@ -230,11 +230,21 @@ class WPHD_PDF_Generator {
 			</div>
 			<?php endif; ?>
 
-			<?php if ( ! empty( $report->additional_instructions ) ) : ?>
+			<?php 
+			// Get formatted additional instructions with attribution
+			$formatted_instructions = WPHD_Database::get_formatted_additional_instructions( $report_id );
+			
+			// If no formatted instructions, fall back to original additional_instructions
+			if ( empty( $formatted_instructions ) && ! empty( $report->additional_instructions ) ) {
+				$formatted_instructions = wp_kses_post( $report->additional_instructions );
+			}
+			
+			if ( ! empty( $formatted_instructions ) ) :
+			?>
 			<div class="section">
 				<div class="section-header"><?php esc_html_e( 'Additional Instructions', 'wp-helpdesk' ); ?></div>
 				<div class="instructions-content">
-					<?php echo wp_kses_post( $report->additional_instructions ); ?>
+					<?php echo $formatted_instructions; ?>
 				</div>
 			</div>
 			<?php endif; ?>
