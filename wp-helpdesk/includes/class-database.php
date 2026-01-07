@@ -799,6 +799,12 @@ class WPHD_Database {
      * @return string Formatted HTML string with attribution blocks.
      */
     public static function get_formatted_additional_instructions($report_id) {
+        // Validate report_id
+        $report_id = absint($report_id);
+        if ($report_id < 1) {
+            return '';
+        }
+        
         $instructions = self::get_additional_instructions($report_id);
         
         if (empty($instructions)) {
