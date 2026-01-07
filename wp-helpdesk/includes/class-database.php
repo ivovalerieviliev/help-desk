@@ -791,6 +791,47 @@ class WPHD_Database {
     }
     
     /**
+     * Get formatted additional instructions for display.
+     * Formats instructions with attribution blocks.
+     *
+     * @since 1.0.0
+     * @param int $report_id Report ID.
+     * @return string Formatted HTML string with attribution blocks.
+     */
+    public static function get_formatted_additional_instructions($report_id) {
+        $instructions = self::get_additional_instructions($report_id);
+        
+        if (empty($instructions)) {
+            return '';
+        }
+        
+        $output = '';
+        
+        foreach ($instructions as $instruction) {
+            $user = get_userdata($instruction->user_id);
+            $user_name = $user ? $user->display_name : __('Unknown User', 'wp-helpdesk');
+            $date_time = mysql2date(get_option('date_format') . ' ' . __('at', 'wp-helpdesk') . ' ' . get_option('time_format'), $instruction->created_at);
+            
+            $output .= '<div class="wphd-instruction-block">';
+            $output .= '<div class="wphd-instruction-separator">─────────────────────────────────────</div>';
+            $output .= '<div class="wphd-instruction-meta">';
+            $output .= '<strong>' . esc_html__('Additional Instructions', 'wp-helpdesk') . '</strong><br>';
+            $output .= sprintf(
+                /* translators: 1: User name, 2: Date and time */
+                esc_html__('Added by: %1$s', 'wp-helpdesk') . '<br>' . esc_html__('Date: %2$s', 'wp-helpdesk'),
+                '<strong>' . esc_html($user_name) . '</strong>',
+                '<strong>' . esc_html($date_time) . '</strong>'
+            );
+            $output .= '</div>';
+            $output .= '<div class="wphd-instruction-separator">─────────────────────────────────────</div>';
+            $output .= '<div class="wphd-instruction-content">' . wp_kses_post($instruction->content) . '</div>';
+            $output .= '</div>';
+        }
+        
+        return $output;
+    }
+    
+    /**
      * Search handover reports.
      *
      * @param string $search_term Search term.

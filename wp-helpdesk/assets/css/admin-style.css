@@ -449,6 +449,96 @@
     font-size: 12px;
 }
 
+/* Additional Instructions Attribution Blocks */
+.wphd-instruction-block {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-left: 4px solid #2271b1;
+    border-radius: 4px;
+}
+
+.wphd-instruction-separator {
+    color: #8c8f94;
+    font-size: 12px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.wphd-instruction-meta {
+    padding: 10px 0;
+    color: #646970;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.wphd-instruction-content {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #dcdcde;
+}
+
+/* Handover Metabox Styles */
+.wphd-handover-metabox {
+    padding: 12px;
+}
+
+.wphd-handover-section-list {
+    margin: 15px 0;
+}
+
+.wphd-handover-section-item {
+    margin-bottom: 10px;
+}
+
+.wphd-handover-section-checkbox {
+    margin-right: 8px;
+}
+
+.wphd-handover-instructions-field {
+    width: 100%;
+    margin-top: 15px;
+}
+
+.wphd-handover-instructions-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.wphd-handover-instructions-field textarea {
+    width: 100%;
+    min-height: 80px;
+}
+
+.wphd-handover-submit {
+    margin-top: 15px;
+}
+
+.wphd-current-handovers {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #dcdcde;
+}
+
+.wphd-current-handovers h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #646970;
+    text-transform: uppercase;
+}
+
+.wphd-current-handovers ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.wphd-current-handovers li {
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #50575e;
+}
+
 .wphd-action-item-meta {
     color: #999;
     font-size: 11px;

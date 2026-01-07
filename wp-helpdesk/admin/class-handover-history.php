@@ -482,7 +482,15 @@ class WPHD_Handover_History {
 			wp_send_json_error( array( 'message' => __( 'Report not found.', 'wp-helpdesk' ) ) );
 		}
 
-		wp_send_json_success( array( 'instructions' => $report->additional_instructions ) );
+		// Get formatted instructions with attribution blocks
+		$formatted_instructions = WPHD_Database::get_formatted_additional_instructions( $report_id );
+		
+		// If there are no merged instructions, show the original additional_instructions from the report
+		if ( empty( $formatted_instructions ) && ! empty( $report->additional_instructions ) ) {
+			$formatted_instructions = wp_kses_post( $report->additional_instructions );
+		}
+
+		wp_send_json_success( array( 'instructions' => $formatted_instructions ) );
 	}
 	
 	/**
