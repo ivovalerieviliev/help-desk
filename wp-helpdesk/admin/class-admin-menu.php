@@ -3657,6 +3657,20 @@ class WPHD_Admin_Menu {
             $members_table = $wpdb->prefix . 'wphd_organization_members';
             $org_admins = isset( $_POST['org_admin'] ) ? array_map( 'intval', $_POST['org_admin'] ) : array();
             
+            // Get all member user IDs for validation
+            $member_user_ids = array();
+            foreach ( $members as $member ) {
+                $member_user_ids[] = (int) $member->user_id;
+            }
+            
+            // Validate that all designated admins are actually members
+            $validated_org_admins = array();
+            foreach ( $org_admins as $user_id ) {
+                if ( in_array( $user_id, $member_user_ids, true ) ) {
+                    $validated_org_admins[] = $user_id;
+                }
+            }
+            
             // Reset all members to non-admin for this organization
             $wpdb->update(
                 $members_table,
@@ -3666,8 +3680,8 @@ class WPHD_Admin_Menu {
                 array( '%d' )
             );
             
-            // Set designated users as admins
-            foreach ( $org_admins as $user_id ) {
+            // Set designated users as admins (only validated members)
+            foreach ( $validated_org_admins as $user_id ) {
                 $wpdb->update(
                     $members_table,
                     array( 'is_admin' => 1 ),
