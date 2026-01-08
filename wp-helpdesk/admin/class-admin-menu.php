@@ -421,12 +421,31 @@ class WPHD_Admin_Menu {
      */
     private function render_dashboard_widgets() {
         // Get real statistics
-        $total_tickets    = wp_count_posts( 'wphd_ticket' );
-        $total_count      = isset( $total_tickets->publish ) ? $total_tickets->publish : 0;
-        $open_count       = $this->count_tickets_by_status( 'open' );
-        $in_progress_count = $this->count_tickets_by_status( 'in-progress' );
-        $resolved_count   = $this->count_tickets_by_status( 'resolved' );
-        $closed_count     = $this->count_tickets_by_status( 'closed' );
+        $total_tickets = wp_count_posts( 'wphd_ticket' );
+        $total_count = isset( $total_tickets->publish ) ? $total_tickets->publish : 0;
+
+        // Get all configured statuses dynamically
+        $statuses = get_option( 'wphd_statuses', array() );
+        $status_counts = array();
+
+        foreach ( $statuses as $status ) {
+            // Validate status structure
+            if ( ! is_array( $status ) || ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
+                continue;
+            }
+
+            // Validate and sanitize color
+            $color = isset( $status['color'] ) ? sanitize_hex_color( $status['color'] ) : '';
+            if ( empty( $color ) ) {
+                $color = '#999999'; // Default gray color
+            }
+
+            $status_counts[ $status['slug'] ] = array(
+                'label' => $status['name'],
+                'count' => $this->count_tickets_by_status( $status['slug'] ),
+                'color' => $color
+            );
+        }
         
         // Get recent tickets
         $recent_tickets = get_posts(
@@ -446,18 +465,18 @@ class WPHD_Admin_Menu {
                     <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
                         <?php esc_html_e( 'Total Tickets:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $total_count ); ?></strong>
                     </li>
-                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <?php esc_html_e( 'Open Tickets:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $open_count ); ?></strong>
-                    </li>
-                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <?php esc_html_e( 'In Progress:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $in_progress_count ); ?></strong>
-                    </li>
-                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <?php esc_html_e( 'Resolved:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $resolved_count ); ?></strong>
-                    </li>
-                    <li style="padding: 8px 0;">
-                        <?php esc_html_e( 'Closed Tickets:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $closed_count ); ?></strong>
-                    </li>
+                    <?php
+                    $status_index = 0;
+                    $status_total = count( $status_counts );
+                    foreach ( $status_counts as $slug => $status_data ) :
+                        $status_index++;
+                        $border_style = ( $status_index < $status_total ) ? 'border-bottom: 1px solid #eee;' : '';
+                        ?>
+                        <li style="padding: 8px 0; <?php echo esc_attr( $border_style ); ?>">
+                            <span class="wphd-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: <?php echo esc_attr( $status_data['color'] ); ?>; margin-right: 5px;"></span>
+                            <?php echo esc_html( $status_data['label'] ); ?>: <strong><?php echo esc_html( $status_data['count'] ); ?></strong>
+                        </li>
+                    <?php endforeach; ?>
                 </ul>
             </div>
             <div class="wp-helpdesk-widget" style="flex: 1; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
