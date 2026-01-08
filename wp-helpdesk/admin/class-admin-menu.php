@@ -429,6 +429,11 @@ class WPHD_Admin_Menu {
         $status_counts = array();
 
         foreach ( $statuses as $status ) {
+            // Validate status structure
+            if ( ! is_array( $status ) || ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
+                continue;
+            }
+
             $status_counts[ $status['slug'] ] = array(
                 'label' => $status['name'],
                 'count' => $this->count_tickets_by_status( $status['slug'] ),
