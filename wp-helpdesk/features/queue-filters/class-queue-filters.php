@@ -594,7 +594,8 @@ class WPHD_Queue_Filters {
 	 */
 	public function maybe_create_default_filters() {
 		// Only run on help desk pages
-		if ( ! isset( $_SERVER['REQUEST_URI'] ) || false === strpos( $_SERVER['REQUEST_URI'], 'wp-helpdesk' ) ) {
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		if ( empty( $request_uri ) || false === strpos( $request_uri, 'wp-helpdesk' ) ) {
 			return;
 		}
 

@@ -522,7 +522,7 @@ class WPHD_Queue_Filters_Management {
 	 * @since 1.0.0
 	 */
 	public function ajax_delete_filter() {
-		check_ajax_referer( 'wp_helpdesk_nonce', 'nonce' );
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
 		$filter_id = isset( $_POST['filter_id'] ) ? absint( $_POST['filter_id'] ) : 0;
 
@@ -549,7 +549,7 @@ class WPHD_Queue_Filters_Management {
 	 * @since 1.0.0
 	 */
 	public function ajax_set_default() {
-		check_ajax_referer( 'wp_helpdesk_nonce', 'nonce' );
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
 		$filter_id = isset( $_POST['filter_id'] ) ? absint( $_POST['filter_id'] ) : 0;
 
@@ -576,9 +576,9 @@ class WPHD_Queue_Filters_Management {
 	 * @since 1.0.0
 	 */
 	public function ajax_preview_filter() {
-		check_ajax_referer( 'wp_helpdesk_nonce', 'nonce' );
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
-		$filter_config = isset( $_POST['filter_config'] ) ? json_decode( stripslashes( $_POST['filter_config'] ), true ) : array();
+		$filter_config = isset( $_POST['filter_config'] ) ? json_decode( wp_unslash( $_POST['filter_config'] ), true ) : array();
 
 		if ( empty( $filter_config ) ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid filter configuration.', 'wp-helpdesk' ) ) );
@@ -608,7 +608,7 @@ class WPHD_Queue_Filters_Management {
 	 * @since 1.0.0
 	 */
 	public function ajax_get_filter() {
-		check_ajax_referer( 'wp_helpdesk_nonce', 'nonce' );
+		check_ajax_referer( 'wphd_nonce', 'nonce' );
 
 		$filter_id = isset( $_POST['filter_id'] ) ? absint( $_POST['filter_id'] ) : 0;
 

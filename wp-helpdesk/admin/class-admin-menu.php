@@ -402,7 +402,7 @@ class WPHD_Admin_Menu {
             array(
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'adminUrl' => admin_url(),
-                'nonce'   => wp_create_nonce( 'wp_helpdesk_nonce' ),
+                'nonce'   => wp_create_nonce( 'wphd_nonce' ),
                 'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'createHandoverNonce' => wp_create_nonce( 'wphd_create_handover' ),
                 'ticketsUrl' => admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets' ),

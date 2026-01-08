@@ -64,7 +64,7 @@ class WPHD_Queue_Filter_Builder {
 		// Apply organization-based visibility
 		if ( class_exists( 'WPHD_Organization_Permissions' ) ) {
 			$visible_ticket_ids = WPHD_Organization_Permissions::get_visible_ticket_ids();
-			if ( 'all' !== $visible_ticket_ids && ! empty( $visible_ticket_ids ) ) {
+			if ( 'all' !== $visible_ticket_ids && is_array( $visible_ticket_ids ) && ! empty( $visible_ticket_ids ) ) {
 				$args['post__in'] = $visible_ticket_ids;
 			}
 		}
@@ -151,7 +151,11 @@ class WPHD_Queue_Filter_Builder {
 
 		// Search phrase
 		if ( ! empty( $filter_config['search_phrase'] ) ) {
-			$args['s'] = sanitize_text_field( $filter_config['search_phrase'] );
+			// Use wp_unslash to remove WordPress slashes, then basic sanitization
+			$search = wp_unslash( $filter_config['search_phrase'] );
+			// Remove any potentially dangerous characters while preserving search operators
+			$search = preg_replace( '/[<>\{\}\[\]]/', '', $search );
+			$args['s'] = trim( $search );
 		}
 
 		// Organization filter

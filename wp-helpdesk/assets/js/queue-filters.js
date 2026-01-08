@@ -63,8 +63,10 @@
 		applyFilter: function(e) {
 			const filterId = $(e.target).val();
 			if (!filterId) {
-				// Go to unfiltered view
-				window.location.href = wpHelpDesk.ticketsUrl || window.location.pathname.replace(/&filter_id=\d+/, '');
+				// Go to unfiltered view - handle both ? and & for filter_id
+				const currentUrl = window.location.href;
+				const cleanUrl = currentUrl.replace(/[?&]filter_id=\d+/, '').replace(/\?&/, '?');
+				window.location.href = cleanUrl || wpHelpDesk.ticketsUrl || window.location.pathname;
 				return;
 			}
 
