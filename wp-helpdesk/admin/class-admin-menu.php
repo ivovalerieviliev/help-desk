@@ -3661,60 +3661,6 @@ class WPHD_Admin_Menu {
     private function render_organization_members_tab( $org_id ) {
         $members = WPHD_Organizations::get_members( $org_id );
         $all_users = get_users( array( 'orderby' => 'display_name' ) );
-        
-        // Handle form submission for updating org admin status
-        if ( isset( $_POST['action'] ) && 'update_organization_members' === $_POST['action'] ) {
-            if ( ! isset( $_POST['wphd_members_nonce'] ) || ! wp_verify_nonce( $_POST['wphd_members_nonce'], 'wphd_update_members' ) ) {
-                wp_die( esc_html__( 'Security check failed', 'wp-helpdesk' ) );
-            }
-            
-            if ( ! current_user_can( 'manage_options' ) ) {
-                wp_die( esc_html__( 'Permission denied', 'wp-helpdesk' ) );
-            }
-            
-            global $wpdb;
-            $members_table = $wpdb->prefix . 'wphd_organization_members';
-            $org_admins = isset( $_POST['org_admin'] ) ? array_map( 'intval', $_POST['org_admin'] ) : array();
-            
-            // Get all member user IDs for validation
-            $member_user_ids = array();
-            foreach ( $members as $member ) {
-                $member_user_ids[] = (int) $member->user_id;
-            }
-            
-            // Validate that all designated admins are actually members
-            $validated_org_admins = array();
-            foreach ( $org_admins as $user_id ) {
-                if ( in_array( $user_id, $member_user_ids, true ) ) {
-                    $validated_org_admins[] = $user_id;
-                }
-            }
-            
-            // Reset all members to non-admin for this organization
-            $wpdb->update(
-                $members_table,
-                array( 'is_admin' => 0 ),
-                array( 'organization_id' => $org_id ),
-                array( '%d' ),
-                array( '%d' )
-            );
-            
-            // Set designated users as admins (only validated members)
-            foreach ( $validated_org_admins as $user_id ) {
-                $wpdb->update(
-                    $members_table,
-                    array( 'is_admin' => 1 ),
-                    array( 'organization_id' => $org_id, 'user_id' => $user_id ),
-                    array( '%d' ),
-                    array( '%d', '%d' )
-                );
-            }
-            
-            echo '<div class="notice notice-success"><p>' . esc_html__( 'Organization admins updated successfully', 'wp-helpdesk' ) . '</p></div>';
-            
-            // Refresh members list
-            $members = WPHD_Organizations::get_members( $org_id );
-        }
         ?>
         <div style="margin-top: 20px;">
             <h3><?php esc_html_e( 'Add Member', 'wp-helpdesk' ); ?></h3>
@@ -3744,66 +3690,44 @@ class WPHD_Admin_Menu {
 
             <h3><?php esc_html_e( 'Current Members', 'wp-helpdesk' ); ?></h3>
             <?php if ( ! empty( $members ) ) : ?>
-                <form method="post" action="">
-                    <?php wp_nonce_field( 'wphd_update_members', 'wphd_members_nonce' ); ?>
-                    <input type="hidden" name="action" value="update_organization_members">
-                    <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
-                    <table class="wp-list-table widefat fixed striped">
-                        <thead>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Email', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Role', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Added', 'wp-helpdesk' ); ?></th>
+                            <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $members as $member ) : ?>
+                            <?php
+                            $user = get_userdata( $member->user_id );
+                            if ( ! $user ) {
+                                continue;
+                            }
+                            ?>
                             <tr>
-                                <th><?php esc_html_e( 'User', 'wp-helpdesk' ); ?></th>
-                                <th><?php esc_html_e( 'Email', 'wp-helpdesk' ); ?></th>
-                                <th><?php esc_html_e( 'Role', 'wp-helpdesk' ); ?></th>
-                                <th><?php esc_html_e( 'Organization Admin', 'wp-helpdesk' ); ?></th>
-                                <th><?php esc_html_e( 'Added', 'wp-helpdesk' ); ?></th>
-                                <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
+                                <td><?php echo esc_html( $user->display_name ); ?></td>
+                                <td><?php echo esc_html( $user->user_email ); ?></td>
+                                <td><?php echo esc_html( ucfirst( $member->role ) ); ?></td>
+                                <td><?php echo esc_html( mysql2date( get_option( 'date_format' ), $member->added_at ) ); ?></td>
+                                <td>
+                                    <form method="post" action="" style="display: inline-block;">
+                                        <?php wp_nonce_field( 'wphd_remove_member', 'wphd_member_nonce' ); ?>
+                                        <input type="hidden" name="action" value="remove_organization_member">
+                                        <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr( $member->user_id ); ?>">
+                                        <button type="submit" class="button button-small button-link-delete" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to remove this member?', 'wp-helpdesk' ) ); ?>');">
+                                            <?php esc_html_e( 'Remove', 'wp-helpdesk' ); ?>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ( $members as $member ) : ?>
-                                <?php
-                                $user = get_userdata( $member->user_id );
-                                if ( ! $user ) {
-                                    continue;
-                                }
-                                ?>
-                                <tr>
-                                    <td><?php echo esc_html( $user->display_name ); ?></td>
-                                    <td><?php echo esc_html( $user->user_email ); ?></td>
-                                    <td><?php echo esc_html( ucfirst( $member->role ) ); ?></td>
-                                    <td>
-                                        <?php if ( current_user_can( 'manage_options' ) ) : ?>
-                                            <label>
-                                                <input type="checkbox" 
-                                                       name="org_admin[]" 
-                                                       value="<?php echo esc_attr( $member->user_id ); ?>" 
-                                                       <?php checked( isset( $member->is_admin ) ? $member->is_admin : 0, 1 ); ?>>
-                                                <?php esc_html_e( 'Organization Admin', 'wp-helpdesk' ); ?>
-                                            </label>
-                                        <?php elseif ( isset( $member->is_admin ) && $member->is_admin ) : ?>
-                                            <span class="wphd-badge wphd-admin-badge"><?php esc_html_e( 'Org Admin', 'wp-helpdesk' ); ?></span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?php echo esc_html( mysql2date( get_option( 'date_format' ), isset( $member->joined_at ) ? $member->joined_at : $member->added_at ) ); ?></td>
-                                    <td>
-                                        <form method="post" action="" style="display: inline-block;">
-                                            <?php wp_nonce_field( 'wphd_remove_member', 'wphd_member_nonce' ); ?>
-                                            <input type="hidden" name="action" value="remove_organization_member">
-                                            <input type="hidden" name="org_id" value="<?php echo esc_attr( $org_id ); ?>">
-                                            <input type="hidden" name="user_id" value="<?php echo esc_attr( $member->user_id ); ?>">
-                                            <button type="submit" class="button button-small button-link-delete" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to remove this member?', 'wp-helpdesk' ) ); ?>');">
-                                                <?php esc_html_e( 'Remove', 'wp-helpdesk' ); ?>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                    <?php if ( current_user_can( 'manage_options' ) ) : ?>
-                        <?php submit_button( __( 'Update Organization Admins', 'wp-helpdesk' ), 'primary', 'submit', true ); ?>
-                    <?php endif; ?>
-                </form>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             <?php else : ?>
                 <p><?php esc_html_e( 'No members yet.', 'wp-helpdesk' ); ?></p>
             <?php endif; ?>

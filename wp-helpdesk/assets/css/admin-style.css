@@ -734,13 +734,3 @@
     color: #dba617;
     font-size: 15px;
 }
-
-/* Organization Admin Badge */
-.wphd-admin-badge {
-    background-color: #2271b1;
-    color: #fff;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-}

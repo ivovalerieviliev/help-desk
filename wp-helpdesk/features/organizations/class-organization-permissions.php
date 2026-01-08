@@ -101,41 +101,6 @@ class WPHD_Organization_Permissions {
     }
 
     /**
-     * Check if user is an organization admin.
-     *
-     * @since  1.0.0
-     * @param  int $org_id  Organization ID.
-     * @param  int $user_id User ID (default: current user).
-     * @return bool True if user is organization admin.
-     */
-    public static function is_organization_admin( $org_id, $user_id = 0 ) {
-        if ( ! $user_id ) {
-            $user_id = get_current_user_id();
-        }
-
-        $user = get_userdata( $user_id );
-        if ( ! $user ) {
-            return false;
-        }
-
-        // Super admins always have access
-        if ( in_array( 'administrator', $user->roles, true ) ) {
-            return true;
-        }
-
-        global $wpdb;
-        $members_table = $wpdb->prefix . 'wphd_organization_members';
-        
-        $is_admin = $wpdb->get_var( $wpdb->prepare(
-            "SELECT is_admin FROM $members_table WHERE organization_id = %d AND user_id = %d",
-            $org_id,
-            $user_id
-        ) );
-        
-        return (bool) $is_admin;
-    }
-
-    /**
      * Check if user can edit organization.
      *
      * @since  1.0.0
@@ -153,13 +118,13 @@ class WPHD_Organization_Permissions {
             return false;
         }
 
-        // Super administrators can edit any organization
+        // Administrators can edit any organization
         if ( in_array( 'administrator', $user->roles, true ) ) {
             return true;
         }
 
-        // Organization admins can edit their organization
-        if ( self::is_organization_admin( $org_id, $user_id ) ) {
+        // Editors can edit organizations (but not permissions)
+        if ( in_array( 'editor', $user->roles, true ) ) {
             return true;
         }
 
@@ -228,13 +193,8 @@ class WPHD_Organization_Permissions {
             return false;
         }
 
-        // Administrators can manage members
-        if ( in_array( 'administrator', $user->roles, true ) ) {
-            return true;
-        }
-
-        // Organization admins can manage members
-        if ( self::is_organization_admin( $org_id, $user_id ) ) {
+        // Administrators and editors can manage members
+        if ( in_array( 'administrator', $user->roles, true ) || in_array( 'editor', $user->roles, true ) ) {
             return true;
         }
 
