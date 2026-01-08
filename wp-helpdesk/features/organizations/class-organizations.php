@@ -406,7 +406,7 @@ class WPHD_Organizations {
         global $wpdb;
         $table = $wpdb->prefix . 'wphd_organization_members';
 
-        return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table WHERE organization_id = %d ORDER BY added_at DESC", $org_id ) );
+        return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table WHERE organization_id = %d ORDER BY joined_at DESC", $org_id ) );
     }
 
     /**
