@@ -76,10 +76,14 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'features/organizations/class-organizations.php';
         require_once WPHD_PLUGIN_DIR . 'features/organizations/class-organization-permissions.php';
         
+        require_once WPHD_PLUGIN_DIR . 'features/queue-filters/class-queue-filters.php';
+        require_once WPHD_PLUGIN_DIR . 'features/queue-filters/class-queue-filter-builder.php';
+        
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-menu.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-pages.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-handover-report.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-handover-history.php';
+        require_once WPHD_PLUGIN_DIR . 'admin/class-queue-filters-management.php';
     }
     
     private function init_hooks() {
@@ -165,11 +169,15 @@ final class WP_HelpDesk {
         WPHD_Organizations::instance();
         WPHD_Organization_Permissions::instance();
         
+        WPHD_Queue_Filters::instance();
+        WPHD_Queue_Filter_Builder::instance();
+        
         if (is_admin()) {
             WPHD_Admin_Menu::instance();
             WPHD_Admin_Pages::instance();
             WPHD_Handover_Report::instance();
             WPHD_Handover_History::instance();
+            WPHD_Queue_Filters_Management::instance();
         }
     }
     

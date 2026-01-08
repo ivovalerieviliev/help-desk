@@ -1,0 +1,325 @@
+/**
+ * Queue Filters Styles
+ *
+ * @package     WP_HelpDesk
+ * @subpackage  Assets/CSS
+ * @since       1.0.0
+ */
+
+/* Filter Toolbar */
+.wphd-filter-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 20px;
+	padding: 15px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.wphd-filter-select {
+	min-width: 250px;
+	max-width: 400px;
+}
+
+.wphd-create-filter-btn {
+	white-space: nowrap;
+}
+
+/* Active Filter Info */
+.wphd-active-filter-info {
+	padding: 10px 15px;
+	background: #e8f4f8;
+	border-left: 4px solid #2271b1;
+	margin-bottom: 20px;
+	border-radius: 4px;
+}
+
+.wphd-filter-count {
+	color: #666;
+	font-size: 0.9em;
+	margin-left: 5px;
+}
+
+/* Filters Management Section */
+.wphd-filters-section {
+	background: #fff;
+	padding: 20px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	margin-bottom: 20px;
+}
+
+.wphd-filters-section h2 {
+	margin-top: 0;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+/* Modal Styles */
+.wphd-modal {
+	display: none;
+	position: fixed;
+	z-index: 100000;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.wphd-modal-content {
+	background-color: #fff;
+	margin: 5% auto;
+	padding: 30px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	width: 90%;
+	max-width: 800px;
+	max-height: 85vh;
+	overflow-y: auto;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.wphd-modal-close {
+	color: #aaa;
+	float: right;
+	font-size: 28px;
+	font-weight: bold;
+	line-height: 20px;
+	cursor: pointer;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+}
+
+.wphd-modal-close:hover,
+.wphd-modal-close:focus {
+	color: #000;
+}
+
+.wphd-modal h2 {
+	margin-top: 0;
+	margin-bottom: 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+/* Form Styles */
+.wphd-modal .form-table {
+	margin-top: 0;
+}
+
+.wphd-modal .form-table th {
+	padding: 15px 10px 15px 0;
+	vertical-align: top;
+}
+
+.wphd-modal .form-table td {
+	padding: 15px 10px;
+}
+
+.wphd-modal .required {
+	color: #d63638;
+}
+
+/* Select2 in Modal */
+.wphd-modal .select2-container {
+	min-width: 300px;
+}
+
+/* Date Range Fields */
+#date_created_range {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+#date_created_range input[type="date"] {
+	padding: 6px 8px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+}
+
+/* Assignee Fields */
+#filter_assignee_ids {
+	margin-top: 10px;
+	display: block;
+}
+
+input[name="assignee_type"] {
+	margin-right: 5px;
+}
+
+/* Filter Preview */
+#wphd-filter-preview {
+	margin-top: 20px;
+	padding: 15px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+#wphd-filter-preview h3 {
+	margin-top: 0;
+	margin-bottom: 10px;
+}
+
+#wphd-preview-results ul {
+	margin: 10px 0;
+	padding-left: 20px;
+}
+
+#wphd-preview-results li {
+	margin-bottom: 5px;
+}
+
+/* Button Styles */
+.wphd-delete-filter-btn {
+	color: #b32d2e;
+}
+
+.wphd-delete-filter-btn:hover {
+	color: #d63638;
+	border-color: #d63638;
+}
+
+.wphd-set-default-btn {
+	text-decoration: none;
+	color: #2271b1;
+}
+
+.wphd-set-default-btn:hover {
+	color: #135e96;
+	text-decoration: underline;
+}
+
+/* Table Actions Column */
+.wp-list-table td .button {
+	margin-right: 5px;
+	margin-bottom: 5px;
+}
+
+/* Responsive Styles */
+@media screen and (max-width: 782px) {
+	.wphd-filter-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.wphd-filter-select {
+		width: 100%;
+		max-width: 100%;
+	}
+
+	.wphd-modal-content {
+		width: 95%;
+		margin: 10% auto;
+		padding: 20px;
+	}
+
+	.wphd-modal .select2-container {
+		min-width: 100%;
+		width: 100% !important;
+	}
+
+	#date_created_range {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	#date_created_range input[type="date"] {
+		width: 100%;
+	}
+
+	.wp-list-table td .button {
+		display: inline-block;
+		width: auto;
+	}
+}
+
+@media screen and (max-width: 600px) {
+	.wphd-modal-content {
+		margin: 5% auto;
+		max-height: 90vh;
+	}
+
+	.wphd-modal .form-table th,
+	.wphd-modal .form-table td {
+		display: block;
+		width: 100%;
+		padding: 10px 0;
+	}
+
+	.wphd-modal .form-table th {
+		padding-bottom: 5px;
+	}
+}
+
+/* Status Indicator for Default Filter */
+.wphd-default-indicator {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: #46b450;
+	font-weight: 600;
+}
+
+/* Loading State */
+.wphd-loading {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+.wphd-loading::after {
+	content: '';
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	margin-left: 10px;
+	border: 2px solid #f3f3f3;
+	border-top: 2px solid #2271b1;
+	border-radius: 50%;
+	animation: wphd-spin 1s linear infinite;
+}
+
+@keyframes wphd-spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.wphd-empty-state {
+	text-align: center;
+	padding: 40px 20px;
+	color: #646970;
+}
+
+.wphd-empty-state .dashicons {
+	font-size: 64px;
+	width: 64px;
+	height: 64px;
+	opacity: 0.3;
+	margin-bottom: 20px;
+}
+
+/* Filter Badge (for active filters) */
+.wphd-filter-badge {
+	display: inline-block;
+	padding: 3px 8px;
+	background: #2271b1;
+	color: #fff;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	margin-left: 10px;
+	vertical-align: middle;
+}
+
+/* Clear Filter Button */
+.wphd-clear-filter-btn {
+	margin-left: 10px;
+}
