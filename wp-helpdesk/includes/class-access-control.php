@@ -262,6 +262,41 @@ class WPHD_Access_Control {
 				'description' => __( 'Can export reports to Excel/PDF', 'wp-helpdesk' ),
 				'default'     => true,
 			),
+			'queue_filters_user_create'  => array(
+				'label'       => __( 'Create Personal Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Create personal saved ticket filters', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'queue_filters_user_edit'    => array(
+				'label'       => __( 'Edit Personal Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Edit own personal queue filters', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'queue_filters_user_delete'  => array(
+				'label'       => __( 'Delete Personal Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Delete own personal queue filters', 'wp-helpdesk' ),
+				'default'     => true,
+			),
+			'queue_filters_org_create'   => array(
+				'label'       => __( 'Create Organization Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Create shared queue filters for organization', 'wp-helpdesk' ),
+				'default'     => false,
+			),
+			'queue_filters_org_edit'     => array(
+				'label'       => __( 'Edit Organization Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Edit organization queue filters', 'wp-helpdesk' ),
+				'default'     => false,
+			),
+			'queue_filters_org_delete'   => array(
+				'label'       => __( 'Delete Organization Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'Delete organization queue filters', 'wp-helpdesk' ),
+				'default'     => false,
+			),
+			'queue_filters_org_view'     => array(
+				'label'       => __( 'View Organization Queue Filters', 'wp-helpdesk' ),
+				'description' => __( 'View and use organization queue filters', 'wp-helpdesk' ),
+				'default'     => true,
+			),
 		);
 
 		/**

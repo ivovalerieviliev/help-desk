@@ -284,6 +284,32 @@ class WPHD_Activator {
         // Insert default sections if they don't exist
         self::create_default_handover_sections();
         
+        // Queue Filters Table
+        $table_queue_filters = $wpdb->prefix . 'wphd_queue_filters';
+        $sql_queue_filters = "CREATE TABLE $table_queue_filters (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            description text,
+            filter_type enum('user', 'organization') NOT NULL DEFAULT 'user',
+            user_id bigint(20) unsigned DEFAULT NULL,
+            organization_id bigint(20) unsigned DEFAULT NULL,
+            filter_config longtext NOT NULL,
+            sort_field varchar(50) DEFAULT 'date',
+            sort_order enum('ASC', 'DESC') DEFAULT 'DESC',
+            is_default tinyint(1) DEFAULT 0,
+            display_order int(11) DEFAULT 0,
+            created_by bigint(20) unsigned NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY organization_id (organization_id),
+            KEY filter_type (filter_type),
+            KEY created_by (created_by),
+            KEY is_default (is_default)
+        ) $charset_collate;";
+        dbDelta($sql_queue_filters);
+        
         update_option('wphd_db_version', WPHD_VERSION);
     }
     
