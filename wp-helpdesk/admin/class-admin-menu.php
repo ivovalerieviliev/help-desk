@@ -434,10 +434,16 @@ class WPHD_Admin_Menu {
                 continue;
             }
 
+            // Validate and sanitize color
+            $color = isset( $status['color'] ) ? sanitize_hex_color( $status['color'] ) : '';
+            if ( empty( $color ) ) {
+                $color = '#999999'; // Default gray color
+            }
+
             $status_counts[ $status['slug'] ] = array(
                 'label' => $status['name'],
                 'count' => $this->count_tickets_by_status( $status['slug'] ),
-                'color' => isset( $status['color'] ) ? $status['color'] : '#999999'
+                'color' => $color
             );
         }
         
