@@ -113,8 +113,13 @@ class WPHD_Organization_Permissions {
             $user_id = get_current_user_id();
         }
 
+        $user = get_userdata( $user_id );
+        if ( ! $user ) {
+            return false;
+        }
+
         // Super admins always have access
-        if ( current_user_can( 'manage_options' ) ) {
+        if ( in_array( 'administrator', $user->roles, true ) ) {
             return true;
         }
 
