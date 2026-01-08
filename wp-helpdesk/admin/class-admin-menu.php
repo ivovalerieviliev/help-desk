@@ -465,8 +465,14 @@ class WPHD_Admin_Menu {
                     <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
                         <?php esc_html_e( 'Total Tickets:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $total_count ); ?></strong>
                     </li>
-                    <?php foreach ( $status_counts as $slug => $status_data ) : ?>
-                        <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <?php
+                    $status_index = 0;
+                    $status_total = count( $status_counts );
+                    foreach ( $status_counts as $slug => $status_data ) :
+                        $status_index++;
+                        $border_style = ( $status_index < $status_total ) ? 'border-bottom: 1px solid #eee;' : '';
+                        ?>
+                        <li style="padding: 8px 0; <?php echo esc_attr( $border_style ); ?>">
                             <span class="wphd-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: <?php echo esc_attr( $status_data['color'] ); ?>; margin-right: 5px;"></span>
                             <?php echo esc_html( $status_data['label'] ); ?>: <strong><?php echo esc_html( $status_data['count'] ); ?></strong>
                         </li>
