@@ -368,8 +368,15 @@ class WPHD_Admin_Menu {
             true
         );
 
-        // Enqueue dashboard scripts on dashboard page
+        // Enqueue dashboard assets on dashboard page
         if ( strpos( $hook, $this->menu_slug ) !== false && ! strpos( $hook, '-' ) ) {
+            wp_enqueue_style(
+                'wp-helpdesk-dashboard',
+                WPHD_PLUGIN_URL . 'assets/css/dashboard.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
             wp_enqueue_script(
                 'wp-helpdesk-dashboard',
                 WPHD_PLUGIN_URL . 'assets/js/dashboard.js',
@@ -559,7 +566,170 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     private function render_take_action_section() {
-        $urgent_tickets = $this->get_urgent_tickets();
+        $this->render_ongoing_tickets_section();
+    }
+
+    /**
+     * Render ongoing tickets section with priority 1 and SLA-based filtering.
+     *
+     * @since 1.0.0
+     */
+    private function render_ongoing_tickets_section() {
+        global $wpdb;
+        
+        // Get priorities with severity 1 (highest priority)
+        $priorities = get_option('wphd_priorities', array());
+        $highest_priority_slugs = array();
+        
+        foreach ($priorities as $priority) {
+            if (isset($priority['severity']) && intval($priority['severity']) === 1) {
+                $highest_priority_slugs[] = $priority['slug'];
+            }
+        }
+        
+        // Get current timestamp
+        $now = current_time('timestamp');
+        
+        // Query for high priority tickets (severity 1)
+        $high_priority_tickets = array();
+        if (!empty($highest_priority_slugs)) {
+            $high_priority_tickets = get_posts(array(
+                'post_type' => 'wphd_ticket',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'meta_query' => array(
+                    'relation' => 'AND',
+                    array(
+                        'key' => '_wphd_priority',
+                        'value' => $highest_priority_slugs,
+                        'compare' => 'IN',
+                    ),
+                    array(
+                        'key' => '_wphd_status',
+                        'value' => $this->get_closed_status_slugs(),
+                        'compare' => 'NOT IN',
+                    ),
+                ),
+            ));
+        }
+        
+        // Get tickets with SLA at 50% or more of time to resolution
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
+        $sla_at_risk_tickets = $wpdb->get_results(
+            "SELECT DISTINCT p.ID 
+            FROM {$wpdb->posts} p
+            INNER JOIN {$sla_table} sla ON p.ID = sla.ticket_id
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_wphd_status'
+            WHERE p.post_type = 'wphd_ticket'
+            AND p.post_status = 'publish'
+            AND pm.meta_value NOT IN ('" . implode("','", array_map('esc_sql', $this->get_closed_status_slugs())) . "')
+            AND sla.resolved_at IS NULL
+            AND (
+                TIMESTAMPDIFF(SECOND, p.post_date, NOW()) >= 
+                TIMESTAMPDIFF(SECOND, p.post_date, sla.resolution_due) * 0.5
+            )"
+        );
+        
+        // Combine ticket IDs from both queries
+        $ticket_ids = array();
+        foreach ($high_priority_tickets as $ticket) {
+            $ticket_ids[$ticket->ID] = true;
+        }
+        foreach ($sla_at_risk_tickets as $row) {
+            $ticket_ids[$row->ID] = true;
+        }
+        $ticket_ids = array_keys($ticket_ids);
+        
+        // Debug output
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('=== Take Action Debug ===');
+            error_log('Highest priority slugs: ' . print_r($highest_priority_slugs, true));
+            error_log('High priority ticket count: ' . count($high_priority_tickets));
+            error_log('SLA at risk ticket count: ' . count($sla_at_risk_tickets));
+            error_log('Total unique tickets: ' . count($ticket_ids));
+        }
+        
+        // Build tickets data array
+        $tickets_data = array();
+        foreach ($ticket_ids as $ticket_id) {
+            $ticket = get_post($ticket_id);
+            if (!$ticket) {
+                continue;
+            }
+            
+            // Get SLA data
+            $sla = WPHD_Database::get_sla($ticket_id);
+            if (!$sla) {
+                continue;
+            }
+            
+            // Calculate time remaining for resolution SLA only
+            $time_remaining = null;
+            $sla_type = 'resolution';
+            $status = 'ok';
+            
+            if (!$sla->resolved_at) {
+                $due_timestamp = strtotime($sla->resolution_due);
+                $created_timestamp = strtotime($ticket->post_date);
+                $remaining_seconds = $due_timestamp - $now;
+                $elapsed_seconds = $now - $created_timestamp;
+                $total_seconds = $due_timestamp - $created_timestamp;
+                
+                if ($total_seconds > 0) {
+                    $percent_elapsed = ($elapsed_seconds / $total_seconds) * 100;
+                    
+                    // Determine status based on percentage elapsed
+                    if ($remaining_seconds < 0) {
+                        $status = 'breached';
+                    } elseif ($percent_elapsed >= 75) { // 75% or more elapsed = red
+                        $status = 'critical';
+                    } elseif ($percent_elapsed >= 50) { // 50% or more elapsed = orange
+                        $status = 'at_risk';
+                    } else {
+                        $status = 'ok';
+                    }
+                    
+                    $time_remaining = $remaining_seconds;
+                }
+            }
+            
+            $tickets_data[] = array(
+                'id' => $ticket_id,
+                'title' => $ticket->post_title,
+                'reporter_id' => $ticket->post_author,
+                'category' => get_post_meta($ticket_id, '_wphd_category', true),
+                'priority' => get_post_meta($ticket_id, '_wphd_priority', true),
+                'viewing_users' => $this->get_ticket_viewers($ticket_id),
+                'time_remaining' => $time_remaining,
+                'sla_type' => $sla_type,
+                'sla_status' => $status,
+            );
+        }
+        
+        // Sort by urgency (breached first, then critical, then at_risk, then by time remaining)
+        usort($tickets_data, function($a, $b) {
+            $status_priority = array(
+                'breached' => 1,
+                'critical' => 2,
+                'at_risk' => 3,
+                'ok' => 4,
+            );
+            
+            $a_priority = $status_priority[$a['sla_status']] ?? 5;
+            $b_priority = $status_priority[$b['sla_status']] ?? 5;
+            
+            if ($a_priority !== $b_priority) {
+                return $a_priority - $b_priority;
+            }
+            
+            // If same status, sort by time remaining (least time first)
+            if ($a['time_remaining'] !== null && $b['time_remaining'] !== null) {
+                return $a['time_remaining'] - $b['time_remaining'];
+            }
+            
+            return 0;
+        });
+        
         ?>
         <div class="wphd-take-action-section" id="wphd-take-action">
             <div class="wphd-section-header">
@@ -570,7 +740,7 @@ class WPHD_Admin_Menu {
                 <span class="wphd-last-updated"><?php esc_html_e( 'Last updated:', 'wp-helpdesk' ); ?> <span id="wphd-last-refresh-time"><?php echo esc_html( current_time( 'H:i:s' ) ); ?></span></span>
             </div>
 
-            <?php if ( ! empty( $urgent_tickets ) ) : ?>
+            <?php if ( ! empty( $tickets_data ) ) : ?>
                 <div class="wphd-urgent-table-container">
                     <table class="wp-list-table widefat fixed striped wphd-urgent-table">
                         <thead>
@@ -584,39 +754,105 @@ class WPHD_Admin_Menu {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ( $urgent_tickets as $ticket ) : ?>
-                                <?php
-                                $ticket_id = $ticket->ID;
-                                $reporter  = get_userdata( $ticket->post_author );
-                                $category  = get_post_meta( $ticket_id, '_wphd_category', true );
-                                $priority  = get_post_meta( $ticket_id, '_wphd_priority', true );
-                                $sla_data  = $this->calculate_sla_time_remaining( $ticket_id );
-                                ?>
+                            <?php foreach ( $tickets_data as $ticket ) : ?>
                                 <tr>
                                     <td>
-                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) ); ?>">
-                                            <strong><?php echo esc_html( $ticket->post_title ); ?></strong>
+                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket['id'] ) ); ?>">
+                                            <strong><?php echo esc_html( $ticket['title'] ); ?></strong>
                                         </a>
                                     </td>
                                     <td>
-                                        <?php if ( $reporter ) : ?>
+                                        <?php 
+                                        $reporter = get_userdata( $ticket['reporter_id'] );
+                                        if ( $reporter ) : 
+                                        ?>
                                             <?php echo get_avatar( $reporter->ID, 24, '', '', array( 'class' => 'wphd-avatar' ) ); ?>
                                             <?php echo esc_html( $reporter->display_name ); ?>
                                         <?php else : ?>
                                             <?php esc_html_e( 'Unknown', 'wp-helpdesk' ); ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo esc_html( $this->get_category_label( $category ) ); ?></td>
-                                    <td><?php echo wp_kses_post( $this->get_priority_label( $priority ) ); ?></td>
-                                    <td>
-                                        <span class="wphd-looking-placeholder" title="<?php esc_attr_e( 'Viewers (coming soon)', 'wp-helpdesk' ); ?>">👁️</span>
+                                    <td><?php echo esc_html( $this->get_category_label( $ticket['category'] ) ); ?></td>
+                                    <td><?php echo wp_kses_post( $this->get_priority_label( $ticket['priority'] ) ); ?></td>
+                                    <td class="wphd-viewers-cell" data-ticket-id="<?php echo esc_attr($ticket['id']); ?>">
+                                        <?php if (!empty($ticket['viewing_users'])): ?>
+                                            <div style="display: flex; align-items: center;">
+                                                <?php 
+                                                $max_show = 3;
+                                                $viewer_count = 0;
+                                                foreach ($ticket['viewing_users'] as $user_id): 
+                                                    if ($viewer_count >= $max_show) break;
+                                                    $user = get_userdata($user_id);
+                                                    if ($user && $user->ID != get_current_user_id()): // Don't show current user
+                                                        $viewer_count++;
+                                                ?>
+                                                    <div style="position: relative; margin-left: <?php echo $viewer_count > 1 ? '-8px' : '0'; ?>;">
+                                                        <img src="<?php echo esc_url(get_avatar_url($user_id, array('size' => 32))); ?>" 
+                                                             alt="<?php echo esc_attr($user->display_name); ?>"
+                                                             title="<?php echo esc_attr($user->display_name); ?>"
+                                                             class="wphd-viewer-avatar"
+                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; transition: transform 0.2s, z-index 0s;"
+                                                             onmouseover="this.style.transform='scale(1.2)'; this.style.zIndex='10';"
+                                                             onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1';">
+                                                    </div>
+                                                <?php 
+                                                    endif;
+                                                endforeach; 
+                                                
+                                                // Show remaining count
+                                                $remaining = count($ticket['viewing_users']) - $viewer_count;
+                                                if (get_current_user_id() && in_array(get_current_user_id(), $ticket['viewing_users'])) {
+                                                    $remaining--; // Don't count current user in remaining
+                                                }
+                                                
+                                                if ($remaining > 0):
+                                                ?>
+                                                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #6B7280; color: #fff; font-size: 11px; font-weight: 600; margin-left: -8px; border: 2px solid #fff;">
+                                                        +<?php echo $remaining; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <span style="color: #9CA3AF; font-size: 12px;">—</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="wphd-time-remaining <?php echo esc_attr( $sla_data['status_class'] ); ?>">
-                                            <strong><?php echo esc_html( $sla_data['time_display'] ); ?></strong>
-                                            <br>
-                                            <small><?php echo esc_html( $sla_data['type'] ); ?></small>
-                                        </span>
+                                        <?php
+                                        $time_remaining = $ticket['time_remaining'];
+                                        $sla_status = $ticket['sla_status'];
+                                        
+                                        if ($sla_status === 'breached'):
+                                            $hours = floor(abs($time_remaining) / 3600);
+                                            $minutes = floor((abs($time_remaining) % 3600) / 60);
+                                            ?>
+                                            <span class="wphd-sla-time" data-seconds="<?php echo esc_attr($time_remaining); ?>" style="color: #DC2626; font-weight: 600;">
+                                                <span class="dashicons dashicons-warning" style="font-size: 16px; vertical-align: middle;"></span>
+                                                <?php printf(__('BREACHED: %dh %dm ago', 'wp-helpdesk'), $hours, $minutes); ?>
+                                            </span>
+                                        <?php elseif ($time_remaining !== null): ?>
+                                            <?php
+                                            $hours = floor(abs($time_remaining) / 3600);
+                                            $minutes = floor((abs($time_remaining) % 3600) / 60);
+                                            
+                                            // Color based on status
+                                            if ($sla_status === 'critical') {
+                                                $color = '#DC2626'; // Red - 75%+ elapsed
+                                                $icon = 'dashicons-warning';
+                                            } elseif ($sla_status === 'at_risk') {
+                                                $color = '#F59E0B'; // Orange - 50-75% elapsed
+                                                $icon = 'dashicons-clock';
+                                            } else {
+                                                $color = '#10B981'; // Green - <50% elapsed
+                                                $icon = 'dashicons-yes-alt';
+                                            }
+                                            ?>
+                                            <span class="wphd-sla-time" data-seconds="<?php echo esc_attr($time_remaining); ?>" style="color: <?php echo $color; ?>; font-weight: 600;">
+                                                <span class="dashicons <?php echo $icon; ?>" style="font-size: 16px; vertical-align: middle;"></span>
+                                                <?php printf(__('%dh %dm remaining', 'wp-helpdesk'), $hours, $minutes); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #9CA3AF;">—</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -625,7 +861,7 @@ class WPHD_Admin_Menu {
                 </div>
             <?php else : ?>
                 <div class="wphd-empty-state">
-                    <p><?php esc_html_e( '✓ No urgent tickets at the moment. Great work!', 'wp-helpdesk' ); ?></p>
+                    <p><?php esc_html_e( '✓ No urgent tickets requiring immediate attention', 'wp-helpdesk' ); ?></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -1011,6 +1247,34 @@ class WPHD_Admin_Menu {
         }
         
         return array_unique( $closed );
+    }
+
+    /**
+     * Get users currently viewing a ticket.
+     *
+     * @since 1.0.0
+     * @param int $ticket_id Ticket ID.
+     * @return array Array of user IDs.
+     */
+    private function get_ticket_viewers($ticket_id) {
+        $transient_key = 'wphd_ticket_viewers_' . $ticket_id;
+        $viewers = get_transient($transient_key);
+        
+        if (!is_array($viewers)) {
+            return array();
+        }
+        
+        // Remove stale viewers (no heartbeat in 60 seconds)
+        $current_time = time();
+        $active_viewers = array();
+        
+        foreach ($viewers as $user_id => $last_seen) {
+            if (($current_time - $last_seen) < 60) {
+                $active_viewers[] = $user_id;
+            }
+        }
+        
+        return $active_viewers;
     }
 
     /**
