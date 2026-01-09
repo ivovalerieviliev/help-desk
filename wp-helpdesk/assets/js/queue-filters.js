@@ -5,6 +5,7 @@
 		init: function() {
 			this.bindEvents();
 			this.initSelect2();
+			this.initUserAutocomplete();
 			this.handleURLParams();
 		},
 
@@ -52,6 +53,38 @@
 			}
 		},
 
+		initUserAutocomplete: function() {
+			if ($.fn.select2) {
+				$('.wphd-user-select2').select2({
+					ajax: {
+						url: wpHelpDesk.ajaxUrl,
+						dataType: 'json',
+						delay: 250,
+						data: function(params) {
+							return {
+								action: 'wphd_search_users_for_filter',
+								nonce: wpHelpDesk.queueFilterNonce,
+								search: params.term
+							};
+						},
+						processResults: function(response) {
+							if (response.success) {
+								return {
+									results: response.data.results
+								};
+							}
+							return { results: [] };
+						},
+						cache: true
+					},
+					minimumInputLength: 2,
+					placeholder: wpHelpDesk.i18n.search_users || 'Type to search users...',
+					allowClear: true,
+					width: '100%'
+				});
+			}
+		},
+
 		handleURLParams: function() {
 			// If editing a filter from URL, open the modal
 			const urlParams = new URLSearchParams(window.location.search);
@@ -81,6 +114,7 @@
 			}
 			$('#wphd-filter-modal').fadeIn();
 			this.initSelect2();
+			this.initUserAutocomplete();
 			this.toggleAssigneeFields();
 			this.toggleDateFields();
 		},
@@ -168,6 +202,11 @@
 				}
 			}
 			this.toggleAssigneeFields();
+
+			// Reporter
+			if (config.reporter_ids) {
+				$('#filter_reporter_ids').val(config.reporter_ids).trigger('change');
+			}
 
 			// Date created
 			if (config.date_created && config.date_created.operator) {
@@ -327,7 +366,7 @@
 				if (assigneeType === 'specific') {
 					const assigneeIds = $('#filter_assignee_ids').val();
 					if (assigneeIds && assigneeIds.length > 0) {
-						config.assignee_ids = assigneeIds.map(Number);
+						config.assignee_ids = assigneeIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
 					}
 				}
 			}
@@ -344,6 +383,12 @@
 				}
 			}
 
+			// Reporter
+			const reporterIds = $('#filter_reporter_ids').val();
+			if (reporterIds && reporterIds.length > 0) {
+				config.reporter_ids = reporterIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
+			}
+
 			// Search phrase
 			const searchPhrase = $('#search_phrase').val();
 			if (searchPhrase) {
@@ -356,9 +401,9 @@
 		toggleAssigneeFields: function() {
 			const selectedType = $('input[name="assignee_type"]:checked').val();
 			if (selectedType === 'specific') {
-				$('#filter_assignee_ids').prop('disabled', false).closest('tr').find('select').show();
+				$('.wphd-assignee-specific').slideDown();
 			} else {
-				$('#filter_assignee_ids').prop('disabled', true);
+				$('.wphd-assignee-specific').slideUp();
 			}
 		},
 

@@ -483,11 +483,31 @@ class WPHD_Queue_Filters {
 			return;
 		}
 
-		// Get statuses and priorities
+		// Get statuses and priorities.
 		$statuses   = get_option( 'wphd_statuses', array() );
 		$priorities = get_option( 'wphd_priorities', array() );
 
-		// Get closed statuses
+		// Find "open" status.
+		$open_statuses = array();
+		foreach ( $statuses as $status ) {
+			// Check for exact slug match or if the name is exactly 'Open' (case-insensitive).
+			if ( 'open' === $status['slug'] || 
+			     ( isset( $status['name'] ) && 'open' === strtolower( trim( $status['name'] ) ) ) ) {
+				$open_statuses[] = $status['slug'];
+			}
+		}
+
+		// Find "in-progress" status.
+		$in_progress_statuses = array();
+		foreach ( $statuses as $status ) {
+			// Check for exact slug match or specific name variations.
+			if ( in_array( $status['slug'], array( 'in-progress', 'in_progress', 'inprogress' ), true ) ||
+			     ( isset( $status['name'] ) && preg_match( '/^in[\s\-_]?progress$/i', trim( $status['name'] ) ) ) ) {
+				$in_progress_statuses[] = $status['slug'];
+			}
+		}
+
+		// Get closed statuses.
 		$closed_statuses = array();
 		foreach ( $statuses as $status ) {
 			if ( isset( $status['is_closed'] ) && $status['is_closed'] ) {
@@ -495,7 +515,7 @@ class WPHD_Queue_Filters {
 			}
 		}
 
-		// Get high priority slugs
+		// Get high priority slugs.
 		$high_priorities = array();
 		foreach ( $priorities as $priority ) {
 			if ( isset( $priority['level'] ) && in_array( strtolower( $priority['level'] ), array( 'high', 'critical', 'urgent' ), true ) ) {
@@ -505,62 +525,76 @@ class WPHD_Queue_Filters {
 			}
 		}
 
-		// Default filters to create
-		$default_filters = array(
-			array(
+		// Default filters to create.
+		$default_filters = array();
+		$display_order   = 0;
+
+		// Add Open Tickets filter if we found open statuses.
+		if ( ! empty( $open_statuses ) ) {
+			$default_filters[] = array(
 				'name'          => __( 'Open Tickets', 'wp-helpdesk' ),
 				'description'   => __( 'All tickets with open status', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'status' => array( 'open' ) ) ),
-				'display_order' => 1,
-			),
-			array(
+				'filter_config' => wp_json_encode( array( 'status' => $open_statuses ) ),
+				'display_order' => ++$display_order,
+			);
+		}
+
+		// Add In Progress filter if we found in-progress statuses.
+		if ( ! empty( $in_progress_statuses ) ) {
+			$default_filters[] = array(
 				'name'          => __( 'In Progress', 'wp-helpdesk' ),
 				'description'   => __( 'All tickets currently in progress', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'status' => array( 'in-progress' ) ) ),
-				'display_order' => 2,
-			),
-			array(
-				'name'          => __( 'My Tickets', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets assigned to me', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'assignee_type' => 'me' ) ),
-				'display_order' => 3,
-				'is_default'    => 1,
-			),
-			array(
-				'name'          => __( 'Unassigned', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets not yet assigned to anyone', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'assignee_type' => 'unassigned' ) ),
-				'display_order' => 4,
-			),
-			array(
-				'name'          => __( 'Created Today', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets created today', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'date_created' => array( 'operator' => 'today' ) ) ),
-				'display_order' => 5,
-			),
+				'filter_config' => wp_json_encode( array( 'status' => $in_progress_statuses ) ),
+				'display_order' => ++$display_order,
+			);
+		}
+
+		// Always add My Tickets filter.
+		$default_filters[] = array(
+			'name'          => __( 'My Tickets', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets assigned to me', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'assignee_type' => 'me' ) ),
+			'display_order' => ++$display_order,
+			'is_default'    => 1,
 		);
 
-		// Add closed tickets filter if we have closed statuses
+		// Always add Unassigned filter.
+		$default_filters[] = array(
+			'name'          => __( 'Unassigned', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets not yet assigned to anyone', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'assignee_type' => 'unassigned' ) ),
+			'display_order' => ++$display_order,
+		);
+
+		// Always add Created Today filter.
+		$default_filters[] = array(
+			'name'          => __( 'Created Today', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets created today', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'date_created' => array( 'operator' => 'today' ) ) ),
+			'display_order' => ++$display_order,
+		);
+
+		// Add closed tickets filter if we have closed statuses.
 		if ( ! empty( $closed_statuses ) ) {
 			$default_filters[] = array(
 				'name'          => __( 'Closed', 'wp-helpdesk' ),
 				'description'   => __( 'All closed tickets', 'wp-helpdesk' ),
 				'filter_config' => wp_json_encode( array( 'status' => $closed_statuses ) ),
-				'display_order' => 6,
+				'display_order' => ++$display_order,
 			);
 		}
 
-		// Add high priority filter if we have high priorities
+		// Add high priority filter if we have high priorities.
 		if ( ! empty( $high_priorities ) ) {
 			$default_filters[] = array(
 				'name'          => __( 'High Priority', 'wp-helpdesk' ),
 				'description'   => __( 'High and critical priority tickets', 'wp-helpdesk' ),
 				'filter_config' => wp_json_encode( array( 'priority' => $high_priorities ) ),
-				'display_order' => 7,
+				'display_order' => ++$display_order,
 			);
 		}
 
-		// Add SLA breached filter
+		// Add SLA breached filter.
 		$default_filters[] = array(
 			'name'          => __( 'SLA Breached', 'wp-helpdesk' ),
 			'description'   => __( 'Tickets with breached SLA', 'wp-helpdesk' ),
@@ -568,10 +602,10 @@ class WPHD_Queue_Filters {
 				'sla_first_response' => 'breached',
 				'sla_resolution'     => 'breached',
 			) ),
-			'display_order' => 8,
+			'display_order' => ++$display_order,
 		);
 
-		// Create each default filter
+		// Create each default filter.
 		foreach ( $default_filters as $filter ) {
 			$filter['filter_type'] = 'user';
 			$filter['user_id']     = $user_id;
