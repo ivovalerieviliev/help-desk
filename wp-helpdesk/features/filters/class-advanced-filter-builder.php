@@ -127,8 +127,8 @@ class WPHD_Advanced_Filter_Builder {
 
 		// Apply sorting
 		if ( ! empty( $config['sort'] ) ) {
-			$sort_field = sanitize_text_field( $config['sort']['field'] ?? 'created_at' );
-			$sort_order = strtoupper( $config['sort']['order'] ?? 'DESC' );
+			$sort_field = isset( $config['sort']['field'] ) ? sanitize_text_field( $config['sort']['field'] ) : 'created_at';
+			$sort_order = isset( $config['sort']['order'] ) ? strtoupper( $config['sort']['order'] ) : 'DESC';
 			$sort_order = in_array( $sort_order, array( 'ASC', 'DESC' ), true ) ? $sort_order : 'DESC';
 
 			switch ( $sort_field ) {

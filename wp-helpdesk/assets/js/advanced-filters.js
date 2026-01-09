@@ -212,7 +212,8 @@
         deleteFilter: function(e) {
             e.preventDefault();
             
-            if (!confirm('Are you sure you want to delete this filter?')) {
+            var confirmMsg = wpHelpDesk.i18n.confirm_delete_filter || 'Are you sure you want to delete this filter?';
+            if (!confirm(confirmMsg)) {
                 return;
             }
             

@@ -460,7 +460,7 @@ class WPHD_Filter_Manager {
 		}
 
 		if ( 'user' === $filter->filter_type ) {
-			return $filter->user_id == get_current_user_id() && WPHD_Access_Control::can_access( 'queue_filters_user_edit' );
+			return $filter->user_id === get_current_user_id() && WPHD_Access_Control::can_access( 'queue_filters_user_edit' );
 		}
 
 		if ( 'organization' === $filter->filter_type ) {
@@ -484,7 +484,7 @@ class WPHD_Filter_Manager {
 		}
 
 		if ( 'user' === $filter->filter_type ) {
-			return $filter->user_id == get_current_user_id() && WPHD_Access_Control::can_access( 'queue_filters_user_delete' );
+			return $filter->user_id === get_current_user_id() && WPHD_Access_Control::can_access( 'queue_filters_user_delete' );
 		}
 
 		if ( 'organization' === $filter->filter_type ) {
