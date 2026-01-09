@@ -8,7 +8,39 @@
  * @since       1.0.0
  */
 
-/* Viewer avatars with tooltips */
+/* Viewer Avatars */
+.wphd-ticket-viewers {
+    display: flex;
+    align-items: center;
+}
+
+.viewer-avatar {
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.viewer-avatar:hover {
+    transform: scale(1.15) translateY(-2px) !important;
+    z-index: 100 !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.viewer-count {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.viewer-count:hover {
+    transform: scale(1.1);
+    background: #4B5563 !important;
+}
+
+/* Better stacking for viewer avatars */
+.wphd-viewers-cell > div {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Old viewer avatar styles (legacy compatibility) */
 .wphd-viewer-avatar {
     position: relative;
     width: 32px;
@@ -83,12 +115,6 @@
     font-weight: 600;
     margin-left: -8px;
     border: 2px solid #fff;
-}
-
-/* Better stacking for viewer avatars */
-.wphd-viewers-cell > div {
-    display: inline-flex;
-    align-items: center;
 }
 
 /* Time remaining icons */
