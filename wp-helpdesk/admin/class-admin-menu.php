@@ -629,7 +629,7 @@ class WPHD_Admin_Menu {
                       AND p.post_status = 'publish'
                       AND sla.resolved_at IS NULL
                       AND pm.meta_value NOT IN ($closed_placeholders)
-                      HAVING (elapsed_seconds / total_seconds) >= 0.5";
+                      HAVING total_seconds > 0 AND (elapsed_seconds / total_seconds) >= 0.5";
         
         $sla_results = $wpdb->get_results($wpdb->prepare($sla_query, $closed_statuses));
         
@@ -642,13 +642,6 @@ class WPHD_Admin_Menu {
         
         // Get current timestamp
         $now = current_time('timestamp');
-        
-        // Combine ticket IDs from both queries (legacy variable name for compatibility)
-        $ticket_ids_old = array();
-        foreach ($ticket_ids as $id) {
-            $ticket_ids_old[$id] = true;
-        }
-        $ticket_ids = array_keys($ticket_ids_old);
         
         // Debug output
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -809,7 +802,7 @@ class WPHD_Admin_Menu {
                                                              alt="<?php echo esc_attr($user->display_name); ?>"
                                                              title="<?php echo esc_attr($user->display_name); ?>"
                                                              class="viewer-avatar"
-                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; <?php echo $margin; ?> z-index: <?php echo $z_index; ?>; cursor: pointer; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; <?php echo esc_attr($margin); ?> z-index: <?php echo esc_attr($z_index); ?>; cursor: pointer; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
                                                     <?php 
                                                     endif;
                                                 endforeach; 
