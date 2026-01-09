@@ -393,6 +393,22 @@ class WPHD_Admin_Menu {
                 WPHD_VERSION,
                 true
             );
+            
+            // Enqueue advanced filters
+            wp_enqueue_style(
+                'wp-helpdesk-advanced-filters',
+                WPHD_PLUGIN_URL . 'assets/css/advanced-filters.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-advanced-filters',
+                WPHD_PLUGIN_URL . 'assets/js/advanced-filters.js',
+                array( 'jquery', 'select2', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
         }
 
         // Localize script with data.
