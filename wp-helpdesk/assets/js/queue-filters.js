@@ -203,6 +203,11 @@
 			}
 			this.toggleAssigneeFields();
 
+			// Reporter
+			if (config.reporter_ids) {
+				$('#filter_reporter_ids').val(config.reporter_ids).trigger('change');
+			}
+
 			// Date created
 			if (config.date_created && config.date_created.operator) {
 				$('#date_created_operator').val(config.date_created.operator);
@@ -376,6 +381,12 @@
 					if (start) config.date_created.start = start;
 					if (end) config.date_created.end = end;
 				}
+			}
+
+			// Reporter
+			const reporterIds = $('#filter_reporter_ids').val();
+			if (reporterIds && reporterIds.length > 0) {
+				config.reporter_ids = reporterIds.map(Number);
 			}
 
 			// Search phrase
