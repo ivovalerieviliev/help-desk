@@ -79,6 +79,10 @@ final class WP_HelpDesk {
         require_once WPHD_PLUGIN_DIR . 'features/queue-filters/class-queue-filters.php';
         require_once WPHD_PLUGIN_DIR . 'features/queue-filters/class-queue-filter-builder.php';
         
+        // Advanced Filters
+        require_once WPHD_PLUGIN_DIR . 'features/filters/class-advanced-filter-builder.php';
+        require_once WPHD_PLUGIN_DIR . 'features/filters/class-filter-manager.php';
+        
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-menu.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-admin-pages.php';
         require_once WPHD_PLUGIN_DIR . 'admin/class-handover-report.php';
@@ -171,6 +175,10 @@ final class WP_HelpDesk {
         
         WPHD_Queue_Filters::instance();
         WPHD_Queue_Filter_Builder::instance();
+        
+        // Advanced Filters
+        WPHD_Advanced_Filter_Builder::instance();
+        WPHD_Filter_Manager::instance();
         
         if (is_admin()) {
             WPHD_Admin_Menu::instance();
