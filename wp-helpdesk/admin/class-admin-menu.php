@@ -1447,7 +1447,7 @@ class WPHD_Admin_Menu {
      *
      * @since 1.0.0
      */
-    private function get_status_label( $slug ) {
+    public function get_status_label( $slug ) {
         $statuses = get_option( 'wphd_statuses', array() );
         foreach ( $statuses as $status ) {
             if ( $status['slug'] === $slug ) {
@@ -1466,7 +1466,7 @@ class WPHD_Admin_Menu {
      *
      * @since 1.0.0
      */
-    private function get_priority_label( $slug ) {
+    public function get_priority_label( $slug ) {
         $priorities = get_option( 'wphd_priorities', array() );
         foreach ( $priorities as $priority ) {
             if ( $priority['slug'] === $slug ) {
@@ -1485,7 +1485,7 @@ class WPHD_Admin_Menu {
      *
      * @since 1.0.0
      */
-    private function get_category_label( $slug ) {
+    public function get_category_label( $slug ) {
         if ( empty( $slug ) ) {
             return __( 'None', 'wp-helpdesk' );
         }

@@ -63,9 +63,6 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_preview_filter', array($this, 'preview_filter'));
         add_action('wp_ajax_wphd_set_default_filter', array($this, 'set_default_filter'));
         add_action('wp_ajax_wphd_search_users', array($this, 'search_users'));
-        add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
-        add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
-        add_action('wp_ajax_wphd_update_filter', array($this, 'update_filter'));
         
         // Dashboard AJAX
         add_action('wp_ajax_wphd_refresh_urgent_tickets', array($this, 'refresh_urgent_tickets'));

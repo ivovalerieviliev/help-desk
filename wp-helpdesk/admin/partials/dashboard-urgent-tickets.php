@@ -94,32 +94,10 @@ $admin_menu = WPHD_Admin_Menu::instance();
                         }
                     }
                     
-                    // Get status and priority labels
-                    $statuses = get_option( 'wphd_statuses', array() );
-                    $priorities = get_option( 'wphd_priorities', array() );
-                    
-                    $priority_label = '';
-                    foreach ( $priorities as $p ) {
-                        if ( $p['slug'] === $priority ) {
-                            $priority_label = sprintf(
-                                '<span class="wphd-priority-badge" style="background-color: %s; color: #fff; padding: 3px 8px; border-radius: 3px; font-size: 11px;">%s</span>',
-                                esc_attr( $p['color'] ),
-                                esc_html( $p['name'] )
-                            );
-                            break;
-                        }
-                    }
-                    
-                    $category_label = __( 'None', 'wp-helpdesk' );
-                    if ( ! empty( $category ) ) {
-                        $categories = get_option( 'wphd_categories', array() );
-                        foreach ( $categories as $cat ) {
-                            if ( $cat['slug'] === $category ) {
-                                $category_label = $cat['name'];
-                                break;
-                            }
-                        }
-                    }
+                    // Get labels using admin menu helper methods
+                    $admin_menu = WPHD_Admin_Menu::instance();
+                    $priority_label = $admin_menu->get_priority_label( $priority );
+                    $category_label = $admin_menu->get_category_label( $category );
                     ?>
                     <tr>
                         <td>
