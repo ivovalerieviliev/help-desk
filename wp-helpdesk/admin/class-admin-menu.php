@@ -244,6 +244,18 @@ class WPHD_Admin_Menu {
             );
         }
 
+        // Queue Filters submenu
+        if ( WPHD_Access_Control::can_access( 'queue_filters_user_create' ) || WPHD_Access_Control::can_access( 'queue_filters_org_create' ) ) {
+            add_submenu_page(
+                $this->menu_slug,
+                __( 'Queue Filters', 'wp-helpdesk' ),
+                __( 'Queue Filters', 'wp-helpdesk' ),
+                $this->capability,
+                $this->menu_slug . '-queue-filters',
+                array( $this, 'render_queue_filters_page' )
+            );
+        }
+
         // Reports submenu (Admin only).
         if ( WPHD_Access_Control::can_access( 'reports' ) ) {
             add_submenu_page(
@@ -365,6 +377,24 @@ class WPHD_Admin_Menu {
             );
         }
 
+        // Enqueue queue filters assets on tickets and queue filters pages
+        if ( strpos( $hook, 'tickets' ) !== false || strpos( $hook, 'queue-filters' ) !== false ) {
+            wp_enqueue_style(
+                'wp-helpdesk-queue-filters',
+                WPHD_PLUGIN_URL . 'assets/css/queue-filters.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-queue-filters',
+                WPHD_PLUGIN_URL . 'assets/js/queue-filters.js',
+                array( 'jquery', 'select2', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
+        }
+
         // Localize script with data.
         wp_localize_script(
             'wp-helpdesk-admin',
@@ -375,6 +405,7 @@ class WPHD_Admin_Menu {
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
                 'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'createHandoverNonce' => wp_create_nonce( 'wphd_create_handover' ),
+                'ticketsUrl' => admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets' ),
                 'i18n'    => array(
                     'confirm_delete' => __( 'Are you sure you want to delete this item?', 'wp-helpdesk' ),
                     'saving'         => __( 'Saving...', 'wp-helpdesk' ),
@@ -386,6 +417,13 @@ class WPHD_Admin_Menu {
                     'exporting'      => __( 'Exporting...', 'wp-helpdesk' ),
                     'export_csv'     => __( 'Export to CSV', 'wp-helpdesk' ),
                     'team_avg'       => __( 'team average', 'wp-helpdesk' ),
+                    'select_placeholder' => __( 'Select...', 'wp-helpdesk' ),
+                    'error_loading_filter' => __( 'Failed to load filter.', 'wp-helpdesk' ),
+                    'error_deleting_filter' => __( 'Failed to delete filter.', 'wp-helpdesk' ),
+                    'error_setting_default' => __( 'Failed to set default filter.', 'wp-helpdesk' ),
+                    'error_preview' => __( 'Failed to preview filter.', 'wp-helpdesk' ),
+                    'filter_name_required' => __( 'Filter name is required.', 'wp-helpdesk' ),
+                    'loading' => __( 'Loading...', 'wp-helpdesk' ),
                 ),
             )
         );
@@ -574,17 +612,33 @@ class WPHD_Admin_Menu {
             wp_die( esc_html__( 'You do not have permission to view tickets.', 'wp-helpdesk' ) );
         }
 
+        // Get active filter
+        $active_filter_id = isset( $_GET['filter_id'] ) ? intval( $_GET['filter_id'] ) : 0;
+        $active_filter    = null;
+
+        if ( $active_filter_id ) {
+            $active_filter = WPHD_Queue_Filters::get( $active_filter_id );
+        }
+
         ?>
         <div class="wrap wp-helpdesk-wrap">
             <h1 class="wp-heading-inline"><?php esc_html_e( 'All Tickets', 'wp-helpdesk' ); ?></h1>
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-add-ticket' ) ); ?>" class="page-title-action">
                 <?php esc_html_e( 'Add New', 'wp-helpdesk' ); ?>
             </a>
+
+            <?php $this->render_filter_selector( $active_filter ); ?>
+
             <hr class="wp-header-end">
             <?php settings_errors( 'wp_helpdesk' ); ?>
+
+            <?php if ( $active_filter ) : ?>
+                <?php $this->render_filtered_tickets( $active_filter ); ?>
+            <?php else : ?>
             <div class="wp-helpdesk-tickets-list">
                 <?php $this->render_tickets_table(); ?>
             </div>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -751,6 +805,174 @@ class WPHD_Admin_Menu {
                 <button type="submit" class="button"><?php esc_html_e( 'Filter', 'wp-helpdesk' ); ?></button>
             </div>
         </div>
+        <?php
+    }
+
+    /**
+     * Render filter selector toolbar.
+     *
+     * @since  1.0.0
+     * @param  object|null $active_filter Active filter object or null.
+     */
+    private function render_filter_selector( $active_filter ) {
+        $user_filters = WPHD_Queue_Filters::get_user_filters();
+        $org_filters  = array();
+
+        // Get org filters if user has permission
+        if ( WPHD_Access_Control::can_access( 'queue_filters_org_view' ) && class_exists( 'WPHD_Organizations' ) ) {
+            $user_org = WPHD_Organizations::get_user_organization( get_current_user_id() );
+            if ( $user_org ) {
+                $org_filters = WPHD_Queue_Filters::get_organization_filters( $user_org->id );
+            }
+        }
+
+        ?>
+        <div class="wphd-filter-toolbar">
+            <select id="wphd-filter-selector" class="wphd-filter-select">
+                <option value=""><?php esc_html_e( 'All Tickets (No Filter)', 'wp-helpdesk' ); ?></option>
+
+                <?php if ( ! empty( $user_filters ) ) : ?>
+                <optgroup label="<?php esc_attr_e( 'My Filters', 'wp-helpdesk' ); ?>">
+                    <?php foreach ( $user_filters as $filter ) : ?>
+                    <option value="<?php echo esc_attr( $filter->id ); ?>" <?php selected( $active_filter && $active_filter->id == $filter->id ); ?>>
+                        <?php echo esc_html( $filter->name ); ?>
+                        <?php if ( $filter->is_default ) : ?>
+                        ★
+                        <?php endif; ?>
+                    </option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endif; ?>
+
+                <?php if ( ! empty( $org_filters ) ) : ?>
+                <optgroup label="<?php esc_attr_e( 'Organization Filters', 'wp-helpdesk' ); ?>">
+                    <?php foreach ( $org_filters as $filter ) : ?>
+                    <option value="<?php echo esc_attr( $filter->id ); ?>" <?php selected( $active_filter && $active_filter->id == $filter->id ); ?>>
+                        <?php echo esc_html( $filter->name ); ?>
+                        <?php if ( $filter->is_default ) : ?>
+                        ★
+                        <?php endif; ?>
+                    </option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endif; ?>
+            </select>
+
+            <?php if ( WPHD_Access_Control::can_access( 'queue_filters_user_create' ) || WPHD_Access_Control::can_access( 'queue_filters_org_create' ) ) : ?>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-queue-filters' ) ); ?>" class="button wphd-create-filter-btn">
+                <?php esc_html_e( '+ New Filter', 'wp-helpdesk' ); ?>
+            </a>
+            <?php endif; ?>
+
+            <?php if ( $active_filter ) : ?>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets' ) ); ?>" class="button wphd-clear-filter-btn">
+                <?php esc_html_e( 'Clear Filter', 'wp-helpdesk' ); ?>
+            </a>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render filtered tickets.
+     *
+     * @since  1.0.0
+     * @param  object $filter Filter object.
+     */
+    private function render_filtered_tickets( $filter ) {
+        $filter_config = json_decode( $filter->filter_config, true );
+        $result        = WPHD_Queue_Filter_Builder::get_tickets(
+            $filter_config,
+            $filter->sort_field,
+            $filter->sort_order,
+            50,
+            1
+        );
+
+        ?>
+        <div class="wphd-active-filter-info">
+            <strong><?php esc_html_e( 'Active Filter:', 'wp-helpdesk' ); ?></strong>
+            <?php echo esc_html( $filter->name ); ?>
+            <span class="wphd-filter-count">
+                <?php
+                // translators: %d: Number of tickets
+                echo esc_html( sprintf( _n( '%d ticket', '%d tickets', $result['total'], 'wp-helpdesk' ), $result['total'] ) );
+                ?>
+            </span>
+            <?php if ( $filter->description ) : ?>
+            <br>
+            <em><?php echo esc_html( $filter->description ); ?></em>
+            <?php endif; ?>
+        </div>
+
+        <div class="wp-helpdesk-tickets-list">
+            <?php $this->render_tickets_list( $result['tickets'] ); ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render tickets list from array of posts.
+     *
+     * @since  1.0.0
+     * @param  array $tickets Array of WP_Post objects.
+     */
+    private function render_tickets_list( $tickets ) {
+        if ( empty( $tickets ) ) {
+            echo '<p>' . esc_html__( 'No tickets match this filter.', 'wp-helpdesk' ) . '</p>';
+            return;
+        }
+
+        ?>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'ID', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Subject', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></th>
+                    <th><?php esc_html_e( 'Date', 'wp-helpdesk' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                foreach ( $tickets as $ticket ) :
+                    $ticket_id = $ticket->ID;
+                    $status    = get_post_meta( $ticket_id, '_wphd_status', true );
+                    $priority  = get_post_meta( $ticket_id, '_wphd_priority', true );
+                    $category  = get_post_meta( $ticket_id, '_wphd_category', true );
+                    $assignee  = get_post_meta( $ticket_id, '_wphd_assignee', true );
+
+                    $status_info   = $this->get_status_label( $status );
+                    $priority_info = $this->get_priority_label( $priority );
+                    $category_info = $this->get_category_label( $category );
+
+                    $assignee_name = __( 'Unassigned', 'wp-helpdesk' );
+                    if ( $assignee ) {
+                        $user_data = get_userdata( $assignee );
+                        if ( $user_data ) {
+                            $assignee_name = $user_data->display_name;
+                        }
+                    }
+                    ?>
+                    <tr>
+                        <td><strong>#<?php echo esc_html( $ticket_id ); ?></strong></td>
+                        <td>
+                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) ); ?>">
+                                <?php echo esc_html( $ticket->post_title ); ?>
+                            </a>
+                        </td>
+                        <td><?php echo wp_kses_post( $status_info ); ?></td>
+                        <td><?php echo wp_kses_post( $priority_info ); ?></td>
+                        <td><?php echo esc_html( $category_info ); ?></td>
+                        <td><?php echo esc_html( $assignee_name ); ?></td>
+                        <td><?php echo esc_html( get_the_date( '', $ticket ) ); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
         <?php
     }
 
@@ -4680,5 +4902,15 @@ class WPHD_Admin_Menu {
     public function render_handover_edit_page() {
         // Delegate to the Handover History class which has the full edit functionality
         WPHD_Handover_History::instance()->render_edit_page();
+    }
+
+    /**
+     * Render the queue filters page.
+     *
+     * @since 1.0.0
+     */
+    public function render_queue_filters_page() {
+        $management = WPHD_Queue_Filters_Management::instance();
+        $management->render_management_page();
     }
 }
