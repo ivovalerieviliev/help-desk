@@ -91,6 +91,36 @@ class WPHD_Admin_Menu {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'admin_init', array( $this, 'handle_form_submissions' ) );
         add_action( 'admin_init', array( $this, 'handle_repair_database' ) );
+        add_action( 'admin_init', array( $this, 'migrate_priorities_severity' ) );
+    }
+
+    /**
+     * Migrate priorities to add severity field for existing priorities.
+     *
+     * @since 1.0.0
+     */
+    public function migrate_priorities_severity() {
+        $priorities = get_option( 'wphd_priorities', array() );
+        $updated = false;
+        
+        foreach ( $priorities as $index => $priority ) {
+            if ( ! isset( $priority['severity'] ) ) {
+                // Assign default severity based on order or index
+                // Lower order = higher priority, so map to lower severity number
+                $priorities[$index]['severity'] = isset( $priority['order'] ) ? min( intval( $priority['order'] ), 5 ) : ( $index + 1 );
+                if ( $priorities[$index]['severity'] > 5 ) {
+                    $priorities[$index]['severity'] = 5;
+                }
+                if ( $priorities[$index]['severity'] < 1 ) {
+                    $priorities[$index]['severity'] = 1;
+                }
+                $updated = true;
+            }
+        }
+        
+        if ( $updated ) {
+            update_option( 'wphd_priorities', $priorities );
+        }
     }
 
     /**
@@ -902,7 +932,43 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      * @return array Array of WP_Post objects
      */
+    /**
+     * Get urgent tickets (priority 1, open/in-progress).
+     * Now uses severity level 1 (highest priority) instead of hardcoded priority slug.
+     *
+     * @since 1.0.0
+     * @return array Array of WP_Post objects
+     */
     private function get_urgent_tickets() {
+        // Get priorities sorted by severity (1 = highest)
+        $priorities = get_option( 'wphd_priorities', array() );
+        usort( $priorities, function( $a, $b ) {
+            $a_severity = isset( $a['severity'] ) ? intval( $a['severity'] ) : 999;
+            $b_severity = isset( $b['severity'] ) ? intval( $b['severity'] ) : 999;
+            return $a_severity - $b_severity; // Lower number = higher priority
+        } );
+
+        // Get tickets with severity 1 (highest priority)
+        $highest_priority_slugs = array();
+        foreach ( $priorities as $priority ) {
+            if ( isset( $priority['severity'] ) && intval( $priority['severity'] ) === 1 ) {
+                $highest_priority_slugs[] = $priority['slug'];
+            }
+        }
+        
+        // Fallback: if no priorities with severity 1, use the first priority (sorted by severity)
+        if ( empty( $highest_priority_slugs ) && ! empty( $priorities ) ) {
+            $highest_priority_slugs[] = $priorities[0]['slug'];
+        }
+
+        // If still no priorities found, return empty array
+        if ( empty( $highest_priority_slugs ) ) {
+            return array();
+        }
+
+        // Get non-closed status slugs
+        $closed_status_slugs = $this->get_closed_status_slugs();
+
         $args = array(
             'post_type'      => 'wphd_ticket',
             'post_status'    => 'publish',
@@ -913,19 +979,38 @@ class WPHD_Admin_Menu {
                 'relation' => 'AND',
                 array(
                     'key'     => '_wphd_priority',
-                    'value'   => '1',
-                    'compare' => '=',
+                    'value'   => $highest_priority_slugs,
+                    'compare' => 'IN',
                 ),
                 array(
                     'key'     => '_wphd_status',
-                    'value'   => array( 'open', 'in-progress' ),
-                    'compare' => 'IN',
+                    'value'   => $closed_status_slugs,
+                    'compare' => 'NOT IN',
                 ),
             ),
         );
 
         $query = new WP_Query( $args );
         return $query->posts;
+    }
+
+    /**
+     * Get closed status slugs.
+     *
+     * @since 1.0.0
+     * @return array Array of closed status slugs
+     */
+    private function get_closed_status_slugs() {
+        $statuses = get_option( 'wphd_statuses', array() );
+        $closed = array( 'closed', 'resolved', 'completed', 'done' ); // Common closed status slugs
+        
+        foreach ( $statuses as $status ) {
+            if ( isset( $status['is_closed'] ) && $status['is_closed'] ) {
+                $closed[] = $status['slug'];
+            }
+        }
+        
+        return array_unique( $closed );
     }
 
     /**
@@ -3586,12 +3671,23 @@ class WPHD_Admin_Menu {
                                     <th><?php esc_html_e( 'Slug', 'wp-helpdesk' ); ?></th>
                                     <th><?php esc_html_e( 'Name', 'wp-helpdesk' ); ?></th>
                                     <th><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></th>
+                                    <th><?php esc_html_e( 'Severity', 'wp-helpdesk' ); ?> <span class="dashicons dashicons-info" title="<?php esc_attr_e( '1 = Highest priority (most urgent), 5 = Lowest priority', 'wp-helpdesk' ); ?>"></span></th>
                                     <th><?php esc_html_e( 'Order', 'wp-helpdesk' ); ?></th>
                                     <th><?php esc_html_e( 'Actions', 'wp-helpdesk' ); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ( $priorities as $priority ) : ?>
+                                    <?php
+                                    $severity = isset( $priority['severity'] ) ? intval( $priority['severity'] ) : 3;
+                                    $severity_labels = array(
+                                        1 => __( 'Highest', 'wp-helpdesk' ),
+                                        2 => __( 'High', 'wp-helpdesk' ),
+                                        3 => __( 'Medium', 'wp-helpdesk' ),
+                                        4 => __( 'Low', 'wp-helpdesk' ),
+                                        5 => __( 'Lowest', 'wp-helpdesk' ),
+                                    );
+                                    ?>
                                     <tr>
                                         <td><code><?php echo esc_html( $priority['slug'] ); ?></code></td>
                                         <td><?php echo esc_html( $priority['name'] ); ?></td>
@@ -3601,6 +3697,7 @@ class WPHD_Admin_Menu {
                                             </span>
                                             <code><?php echo esc_html( $priority['color'] ); ?></code>
                                         </td>
+                                        <td><?php echo esc_html( $severity . ' - ' . ( $severity_labels[$severity] ?? __( 'Medium', 'wp-helpdesk' ) ) ); ?></td>
                                         <td><?php echo esc_html( $priority['order'] ); ?></td>
                                         <td>
                                             <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-priorities&edit=' . $priority['slug'] ) ); ?>" class="button button-small">
@@ -3647,6 +3744,21 @@ class WPHD_Admin_Menu {
                                 <p>
                                     <label for="priority_color"><strong><?php esc_html_e( 'Color', 'wp-helpdesk' ); ?></strong></label><br>
                                     <input type="color" name="priority_color" id="priority_color" value="<?php echo $editing_priority ? esc_attr( $editing_priority['color'] ) : '#f39c12'; ?>">
+                                </p>
+                                
+                                <p>
+                                    <label for="priority_severity"><strong><?php esc_html_e( 'Severity', 'wp-helpdesk' ); ?></strong> <span class="dashicons dashicons-info" title="<?php esc_attr_e( '1 = Highest priority (most urgent), 5 = Lowest priority', 'wp-helpdesk' ); ?>"></span></label><br>
+                                    <select name="priority_severity" id="priority_severity" class="widefat">
+                                        <?php
+                                        $current_severity = $editing_priority ? ( isset( $editing_priority['severity'] ) ? intval( $editing_priority['severity'] ) : 3 ) : 3;
+                                        ?>
+                                        <option value="1" <?php selected( $current_severity, 1 ); ?>>1 - <?php esc_html_e( 'Highest', 'wp-helpdesk' ); ?></option>
+                                        <option value="2" <?php selected( $current_severity, 2 ); ?>>2 - <?php esc_html_e( 'High', 'wp-helpdesk' ); ?></option>
+                                        <option value="3" <?php selected( $current_severity, 3 ); ?>>3 - <?php esc_html_e( 'Medium', 'wp-helpdesk' ); ?></option>
+                                        <option value="4" <?php selected( $current_severity, 4 ); ?>>4 - <?php esc_html_e( 'Low', 'wp-helpdesk' ); ?></option>
+                                        <option value="5" <?php selected( $current_severity, 5 ); ?>>5 - <?php esc_html_e( 'Lowest', 'wp-helpdesk' ); ?></option>
+                                    </select>
+                                    <small><?php esc_html_e( '1 = Highest priority (most urgent), 5 = Lowest priority', 'wp-helpdesk' ); ?></small>
                                 </p>
                                 
                                 <p>
@@ -4189,10 +4301,11 @@ class WPHD_Admin_Menu {
             return;
         }
 
-        $slug  = isset( $_POST['priority_slug'] ) ? sanitize_title( $_POST['priority_slug'] ) : '';
-        $name  = isset( $_POST['priority_name'] ) ? sanitize_text_field( $_POST['priority_name'] ) : '';
-        $color = isset( $_POST['priority_color'] ) ? sanitize_hex_color( $_POST['priority_color'] ) : '#f39c12';
-        $order = isset( $_POST['priority_order'] ) ? intval( $_POST['priority_order'] ) : 1;
+        $slug     = isset( $_POST['priority_slug'] ) ? sanitize_title( $_POST['priority_slug'] ) : '';
+        $name     = isset( $_POST['priority_name'] ) ? sanitize_text_field( $_POST['priority_name'] ) : '';
+        $color    = isset( $_POST['priority_color'] ) ? sanitize_hex_color( $_POST['priority_color'] ) : '#f39c12';
+        $order    = isset( $_POST['priority_order'] ) ? intval( $_POST['priority_order'] ) : 1;
+        $severity = isset( $_POST['priority_severity'] ) ? intval( $_POST['priority_severity'] ) : 3;
 
         if ( empty( $slug ) || empty( $name ) ) {
             add_settings_error(
@@ -4220,10 +4333,11 @@ class WPHD_Admin_Menu {
         }
 
         $priorities[] = array(
-            'slug'  => $slug,
-            'name'  => $name,
-            'color' => $color,
-            'order' => $order,
+            'slug'     => $slug,
+            'name'     => $name,
+            'color'    => $color,
+            'order'    => $order,
+            'severity' => $severity,
         );
 
         update_option( 'wphd_priorities', $priorities );
@@ -4254,6 +4368,7 @@ class WPHD_Admin_Menu {
         $name     = isset( $_POST['priority_name'] ) ? sanitize_text_field( $_POST['priority_name'] ) : '';
         $color    = isset( $_POST['priority_color'] ) ? sanitize_hex_color( $_POST['priority_color'] ) : '#f39c12';
         $order    = isset( $_POST['priority_order'] ) ? intval( $_POST['priority_order'] ) : 1;
+        $severity = isset( $_POST['priority_severity'] ) ? intval( $_POST['priority_severity'] ) : 3;
 
         if ( empty( $old_slug ) || empty( $name ) ) {
             add_settings_error(
@@ -4270,9 +4385,10 @@ class WPHD_Admin_Menu {
 
         foreach ( $priorities as $key => $priority ) {
             if ( $priority['slug'] === $old_slug ) {
-                $priorities[ $key ]['name'] = $name;
-                $priorities[ $key ]['color'] = $color;
-                $priorities[ $key ]['order'] = $order;
+                $priorities[ $key ]['name']     = $name;
+                $priorities[ $key ]['color']    = $color;
+                $priorities[ $key ]['order']    = $order;
+                $priorities[ $key ]['severity'] = $severity;
                 $found = true;
                 break;
             }
