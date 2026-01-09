@@ -403,6 +403,7 @@ class WPHD_Admin_Menu {
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'adminUrl' => admin_url(),
                 'nonce'   => wp_create_nonce( 'wphd_nonce' ),
+                'queueFilterNonce' => wp_create_nonce( 'wphd_queue_filter_nonce' ),
                 'handoverNonce' => wp_create_nonce( 'wphd_search_tickets_handover' ),
                 'createHandoverNonce' => wp_create_nonce( 'wphd_create_handover' ),
                 'ticketsUrl' => admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets' ),
@@ -424,6 +425,12 @@ class WPHD_Admin_Menu {
                     'error_preview' => __( 'Failed to preview filter.', 'wp-helpdesk' ),
                     'filter_name_required' => __( 'Filter name is required.', 'wp-helpdesk' ),
                     'loading' => __( 'Loading...', 'wp-helpdesk' ),
+                    'search_users' => __( 'Type to search users...', 'wp-helpdesk' ),
+                    'no_results' => __( 'No users found', 'wp-helpdesk' ),
+                    'searching' => __( 'Searching...', 'wp-helpdesk' ),
+                    'select_status' => __( 'Select statuses', 'wp-helpdesk' ),
+                    'select_priority' => __( 'Select priorities', 'wp-helpdesk' ),
+                    'select_category' => __( 'Select categories', 'wp-helpdesk' ),
                 ),
             )
         );

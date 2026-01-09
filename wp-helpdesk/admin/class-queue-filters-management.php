@@ -56,6 +56,7 @@ class WPHD_Queue_Filters_Management {
 		add_action( 'wp_ajax_wphd_set_default_filter', array( $this, 'ajax_set_default' ) );
 		add_action( 'wp_ajax_wphd_preview_filter', array( $this, 'ajax_preview_filter' ) );
 		add_action( 'wp_ajax_wphd_get_filter', array( $this, 'ajax_get_filter' ) );
+		add_action( 'wp_ajax_wphd_search_users_for_filter', array( $this, 'ajax_search_users' ) );
 	}
 
 	/**
@@ -297,30 +298,48 @@ class WPHD_Queue_Filters_Management {
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></th>
 					<td>
-						<div>
+						<?php
+						$assignee_type = isset( $filter_config['assignee_type'] ) ? $filter_config['assignee_type'] : 'unassigned';
+						$assignee_ids  = isset( $filter_config['assignee_ids'] ) ? $filter_config['assignee_ids'] : array();
+						?>
+						<div class="wphd-radio-group">
 							<label>
-								<input type="radio" name="assignee_type" value="any" <?php checked( empty( $filter_config['assignee_type'] ) || 'any' === $filter_config['assignee_type'] ); ?>>
-								<?php esc_html_e( 'Any', 'wp-helpdesk' ); ?>
-							</label><br>
-							<label>
-								<input type="radio" name="assignee_type" value="me" <?php checked( isset( $filter_config['assignee_type'] ) && 'me' === $filter_config['assignee_type'] ); ?>>
-								<?php esc_html_e( 'Assigned to me', 'wp-helpdesk' ); ?>
-							</label><br>
-							<label>
-								<input type="radio" name="assignee_type" value="unassigned" <?php checked( isset( $filter_config['assignee_type'] ) && 'unassigned' === $filter_config['assignee_type'] ); ?>>
+								<input type="radio" name="assignee_type" value="unassigned" <?php checked( $assignee_type, 'unassigned' ); ?>>
 								<?php esc_html_e( 'Unassigned', 'wp-helpdesk' ); ?>
 							</label><br>
 							<label>
-								<input type="radio" name="assignee_type" value="specific" <?php checked( isset( $filter_config['assignee_type'] ) && 'specific' === $filter_config['assignee_type'] ); ?>>
-								<?php esc_html_e( 'Specific users:', 'wp-helpdesk' ); ?>
+								<input type="radio" name="assignee_type" value="me" <?php checked( $assignee_type, 'me' ); ?>>
+								<?php esc_html_e( 'Assigned to me', 'wp-helpdesk' ); ?>
+							</label><br>
+							<label>
+								<input type="radio" name="assignee_type" value="specific" <?php checked( $assignee_type, 'specific' ); ?>>
+								<?php esc_html_e( 'Specific users', 'wp-helpdesk' ); ?>
+							</label><br>
+							<label>
+								<input type="radio" name="assignee_type" value="any" <?php checked( $assignee_type, 'any' ); ?>>
+								<?php esc_html_e( 'Any assignee', 'wp-helpdesk' ); ?>
 							</label>
-							<select name="assignee_ids[]" id="filter_assignee_ids" class="wphd-select2" multiple style="width: 100%; margin-top: 5px;">
-								<?php foreach ( $users as $user ) : ?>
-								<option value="<?php echo esc_attr( $user->ID ); ?>" <?php selected( in_array( $user->ID, isset( $filter_config['assignee_ids'] ) ? $filter_config['assignee_ids'] : array(), true ) ); ?>>
-									<?php echo esc_html( $user->display_name ); ?>
-								</option>
-								<?php endforeach; ?>
+						</div>
+
+						<div class="wphd-assignee-specific" style="margin-top: 10px; <?php echo 'specific' !== $assignee_type ? 'display: none;' : ''; ?>">
+							<select name="assignee_ids[]" id="filter_assignee_ids" class="wphd-user-select2" multiple="multiple" style="width: 100%;">
+								<?php
+								// Pre-populate selected users.
+								if ( ! empty( $assignee_ids ) ) {
+									foreach ( $assignee_ids as $user_id ) {
+										$user = get_userdata( $user_id );
+										if ( $user ) {
+											?>
+											<option value="<?php echo esc_attr( $user->ID ); ?>" selected>
+												<?php echo esc_html( $user->display_name . ' (' . $user->user_email . ')' ); ?>
+											</option>
+											<?php
+										}
+									}
+								}
+								?>
 							</select>
+							<p class="description"><?php esc_html_e( 'Type to search for users', 'wp-helpdesk' ); ?></p>
 						</div>
 					</td>
 				</tr>
@@ -343,6 +362,31 @@ class WPHD_Queue_Filters_Management {
 							<span><?php esc_html_e( 'to', 'wp-helpdesk' ); ?></span>
 							<input type="date" name="date_created_end" value="<?php echo isset( $filter_config['date_created']['end'] ) ? esc_attr( $filter_config['date_created']['end'] ) : ''; ?>">
 						</div>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Reporter', 'wp-helpdesk' ); ?></th>
+					<td>
+						<?php $reporter_ids = isset( $filter_config['reporter_ids'] ) ? $filter_config['reporter_ids'] : array(); ?>
+						<select name="reporter_ids[]" id="filter_reporter_ids" class="wphd-user-select2" multiple="multiple" style="width: 100%;">
+							<?php
+							// Pre-populate selected users.
+							if ( ! empty( $reporter_ids ) ) {
+								foreach ( $reporter_ids as $user_id ) {
+									$user = get_userdata( $user_id );
+									if ( $user ) {
+										?>
+										<option value="<?php echo esc_attr( $user->ID ); ?>" selected>
+											<?php echo esc_html( $user->display_name . ' (' . $user->user_email . ')' ); ?>
+										</option>
+										<?php
+									}
+								}
+							}
+							?>
+						</select>
+						<p class="description"><?php esc_html_e( 'Type to search for users who created tickets', 'wp-helpdesk' ); ?></p>
 					</td>
 				</tr>
 
@@ -452,6 +496,10 @@ class WPHD_Queue_Filters_Management {
 					$filter_config['date_created']['end'] = sanitize_text_field( $_POST['date_created_end'] );
 				}
 			}
+		}
+
+		if ( ! empty( $_POST['reporter_ids'] ) && is_array( $_POST['reporter_ids'] ) ) {
+			$filter_config['reporter_ids'] = array_map( 'absint', $_POST['reporter_ids'] );
 		}
 
 		if ( ! empty( $_POST['search_phrase'] ) ) {
@@ -629,5 +677,45 @@ class WPHD_Queue_Filters_Management {
 		$filter->filter_config = json_decode( $filter->filter_config, true );
 
 		wp_send_json_success( $filter );
+	}
+
+	/**
+	 * AJAX handler to search users for filter.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_search_users() {
+		check_ajax_referer( 'wphd_queue_filter_nonce', 'nonce' );
+
+		if ( ! WPHD_Access_Control::can_access( 'queue_filters_user_create' ) &&
+		     ! WPHD_Access_Control::can_access( 'queue_filters_org_create' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied', 'wp-helpdesk' ) ) );
+		}
+
+		$search = isset( $_POST['search'] ) ? sanitize_text_field( $_POST['search'] ) : '';
+
+		if ( strlen( $search ) < 2 ) {
+			wp_send_json_success( array( 'results' => array() ) );
+		}
+
+		$users = get_users(
+			array(
+				'search'         => '*' . $search . '*',
+				'search_columns' => array( 'user_login', 'user_email', 'display_name' ),
+				'number'         => 20,
+				'orderby'        => 'display_name',
+				'order'          => 'ASC',
+			)
+		);
+
+		$results = array();
+		foreach ( $users as $user ) {
+			$results[] = array(
+				'id'   => $user->ID,
+				'text' => $user->display_name . ' (' . $user->user_email . ')',
+			);
+		}
+
+		wp_send_json_success( array( 'results' => $results ) );
 	}
 }

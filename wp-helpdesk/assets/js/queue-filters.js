@@ -5,6 +5,7 @@
 		init: function() {
 			this.bindEvents();
 			this.initSelect2();
+			this.initUserAutocomplete();
 			this.handleURLParams();
 		},
 
@@ -52,6 +53,38 @@
 			}
 		},
 
+		initUserAutocomplete: function() {
+			if ($.fn.select2) {
+				$('.wphd-user-select2').select2({
+					ajax: {
+						url: wpHelpDesk.ajaxUrl,
+						dataType: 'json',
+						delay: 250,
+						data: function(params) {
+							return {
+								action: 'wphd_search_users_for_filter',
+								nonce: wpHelpDesk.queueFilterNonce || wpHelpDesk.nonce,
+								search: params.term
+							};
+						},
+						processResults: function(response) {
+							if (response.success) {
+								return {
+									results: response.data.results
+								};
+							}
+							return { results: [] };
+						},
+						cache: true
+					},
+					minimumInputLength: 2,
+					placeholder: wpHelpDesk.i18n.search_users || 'Type to search users...',
+					allowClear: true,
+					width: '100%'
+				});
+			}
+		},
+
 		handleURLParams: function() {
 			// If editing a filter from URL, open the modal
 			const urlParams = new URLSearchParams(window.location.search);
@@ -81,6 +114,7 @@
 			}
 			$('#wphd-filter-modal').fadeIn();
 			this.initSelect2();
+			this.initUserAutocomplete();
 			this.toggleAssigneeFields();
 			this.toggleDateFields();
 		},
@@ -356,9 +390,9 @@
 		toggleAssigneeFields: function() {
 			const selectedType = $('input[name="assignee_type"]:checked').val();
 			if (selectedType === 'specific') {
-				$('#filter_assignee_ids').prop('disabled', false).closest('tr').find('select').show();
+				$('.wphd-assignee-specific').slideDown();
 			} else {
-				$('#filter_assignee_ids').prop('disabled', true);
+				$('.wphd-assignee-specific').slideUp();
 			}
 		},
 

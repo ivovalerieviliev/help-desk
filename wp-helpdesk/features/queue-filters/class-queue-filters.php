@@ -483,11 +483,27 @@ class WPHD_Queue_Filters {
 			return;
 		}
 
-		// Get statuses and priorities
+		// Get statuses and priorities.
 		$statuses   = get_option( 'wphd_statuses', array() );
 		$priorities = get_option( 'wphd_priorities', array() );
 
-		// Get closed statuses
+		// Find "open" status.
+		$open_statuses = array();
+		foreach ( $statuses as $status ) {
+			if ( 'open' === $status['slug'] || stripos( $status['name'], 'open' ) !== false ) {
+				$open_statuses[] = $status['slug'];
+			}
+		}
+
+		// Find "in-progress" status.
+		$in_progress_statuses = array();
+		foreach ( $statuses as $status ) {
+			if ( 'in-progress' === $status['slug'] || stripos( $status['name'], 'progress' ) !== false ) {
+				$in_progress_statuses[] = $status['slug'];
+			}
+		}
+
+		// Get closed statuses.
 		$closed_statuses = array();
 		foreach ( $statuses as $status ) {
 			if ( isset( $status['is_closed'] ) && $status['is_closed'] ) {
@@ -495,7 +511,7 @@ class WPHD_Queue_Filters {
 			}
 		}
 
-		// Get high priority slugs
+		// Get high priority slugs.
 		$high_priorities = array();
 		foreach ( $priorities as $priority ) {
 			if ( isset( $priority['level'] ) && in_array( strtolower( $priority['level'] ), array( 'high', 'critical', 'urgent' ), true ) ) {
@@ -505,39 +521,52 @@ class WPHD_Queue_Filters {
 			}
 		}
 
-		// Default filters to create
-		$default_filters = array(
-			array(
+		// Default filters to create.
+		$default_filters = array();
+
+		// Add Open Tickets filter if we found open statuses.
+		if ( ! empty( $open_statuses ) ) {
+			$default_filters[] = array(
 				'name'          => __( 'Open Tickets', 'wp-helpdesk' ),
 				'description'   => __( 'All tickets with open status', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'status' => array( 'open' ) ) ),
+				'filter_config' => wp_json_encode( array( 'status' => $open_statuses ) ),
 				'display_order' => 1,
-			),
-			array(
+			);
+		}
+
+		// Add In Progress filter if we found in-progress statuses.
+		if ( ! empty( $in_progress_statuses ) ) {
+			$default_filters[] = array(
 				'name'          => __( 'In Progress', 'wp-helpdesk' ),
 				'description'   => __( 'All tickets currently in progress', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'status' => array( 'in-progress' ) ) ),
+				'filter_config' => wp_json_encode( array( 'status' => $in_progress_statuses ) ),
 				'display_order' => 2,
-			),
-			array(
-				'name'          => __( 'My Tickets', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets assigned to me', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'assignee_type' => 'me' ) ),
-				'display_order' => 3,
-				'is_default'    => 1,
-			),
-			array(
-				'name'          => __( 'Unassigned', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets not yet assigned to anyone', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'assignee_type' => 'unassigned' ) ),
-				'display_order' => 4,
-			),
-			array(
-				'name'          => __( 'Created Today', 'wp-helpdesk' ),
-				'description'   => __( 'Tickets created today', 'wp-helpdesk' ),
-				'filter_config' => wp_json_encode( array( 'date_created' => array( 'operator' => 'today' ) ) ),
-				'display_order' => 5,
-			),
+			);
+		}
+
+		// Always add My Tickets filter.
+		$default_filters[] = array(
+			'name'          => __( 'My Tickets', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets assigned to me', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'assignee_type' => 'me' ) ),
+			'display_order' => 3,
+			'is_default'    => 1,
+		);
+
+		// Always add Unassigned filter.
+		$default_filters[] = array(
+			'name'          => __( 'Unassigned', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets not yet assigned to anyone', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'assignee_type' => 'unassigned' ) ),
+			'display_order' => 4,
+		);
+
+		// Always add Created Today filter.
+		$default_filters[] = array(
+			'name'          => __( 'Created Today', 'wp-helpdesk' ),
+			'description'   => __( 'Tickets created today', 'wp-helpdesk' ),
+			'filter_config' => wp_json_encode( array( 'date_created' => array( 'operator' => 'today' ) ) ),
+			'display_order' => 5,
 		);
 
 		// Add closed tickets filter if we have closed statuses
