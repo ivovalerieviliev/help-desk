@@ -11,6 +11,25 @@
 /* Viewer avatars with tooltips */
 .wphd-viewer-avatar {
     position: relative;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    cursor: pointer;
+    transition: transform 0.2s, z-index 0s;
+}
+
+.wphd-viewer-avatar:hover {
+    transform: scale(1.2);
+    z-index: 10;
+}
+
+.wphd-viewer-wrapper {
+    position: relative;
+}
+
+.wphd-viewer-wrapper:not(:first-child) {
+    margin-left: -8px;
 }
 
 .wphd-viewer-avatar::after {
@@ -48,6 +67,22 @@
 .wphd-viewer-avatar:hover::after,
 .wphd-viewer-avatar:hover::before {
     opacity: 1;
+}
+
+/* Viewer badge for "+N more" */
+.wphd-viewer-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #6B7280;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: -8px;
+    border: 2px solid #fff;
 }
 
 /* Better stacking for viewer avatars */

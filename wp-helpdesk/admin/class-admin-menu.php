@@ -615,20 +615,33 @@ class WPHD_Admin_Menu {
         
         // Get tickets with SLA at 50% or more of time to resolution
         $sla_table = $wpdb->prefix . 'wphd_sla_log';
-        $sla_at_risk_tickets = $wpdb->get_results(
+        $closed_statuses = $this->get_closed_status_slugs();
+        
+        // Build placeholders for IN clause
+        $placeholders = array_fill(0, count($closed_statuses), '%s');
+        $placeholders_str = implode(',', $placeholders);
+        
+        // Prepare query with proper parameterization
+        $query = $wpdb->prepare(
             "SELECT DISTINCT p.ID 
             FROM {$wpdb->posts} p
             INNER JOIN {$sla_table} sla ON p.ID = sla.ticket_id
             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_wphd_status'
-            WHERE p.post_type = 'wphd_ticket'
-            AND p.post_status = 'publish'
-            AND pm.meta_value NOT IN ('" . implode("','", array_map('esc_sql', $this->get_closed_status_slugs())) . "')
+            WHERE p.post_type = %s
+            AND p.post_status = %s
+            AND pm.meta_value NOT IN ({$placeholders_str})
             AND sla.resolved_at IS NULL
             AND (
                 TIMESTAMPDIFF(SECOND, p.post_date, NOW()) >= 
                 TIMESTAMPDIFF(SECOND, p.post_date, sla.resolution_due) * 0.5
-            )"
+            )",
+            array_merge(
+                array('wphd_ticket', 'publish'),
+                $closed_statuses
+            )
         );
+        
+        $sla_at_risk_tickets = $wpdb->get_results($query);
         
         // Combine ticket IDs from both queries
         $ticket_ids = array();
@@ -715,8 +728,8 @@ class WPHD_Admin_Menu {
                 'ok' => 4,
             );
             
-            $a_priority = $status_priority[$a['sla_status']] ?? 5;
-            $b_priority = $status_priority[$b['sla_status']] ?? 5;
+            $a_priority = isset($status_priority[$a['sla_status']]) ? $status_priority[$a['sla_status']] : 5;
+            $b_priority = isset($status_priority[$b['sla_status']]) ? $status_priority[$b['sla_status']] : 5;
             
             if ($a_priority !== $b_priority) {
                 return $a_priority - $b_priority;
@@ -775,7 +788,9 @@ class WPHD_Admin_Menu {
                                     <td><?php echo esc_html( $this->get_category_label( $ticket['category'] ) ); ?></td>
                                     <td><?php echo wp_kses_post( $this->get_priority_label( $ticket['priority'] ) ); ?></td>
                                     <td class="wphd-viewers-cell" data-ticket-id="<?php echo esc_attr($ticket['id']); ?>">
-                                        <?php if (!empty($ticket['viewing_users'])): ?>
+                                        <?php if (!empty($ticket['viewing_users'])): 
+                                            $current_user_id = get_current_user_id();
+                                        ?>
                                             <div style="display: flex; align-items: center;">
                                                 <?php 
                                                 $max_show = 3;
@@ -783,17 +798,15 @@ class WPHD_Admin_Menu {
                                                 foreach ($ticket['viewing_users'] as $user_id): 
                                                     if ($viewer_count >= $max_show) break;
                                                     $user = get_userdata($user_id);
-                                                    if ($user && $user->ID != get_current_user_id()): // Don't show current user
+                                                    if ($user && $user->ID !== $current_user_id): // Don't show current user
                                                         $viewer_count++;
                                                 ?>
-                                                    <div style="position: relative; margin-left: <?php echo $viewer_count > 1 ? '-8px' : '0'; ?>;">
+                                                    <div class="wphd-viewer-wrapper">
                                                         <img src="<?php echo esc_url(get_avatar_url($user_id, array('size' => 32))); ?>" 
                                                              alt="<?php echo esc_attr($user->display_name); ?>"
                                                              title="<?php echo esc_attr($user->display_name); ?>"
                                                              class="wphd-viewer-avatar"
-                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; transition: transform 0.2s, z-index 0s;"
-                                                             onmouseover="this.style.transform='scale(1.2)'; this.style.zIndex='10';"
-                                                             onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1';">
+                                                             data-viewer-count="<?php echo esc_attr($viewer_count); ?>">
                                                     </div>
                                                 <?php 
                                                     endif;
@@ -801,13 +814,13 @@ class WPHD_Admin_Menu {
                                                 
                                                 // Show remaining count
                                                 $remaining = count($ticket['viewing_users']) - $viewer_count;
-                                                if (get_current_user_id() && in_array(get_current_user_id(), $ticket['viewing_users'])) {
+                                                if ($current_user_id && in_array($current_user_id, $ticket['viewing_users'])) {
                                                     $remaining--; // Don't count current user in remaining
                                                 }
                                                 
                                                 if ($remaining > 0):
                                                 ?>
-                                                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #6B7280; color: #fff; font-size: 11px; font-weight: 600; margin-left: -8px; border: 2px solid #fff;">
+                                                    <div class="wphd-viewer-badge">
                                                         +<?php echo $remaining; ?>
                                                     </div>
                                                 <?php endif; ?>
@@ -827,7 +840,10 @@ class WPHD_Admin_Menu {
                                             ?>
                                             <span class="wphd-sla-time" data-seconds="<?php echo esc_attr($time_remaining); ?>" style="color: #DC2626; font-weight: 600;">
                                                 <span class="dashicons dashicons-warning" style="font-size: 16px; vertical-align: middle;"></span>
-                                                <?php printf(__('BREACHED: %dh %dm ago', 'wp-helpdesk'), $hours, $minutes); ?>
+                                                <?php 
+                                                /* translators: %1$d: hours, %2$d: minutes. Shows how long the ticket has been breached. */
+                                                printf(__('BREACHED: %1$dh %2$dm ago', 'wp-helpdesk'), $hours, $minutes); 
+                                                ?>
                                             </span>
                                         <?php elseif ($time_remaining !== null): ?>
                                             <?php
@@ -848,7 +864,10 @@ class WPHD_Admin_Menu {
                                             ?>
                                             <span class="wphd-sla-time" data-seconds="<?php echo esc_attr($time_remaining); ?>" style="color: <?php echo $color; ?>; font-weight: 600;">
                                                 <span class="dashicons <?php echo $icon; ?>" style="font-size: 16px; vertical-align: middle;"></span>
-                                                <?php printf(__('%dh %dm remaining', 'wp-helpdesk'), $hours, $minutes); ?>
+                                                <?php 
+                                                /* translators: %1$d: hours, %2$d: minutes. Shows time remaining until SLA deadline. */
+                                                printf(__('%1$dh %2$dm remaining', 'wp-helpdesk'), $hours, $minutes); 
+                                                ?>
                                             </span>
                                         <?php else: ?>
                                             <span style="color: #9CA3AF;">—</span>
