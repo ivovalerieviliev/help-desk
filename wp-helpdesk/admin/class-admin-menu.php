@@ -608,23 +608,64 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     private function render_realtime_metrics() {
-        $today_stats = $this->get_today_tickets_by_status();
+        // Use WordPress timezone-aware date functions
+        $today_start = current_time('Y-m-d') . ' 00:00:00';
+        $today_end = current_time('Y-m-d') . ' 23:59:59';
+        
+        // Get total tickets created today using direct database query for reliability
+        global $wpdb;
+        $total_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts} 
+            WHERE post_type = 'wphd_ticket' 
+            AND post_status = 'publish' 
+            AND post_date >= %s 
+            AND post_date <= %s",
+            $today_start,
+            $today_end
+        ));
+        
+        // Get statuses
+        $statuses = get_option('wphd_statuses', array());
+        
+        // Count tickets by status for today using database query
+        $status_counts = array();
+        foreach ($statuses as $status) {
+            $count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND p.post_date >= %s
+                AND p.post_date <= %s
+                AND pm.meta_key = '_wphd_status'
+                AND pm.meta_value = %s",
+                $today_start,
+                $today_end,
+                $status['slug']
+            ));
+            
+            $status_counts[$status['slug']] = array(
+                'name' => $status['name'],
+                'count' => intval($count),
+                'color' => $status['color'] ?? '#6B7280',
+            );
+        }
+        
         ?>
         <div class="wphd-realtime-metrics">
             <h2><?php esc_html_e( "Today's Ticket Metrics", 'wp-helpdesk' ); ?></h2>
             <div class="wphd-metrics-grid">
                 <div class="wphd-metric-card">
-                    <div class="wphd-metric-number"><?php echo esc_html( $today_stats['total'] ); ?></div>
+                    <div class="wphd-metric-number"><?php echo esc_html( $total_count ); ?></div>
                     <div class="wphd-metric-label"><?php esc_html_e( 'Total Created Today', 'wp-helpdesk' ); ?></div>
                 </div>
                 
                 <?php
-                $statuses = get_option( 'wphd_statuses', array() );
                 foreach ( $statuses as $status ) :
                     if ( ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
                         continue;
                     }
-                    $count = isset( $today_stats['by_status'][ $status['slug'] ] ) ? $today_stats['by_status'][ $status['slug'] ] : 0;
+                    $count = isset( $status_counts[ $status['slug'] ] ) ? $status_counts[ $status['slug'] ]['count'] : 0;
                     $color = isset( $status['color'] ) ? sanitize_hex_color( $status['color'] ) : '#999999';
                     
                     // Highlight open tickets if count is high
@@ -646,106 +687,211 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     private function render_created_tickets_today() {
-        $today_tickets = $this->get_today_tickets();
-        $today_stats   = $this->get_today_tickets_by_status();
-        $statuses      = get_option( 'wphd_statuses', array() );
-        $active_tab    = isset( $_GET['status_tab'] ) ? sanitize_text_field( $_GET['status_tab'] ) : 'all';
-        ?>
-        <div class="wphd-created-tickets-today">
-            <h2><?php esc_html_e( 'Created Tickets (Today)', 'wp-helpdesk' ); ?></h2>
+        // Use WordPress timezone-aware date functions
+        $today_start = current_time('Y-m-d') . ' 00:00:00';
+        $today_end = current_time('Y-m-d') . ' 23:59:59';
+        
+        // Get active tab from URL or default to 'all'
+        $active_tab = isset($_GET['today_tab']) ? sanitize_text_field($_GET['today_tab']) : 'all';
+        
+        // Get statuses
+        $statuses = get_option('wphd_statuses', array());
+        
+        if (empty($statuses)) {
+            echo '<div class="notice notice-warning"><p>' . esc_html__('No statuses configured. Please configure statuses in Settings.', 'wp-helpdesk') . '</p></div>';
+            return;
+        }
+        
+        // Use direct database queries for counting
+        global $wpdb;
+        
+        // Count all tickets for today
+        $all_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts}
+            WHERE post_type = 'wphd_ticket'
+            AND post_status = 'publish'
+            AND post_date >= %s
+            AND post_date <= %s",
+            $today_start,
+            $today_end
+        ));
+        
+        $tab_counts = array('all' => intval($all_count));
+        
+        // Count per status
+        foreach ($statuses as $status) {
+            $count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND p.post_date >= %s
+                AND p.post_date <= %s
+                AND pm.meta_key = '_wphd_status'
+                AND pm.meta_value = %s",
+                $today_start,
+                $today_end,
+                $status['slug']
+            ));
             
-            <div class="wphd-status-tabs">
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug ) ); ?>" 
-                   class="wphd-status-tab <?php echo $active_tab === 'all' ? 'active' : ''; ?>">
-                    <?php esc_html_e( 'All', 'wp-helpdesk' ); ?> (<?php echo esc_html( $today_stats['total'] ); ?>)
+            $tab_counts[$status['slug']] = intval($count);
+        }
+        
+        // Build query for active tab - use direct SQL
+        if ($active_tab === 'all') {
+            $ticket_results = $wpdb->get_results($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts}
+                WHERE post_type = 'wphd_ticket'
+                AND post_status = 'publish'
+                AND post_date >= %s
+                AND post_date <= %s
+                ORDER BY post_date DESC",
+                $today_start,
+                $today_end
+            ));
+        } else {
+            $ticket_results = $wpdb->get_results($wpdb->prepare(
+                "SELECT DISTINCT p.ID FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'wphd_ticket'
+                AND p.post_status = 'publish'
+                AND p.post_date >= %s
+                AND p.post_date <= %s
+                AND pm.meta_key = '_wphd_status'
+                AND pm.meta_value = %s
+                ORDER BY p.post_date DESC",
+                $today_start,
+                $today_end,
+                $active_tab
+            ));
+        }
+        
+        // Convert to post objects
+        $tickets = array();
+        foreach ($ticket_results as $row) {
+            $ticket = get_post($row->ID);
+            if ($ticket) {
+                $tickets[] = $ticket;
+            }
+        }
+        
+        // Render section with tabs
+        ?>
+        <div class="wphd-dashboard-section wphd-created-today" style="background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 0; margin-bottom: 24px;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 0 20px; border-bottom: 1px solid #E5E7EB;">
+                <h2 style="margin: 0; color: #1F2937;">
+                    <?php esc_html_e('Created Tickets (Today)', 'wp-helpdesk'); ?>
+                </h2>
+                <div style="display: flex; gap: 8px;">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=wp-helpdesk-add-ticket')); ?>" class="button button-primary">
+                        <span class="dashicons dashicons-plus-alt"></span> <?php esc_html_e('Create Ticket', 'wp-helpdesk'); ?>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="wphd-tabs" style="display: flex; gap: 0; padding: 0 20px; background: #F9FAFB; border-bottom: 2px solid #E5E7EB; overflow-x: auto;">
+                <!-- All Tab -->
+                <?php
+                $all_url = add_query_arg('today_tab', 'all', admin_url('admin.php?page=wp-helpdesk'));
+                $is_all_active = $active_tab === 'all';
+                ?>
+                <a href="<?php echo esc_url($all_url); ?>" 
+                   class="wphd-tab <?php echo $is_all_active ? 'active' : ''; ?>"
+                   style="padding: 12px 20px; text-decoration: none; color: <?php echo $is_all_active ? '#2563EB' : '#6B7280'; ?>; font-weight: 500; border-bottom: 3px solid <?php echo $is_all_active ? '#2563EB' : 'transparent'; ?>; margin-bottom: -2px; white-space: nowrap;">
+                    <?php esc_html_e('All', 'wp-helpdesk'); ?>
+                    <span style="background: #E5E7EB; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 4px;">
+                        <?php echo $tab_counts['all']; ?>
+                    </span>
                 </a>
                 
-                <?php foreach ( $statuses as $status ) : ?>
-                    <?php
-                    if ( ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
-                        continue;
-                    }
-                    $count = isset( $today_stats['by_status'][ $status['slug'] ] ) ? $today_stats['by_status'][ $status['slug'] ] : 0;
-                    if ( $count === 0 ) {
-                        continue; // Skip statuses with no tickets
-                    }
-                    ?>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '&status_tab=' . $status['slug'] ) ); ?>" 
-                       class="wphd-status-tab <?php echo $active_tab === $status['slug'] ? 'active' : ''; ?>">
-                        <?php echo esc_html( $status['name'] ); ?> (<?php echo esc_html( $count ); ?>)
-                    </a>
+                <!-- Status Tabs -->
+                <?php foreach ($statuses as $status): ?>
+                <?php
+                $tab_url = add_query_arg('today_tab', $status['slug'], admin_url('admin.php?page=wp-helpdesk'));
+                $is_active = $active_tab === $status['slug'];
+                $status_color = !empty($status['color']) ? $status['color'] : '#6B7280';
+                ?>
+                <a href="<?php echo esc_url($tab_url); ?>" 
+                   class="wphd-tab <?php echo $is_active ? 'active' : ''; ?>"
+                   style="padding: 12px 20px; text-decoration: none; color: <?php echo $is_active ? $status_color : '#6B7280'; ?>; font-weight: 500; border-bottom: 3px solid <?php echo $is_active ? $status_color : 'transparent'; ?>; margin-bottom: -2px; white-space: nowrap;">
+                    <?php echo esc_html($status['name']); ?>
+                    <span style="background: #E5E7EB; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 4px;">
+                        <?php echo $tab_counts[$status['slug']]; ?>
+                    </span>
+                </a>
                 <?php endforeach; ?>
             </div>
-
-            <?php
-            // Filter tickets by active tab
-            $filtered_tickets = $today_tickets;
-            if ( $active_tab !== 'all' ) {
-                $filtered_tickets = array_filter( $today_tickets, function( $ticket ) use ( $active_tab ) {
-                    $status = get_post_meta( $ticket->ID, '_wphd_status', true );
-                    return $status === $active_tab;
-                } );
-            }
-            ?>
-
-            <?php if ( ! empty( $filtered_tickets ) ) : ?>
-                <div class="wphd-tickets-table-container">
+            
+            <!-- Tickets Table -->
+            <div style="padding: 20px;">
+                <?php if (empty($tickets)): ?>
+                    <p style="text-align: center; color: #6B7280; padding: 40px 0;">
+                        <?php esc_html_e('No tickets created today.', 'wp-helpdesk'); ?>
+                    </p>
+                <?php else: ?>
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
-                                <th style="width: 8%;"><?php esc_html_e( 'ID', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 30%;"><?php esc_html_e( 'Subject', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 12%;"><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 12%;"><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 15%;"><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 13%;"><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></th>
-                                <th style="width: 10%;"><?php esc_html_e( 'Date', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 80px;"><?php esc_html_e('ID', 'wp-helpdesk'); ?></th>
+                                <th><?php esc_html_e('Subject', 'wp-helpdesk'); ?></th>
+                                <th style="width: 120px;"><?php esc_html_e('Status', 'wp-helpdesk'); ?></th>
+                                <th style="width: 120px;"><?php esc_html_e('Priority', 'wp-helpdesk'); ?></th>
+                                <th style="width: 150px;"><?php esc_html_e('Category', 'wp-helpdesk'); ?></th>
+                                <th style="width: 150px;"><?php esc_html_e('Assignee', 'wp-helpdesk'); ?></th>
+                                <th style="width: 180px;"><?php esc_html_e('Date', 'wp-helpdesk'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ( $filtered_tickets as $ticket ) : ?>
-                                <?php
-                                $ticket_id = $ticket->ID;
-                                $status    = get_post_meta( $ticket_id, '_wphd_status', true );
-                                $priority  = get_post_meta( $ticket_id, '_wphd_priority', true );
-                                $category  = get_post_meta( $ticket_id, '_wphd_category', true );
-                                $assignee  = get_post_meta( $ticket_id, '_wphd_assignee', true );
-                                
-                                $assignee_name = __( 'Unassigned', 'wp-helpdesk' );
-                                if ( $assignee ) {
-                                    $assignee_user = get_userdata( $assignee );
-                                    if ( $assignee_user ) {
-                                        $assignee_name = $assignee_user->display_name;
-                                    }
-                                }
-                                ?>
-                                <tr>
-                                    <td><strong>#<?php echo esc_html( $ticket_id ); ?></strong></td>
-                                    <td>
-                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) ); ?>">
-                                            <?php echo esc_html( $ticket->post_title ); ?>
-                                        </a>
-                                    </td>
-                                    <td><?php echo wp_kses_post( $this->get_status_label( $status ) ); ?></td>
-                                    <td><?php echo wp_kses_post( $this->get_priority_label( $priority ) ); ?></td>
-                                    <td><?php echo esc_html( $this->get_category_label( $category ) ); ?></td>
-                                    <td>
-                                        <?php if ( $assignee ) : ?>
-                                            <?php echo get_avatar( $assignee, 24, '', '', array( 'class' => 'wphd-avatar' ) ); ?>
-                                        <?php endif; ?>
-                                        <?php echo esc_html( $assignee_name ); ?>
-                                    </td>
-                                    <td><?php echo esc_html( get_the_time( 'H:i', $ticket ) ); ?></td>
-                                </tr>
+                            <?php foreach ($tickets as $ticket): ?>
+                            <?php
+                            $status_slug = get_post_meta($ticket->ID, '_wphd_status', true);
+                            $priority_slug = get_post_meta($ticket->ID, '_wphd_priority', true);
+                            $category_slug = get_post_meta($ticket->ID, '_wphd_category', true);
+                            $assignee_id = get_post_meta($ticket->ID, '_wphd_assignee', true);
+                            
+                            $status_info = $this->get_status_info($status_slug);
+                            $priority_info = $this->get_priority_info($priority_slug);
+                            $category_info = $this->get_category_info($category_slug);
+                            $assignee = $assignee_id ? get_userdata($assignee_id) : null;
+                            ?>
+                            <tr>
+                                <td><strong>#<?php echo $ticket->ID; ?></strong></td>
+                                <td>
+                                    <a href="<?php echo esc_url(admin_url('admin.php?page=wp-helpdesk-tickets&ticket_id=' . $ticket->ID)); ?>">
+                                        <?php echo esc_html($ticket->post_title); ?>
+                                    </a>
+                                </td>
+                                <td>
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; background: <?php echo esc_attr($status_info['color'] ?? '#6B7280'); ?>; color: #fff;">
+                                        <?php echo esc_html($status_info['name'] ?? $status_slug); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; background: <?php echo esc_attr($priority_info['color'] ?? '#6B7280'); ?>; color: #fff;">
+                                        <?php echo esc_html($priority_info['name'] ?? $priority_slug); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo esc_html($category_info['name'] ?? $category_slug); ?></td>
+                                <td>
+                                    <?php if ($assignee): ?>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <img src="<?php echo esc_url(get_avatar_url($assignee_id, array('size' => 24))); ?>" 
+                                                 style="width: 24px; height: 24px; border-radius: 50%;">
+                                            <?php echo esc_html($assignee->display_name); ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span style="color: #9CA3AF;"><?php esc_html_e('Unassigned', 'wp-helpdesk'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html(get_the_date('M j, Y', $ticket) . ' at ' . get_the_time('g:i A', $ticket)); ?></td>
+                            </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                </div>
-            <?php else : ?>
-                <div class="wphd-empty-state">
-                    <p><?php esc_html_e( 'No tickets created today.', 'wp-helpdesk' ); ?></p>
-                </div>
-            <?php endif; ?>
+                <?php endif; ?>
+            </div>
         </div>
         <?php
     }
@@ -1497,6 +1643,73 @@ class WPHD_Admin_Menu {
             }
         }
         return ucfirst( str_replace( '-', ' ', $slug ) );
+    }
+
+    /**
+     * Get status info as an array.
+     *
+     * @since 1.0.0
+     * @param string $slug Status slug
+     * @return array Status info array with name and color
+     */
+    private function get_status_info( $slug ) {
+        $statuses = get_option( 'wphd_statuses', array() );
+        foreach ( $statuses as $status ) {
+            if ( $status['slug'] === $slug ) {
+                return array(
+                    'name' => $status['name'],
+                    'color' => $status['color'] ?? '#6B7280',
+                );
+            }
+        }
+        return array(
+            'name' => ucfirst( str_replace( '-', ' ', $slug ) ),
+            'color' => '#6B7280',
+        );
+    }
+
+    /**
+     * Get priority info as an array.
+     *
+     * @since 1.0.0
+     * @param string $slug Priority slug
+     * @return array Priority info array with name and color
+     */
+    private function get_priority_info( $slug ) {
+        $priorities = get_option( 'wphd_priorities', array() );
+        foreach ( $priorities as $priority ) {
+            if ( $priority['slug'] === $slug ) {
+                return array(
+                    'name' => $priority['name'],
+                    'color' => $priority['color'] ?? '#6B7280',
+                );
+            }
+        }
+        return array(
+            'name' => ucfirst( str_replace( '-', ' ', $slug ) ),
+            'color' => '#6B7280',
+        );
+    }
+
+    /**
+     * Get category info as an array.
+     *
+     * @since 1.0.0
+     * @param string $slug Category slug
+     * @return array Category info array with name
+     */
+    private function get_category_info( $slug ) {
+        if ( empty( $slug ) ) {
+            return array( 'name' => __( 'None', 'wp-helpdesk' ) );
+        }
+
+        $categories = get_option( 'wphd_categories', array() );
+        foreach ( $categories as $category ) {
+            if ( $category['slug'] === $slug ) {
+                return array( 'name' => $category['name'] );
+            }
+        }
+        return array( 'name' => ucfirst( str_replace( '-', ' ', $slug ) ) );
     }
 
     /**
