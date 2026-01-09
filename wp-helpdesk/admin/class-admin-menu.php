@@ -577,86 +577,83 @@ class WPHD_Admin_Menu {
     private function render_ongoing_tickets_section() {
         global $wpdb;
         
-        // Get priorities with severity 1 (highest priority)
+        // Get priorities with severity 1 (highest)
         $priorities = get_option('wphd_priorities', array());
-        $highest_priority_slugs = array();
+        $priority_1_slugs = array();
         
         foreach ($priorities as $priority) {
             if (isset($priority['severity']) && intval($priority['severity']) === 1) {
-                $highest_priority_slugs[] = $priority['slug'];
+                $priority_1_slugs[] = $priority['slug'];
             }
         }
+        
+        // Get closed status slugs to exclude
+        $closed_statuses = $this->get_closed_status_slugs();
+        
+        // Query for priority 1 tickets (not closed)
+        $high_priority_tickets = array();
+        if (!empty($priority_1_slugs)) {
+            $placeholders = implode(',', array_fill(0, count($priority_1_slugs), '%s'));
+            $closed_placeholders = implode(',', array_fill(0, count($closed_statuses), '%s'));
+            
+            $query = "SELECT DISTINCT p.ID 
+                      FROM {$wpdb->posts} p
+                      INNER JOIN {$wpdb->postmeta} pm_priority ON p.ID = pm_priority.post_id AND pm_priority.meta_key = '_wphd_priority'
+                      INNER JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = '_wphd_status'
+                      WHERE p.post_type = 'wphd_ticket'
+                      AND p.post_status = 'publish'
+                      AND pm_priority.meta_value IN ($placeholders)
+                      AND pm_status.meta_value NOT IN ($closed_placeholders)";
+            
+            $params = array_merge($priority_1_slugs, $closed_statuses);
+            $results = $wpdb->get_results($wpdb->prepare($query, $params));
+            
+            foreach ($results as $row) {
+                $high_priority_tickets[$row->ID] = $row->ID;
+            }
+        }
+        
+        // Get tickets with 50% or more of SLA time elapsed (not resolved)
+        $sla_table = $wpdb->prefix . 'wphd_sla_log';
+        $sla_at_risk_tickets = array();
+        
+        $closed_placeholders = implode(',', array_fill(0, count($closed_statuses), '%s'));
+        
+        $sla_query = "SELECT DISTINCT p.ID,
+                      TIMESTAMPDIFF(SECOND, p.post_date, NOW()) as elapsed_seconds,
+                      TIMESTAMPDIFF(SECOND, p.post_date, sla.resolution_due) as total_seconds
+                      FROM {$wpdb->posts} p
+                      INNER JOIN {$sla_table} sla ON p.ID = sla.ticket_id
+                      INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_wphd_status'
+                      WHERE p.post_type = 'wphd_ticket'
+                      AND p.post_status = 'publish'
+                      AND sla.resolved_at IS NULL
+                      AND pm.meta_value NOT IN ($closed_placeholders)
+                      HAVING (elapsed_seconds / total_seconds) >= 0.5";
+        
+        $sla_results = $wpdb->get_results($wpdb->prepare($sla_query, $closed_statuses));
+        
+        foreach ($sla_results as $row) {
+            $sla_at_risk_tickets[$row->ID] = $row->ID;
+        }
+        
+        // Combine priority 1 tickets and SLA at-risk tickets
+        $ticket_ids = array_unique(array_merge($high_priority_tickets, $sla_at_risk_tickets));
         
         // Get current timestamp
         $now = current_time('timestamp');
         
-        // Query for high priority tickets (severity 1)
-        $high_priority_tickets = array();
-        if (!empty($highest_priority_slugs)) {
-            $high_priority_tickets = get_posts(array(
-                'post_type' => 'wphd_ticket',
-                'post_status' => 'publish',
-                'posts_per_page' => -1,
-                'meta_query' => array(
-                    'relation' => 'AND',
-                    array(
-                        'key' => '_wphd_priority',
-                        'value' => $highest_priority_slugs,
-                        'compare' => 'IN',
-                    ),
-                    array(
-                        'key' => '_wphd_status',
-                        'value' => $this->get_closed_status_slugs(),
-                        'compare' => 'NOT IN',
-                    ),
-                ),
-            ));
+        // Combine ticket IDs from both queries (legacy variable name for compatibility)
+        $ticket_ids_old = array();
+        foreach ($ticket_ids as $id) {
+            $ticket_ids_old[$id] = true;
         }
-        
-        // Get tickets with SLA at 50% or more of time to resolution
-        $sla_table = $wpdb->prefix . 'wphd_sla_log';
-        $closed_statuses = $this->get_closed_status_slugs();
-        
-        // Build placeholders for IN clause
-        $placeholders = array_fill(0, count($closed_statuses), '%s');
-        $placeholders_str = implode(',', $placeholders);
-        
-        // Prepare query with proper parameterization
-        $query = $wpdb->prepare(
-            "SELECT DISTINCT p.ID 
-            FROM {$wpdb->posts} p
-            INNER JOIN {$sla_table} sla ON p.ID = sla.ticket_id
-            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_wphd_status'
-            WHERE p.post_type = %s
-            AND p.post_status = %s
-            AND pm.meta_value NOT IN ({$placeholders_str})
-            AND sla.resolved_at IS NULL
-            AND (
-                TIMESTAMPDIFF(SECOND, p.post_date, NOW()) >= 
-                TIMESTAMPDIFF(SECOND, p.post_date, sla.resolution_due) * 0.5
-            )",
-            array_merge(
-                array('wphd_ticket', 'publish'),
-                $closed_statuses
-            )
-        );
-        
-        $sla_at_risk_tickets = $wpdb->get_results($query);
-        
-        // Combine ticket IDs from both queries
-        $ticket_ids = array();
-        foreach ($high_priority_tickets as $ticket) {
-            $ticket_ids[$ticket->ID] = true;
-        }
-        foreach ($sla_at_risk_tickets as $row) {
-            $ticket_ids[$row->ID] = true;
-        }
-        $ticket_ids = array_keys($ticket_ids);
+        $ticket_ids = array_keys($ticket_ids_old);
         
         // Debug output
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('=== Take Action Debug ===');
-            error_log('Highest priority slugs: ' . print_r($highest_priority_slugs, true));
+            error_log('Priority 1 slugs: ' . print_r($priority_1_slugs, true));
             error_log('High priority ticket count: ' . count($high_priority_tickets));
             error_log('SLA at risk ticket count: ' . count($sla_at_risk_tickets));
             error_log('Total unique tickets: ' . count($ticket_ids));
@@ -788,41 +785,44 @@ class WPHD_Admin_Menu {
                                     <td><?php echo esc_html( $this->get_category_label( $ticket['category'] ) ); ?></td>
                                     <td><?php echo wp_kses_post( $this->get_priority_label( $ticket['priority'] ) ); ?></td>
                                     <td class="wphd-viewers-cell" data-ticket-id="<?php echo esc_attr($ticket['id']); ?>">
-                                        <?php if (!empty($ticket['viewing_users'])): 
-                                            $current_user_id = get_current_user_id();
-                                        ?>
-                                            <div style="display: flex; align-items: center;">
-                                                <?php 
-                                                $max_show = 3;
-                                                $viewer_count = 0;
-                                                foreach ($ticket['viewing_users'] as $user_id): 
-                                                    if ($viewer_count >= $max_show) break;
+                                        <?php 
+                                        $viewing_users = $ticket['viewing_users'];
+                                        if (!is_array($viewing_users)) {
+                                            $viewing_users = array();
+                                        }
+                                        
+                                        $viewer_count = count($viewing_users);
+                                        
+                                        if ($viewer_count > 0):
+                                            $max_show = 3;
+                                            $shown_viewers = array_slice($viewing_users, 0, $max_show);
+                                            ?>
+                                            <div class="wphd-ticket-viewers" style="display: flex; align-items: center;">
+                                                <?php foreach ($shown_viewers as $index => $user_id): ?>
+                                                    <?php 
                                                     $user = get_userdata($user_id);
-                                                    if ($user && $user->ID !== $current_user_id): // Don't show current user
-                                                        $viewer_count++;
-                                                ?>
-                                                    <div class="wphd-viewer-wrapper">
+                                                    if ($user):
+                                                        $margin = $index > 0 ? 'margin-left: -10px;' : '';
+                                                        $z_index = $max_show - $index;
+                                                    ?>
                                                         <img src="<?php echo esc_url(get_avatar_url($user_id, array('size' => 32))); ?>" 
                                                              alt="<?php echo esc_attr($user->display_name); ?>"
                                                              title="<?php echo esc_attr($user->display_name); ?>"
-                                                             class="wphd-viewer-avatar"
-                                                             data-viewer-count="<?php echo esc_attr($viewer_count); ?>">
-                                                    </div>
-                                                <?php 
+                                                             class="viewer-avatar"
+                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; <?php echo $margin; ?> z-index: <?php echo $z_index; ?>; cursor: pointer; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                                                    <?php 
                                                     endif;
                                                 endforeach; 
                                                 
-                                                // Show remaining count
-                                                $remaining = count($ticket['viewing_users']) - $viewer_count;
-                                                if ($current_user_id && in_array($current_user_id, $ticket['viewing_users'])) {
-                                                    $remaining--; // Don't count current user in remaining
-                                                }
-                                                
+                                                // Show "+N" if more viewers
+                                                $remaining = $viewer_count - $max_show;
                                                 if ($remaining > 0):
                                                 ?>
-                                                    <div class="wphd-viewer-badge">
+                                                    <span class="viewer-count" 
+                                                          style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #6B7280; color: #fff; font-size: 11px; font-weight: 600; margin-left: -10px; border: 2px solid #fff; cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
+                                                          title="<?php echo esc_attr(sprintf(__('%d more viewing', 'wp-helpdesk'), $remaining)); ?>">
                                                         +<?php echo $remaining; ?>
-                                                    </div>
+                                                    </span>
                                                 <?php endif; ?>
                                             </div>
                                         <?php else: ?>
