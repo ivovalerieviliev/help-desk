@@ -366,7 +366,7 @@
 				if (assigneeType === 'specific') {
 					const assigneeIds = $('#filter_assignee_ids').val();
 					if (assigneeIds && assigneeIds.length > 0) {
-						config.assignee_ids = assigneeIds.map(Number);
+						config.assignee_ids = assigneeIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
 					}
 				}
 			}
@@ -386,7 +386,7 @@
 			// Reporter
 			const reporterIds = $('#filter_reporter_ids').val();
 			if (reporterIds && reporterIds.length > 0) {
-				config.reporter_ids = reporterIds.map(Number);
+				config.reporter_ids = reporterIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
 			}
 
 			// Search phrase
