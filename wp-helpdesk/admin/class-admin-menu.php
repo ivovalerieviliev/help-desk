@@ -338,6 +338,17 @@ class WPHD_Admin_Menu {
             true
         );
 
+        // Enqueue dashboard scripts on dashboard page
+        if ( strpos( $hook, $this->menu_slug ) !== false && ! strpos( $hook, '-' ) ) {
+            wp_enqueue_script(
+                'wp-helpdesk-dashboard',
+                WPHD_PLUGIN_URL . 'assets/js/dashboard.js',
+                array( 'jquery', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
+        }
+
         // Enqueue handover report assets on the create handover report page
         if ( strpos( $hook, 'create-handover-report' ) !== false ) {
             wp_enqueue_style(
@@ -506,114 +517,391 @@ class WPHD_Admin_Menu {
      * @since 1.0.0
      */
     private function render_dashboard_widgets() {
-        // Get real statistics
-        $total_tickets = wp_count_posts( 'wphd_ticket' );
-        $total_count = isset( $total_tickets->publish ) ? $total_tickets->publish : 0;
+        // Render the three main sections in order
+        $this->render_take_action_section();
+        $this->render_realtime_metrics();
+        $this->render_created_tickets_today();
+    }
 
-        // Get all configured statuses dynamically
-        $statuses = get_option( 'wphd_statuses', array() );
-        $status_counts = array();
+    /**
+     * Render Take Action section with urgent tickets.
+     *
+     * @since 1.0.0
+     */
+    private function render_take_action_section() {
+        $urgent_tickets = $this->get_urgent_tickets();
+        ?>
+        <div class="wphd-take-action-section" id="wphd-take-action">
+            <div class="wphd-section-header">
+                <h2>
+                    <span class="dashicons dashicons-warning"></span>
+                    <?php esc_html_e( 'Take Action: Ongoing Tickets', 'wp-helpdesk' ); ?>
+                </h2>
+                <span class="wphd-last-updated"><?php esc_html_e( 'Last updated:', 'wp-helpdesk' ); ?> <span id="wphd-last-refresh-time"><?php echo esc_html( current_time( 'H:i:s' ) ); ?></span></span>
+            </div>
 
-        foreach ( $statuses as $status ) {
-            // Validate status structure
-            if ( ! is_array( $status ) || ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
-                continue;
+            <?php if ( ! empty( $urgent_tickets ) ) : ?>
+                <div class="wphd-urgent-table-container">
+                    <table class="wp-list-table widefat fixed striped wphd-urgent-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 35%;"><?php esc_html_e( 'Title', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 15%;"><?php esc_html_e( 'Reporter', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 15%;"><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 10%;"><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 10%;"><?php esc_html_e( 'Looking', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 15%;"><?php esc_html_e( 'Time Remaining', 'wp-helpdesk' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $urgent_tickets as $ticket ) : ?>
+                                <?php
+                                $ticket_id = $ticket->ID;
+                                $reporter  = get_userdata( $ticket->post_author );
+                                $category  = get_post_meta( $ticket_id, '_wphd_category', true );
+                                $priority  = get_post_meta( $ticket_id, '_wphd_priority', true );
+                                $sla_data  = $this->calculate_sla_time_remaining( $ticket_id );
+                                ?>
+                                <tr>
+                                    <td>
+                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) ); ?>">
+                                            <strong><?php echo esc_html( $ticket->post_title ); ?></strong>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <?php if ( $reporter ) : ?>
+                                            <?php echo get_avatar( $reporter->ID, 24, '', '', array( 'class' => 'wphd-avatar' ) ); ?>
+                                            <?php echo esc_html( $reporter->display_name ); ?>
+                                        <?php else : ?>
+                                            <?php esc_html_e( 'Unknown', 'wp-helpdesk' ); ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html( $this->get_category_label( $category ) ); ?></td>
+                                    <td><?php echo wp_kses_post( $this->get_priority_label( $priority ) ); ?></td>
+                                    <td>
+                                        <span class="wphd-looking-placeholder" title="<?php esc_attr_e( 'Viewers (coming soon)', 'wp-helpdesk' ); ?>">👁️</span>
+                                    </td>
+                                    <td>
+                                        <span class="wphd-time-remaining <?php echo esc_attr( $sla_data['status_class'] ); ?>">
+                                            <strong><?php echo esc_html( $sla_data['time_display'] ); ?></strong>
+                                            <br>
+                                            <small><?php echo esc_html( $sla_data['type'] ); ?></small>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else : ?>
+                <div class="wphd-empty-state">
+                    <p><?php esc_html_e( '✓ No urgent tickets at the moment. Great work!', 'wp-helpdesk' ); ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render real-time metrics section.
+     *
+     * @since 1.0.0
+     */
+    private function render_realtime_metrics() {
+        $today_stats = $this->get_today_tickets_by_status();
+        ?>
+        <div class="wphd-realtime-metrics">
+            <h2><?php esc_html_e( "Today's Ticket Metrics", 'wp-helpdesk' ); ?></h2>
+            <div class="wphd-metrics-grid">
+                <div class="wphd-metric-card">
+                    <div class="wphd-metric-number"><?php echo esc_html( $today_stats['total'] ); ?></div>
+                    <div class="wphd-metric-label"><?php esc_html_e( 'Total Created Today', 'wp-helpdesk' ); ?></div>
+                </div>
+                
+                <?php
+                $statuses = get_option( 'wphd_statuses', array() );
+                foreach ( $statuses as $status ) :
+                    if ( ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
+                        continue;
+                    }
+                    $count = isset( $today_stats['by_status'][ $status['slug'] ] ) ? $today_stats['by_status'][ $status['slug'] ] : 0;
+                    $color = isset( $status['color'] ) ? sanitize_hex_color( $status['color'] ) : '#999999';
+                    
+                    // Highlight open tickets if count is high
+                    $is_urgent = ( $status['slug'] === 'open' && $count > 10 );
+                    ?>
+                    <div class="wphd-metric-card <?php echo $is_urgent ? 'wphd-metric-urgent' : ''; ?>" style="border-left: 4px solid <?php echo esc_attr( $color ); ?>;">
+                        <div class="wphd-metric-number"><?php echo esc_html( $count ); ?></div>
+                        <div class="wphd-metric-label"><?php echo esc_html( $status['name'] ); ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render created tickets today section with status tabs.
+     *
+     * @since 1.0.0
+     */
+    private function render_created_tickets_today() {
+        $today_tickets = $this->get_today_tickets();
+        $today_stats   = $this->get_today_tickets_by_status();
+        $statuses      = get_option( 'wphd_statuses', array() );
+        $active_tab    = isset( $_GET['status_tab'] ) ? sanitize_text_field( $_GET['status_tab'] ) : 'all';
+        ?>
+        <div class="wphd-created-tickets-today">
+            <h2><?php esc_html_e( 'Created Tickets (Today)', 'wp-helpdesk' ); ?></h2>
+            
+            <div class="wphd-status-tabs">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug ) ); ?>" 
+                   class="wphd-status-tab <?php echo $active_tab === 'all' ? 'active' : ''; ?>">
+                    <?php esc_html_e( 'All', 'wp-helpdesk' ); ?> (<?php echo esc_html( $today_stats['total'] ); ?>)
+                </a>
+                
+                <?php foreach ( $statuses as $status ) : ?>
+                    <?php
+                    if ( ! isset( $status['slug'] ) || ! isset( $status['name'] ) ) {
+                        continue;
+                    }
+                    $count = isset( $today_stats['by_status'][ $status['slug'] ] ) ? $today_stats['by_status'][ $status['slug'] ] : 0;
+                    if ( $count === 0 ) {
+                        continue; // Skip statuses with no tickets
+                    }
+                    ?>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '&status_tab=' . $status['slug'] ) ); ?>" 
+                       class="wphd-status-tab <?php echo $active_tab === $status['slug'] ? 'active' : ''; ?>">
+                        <?php echo esc_html( $status['name'] ); ?> (<?php echo esc_html( $count ); ?>)
+                    </a>
+                <?php endforeach; ?>
+            </div>
+
+            <?php
+            // Filter tickets by active tab
+            $filtered_tickets = $today_tickets;
+            if ( $active_tab !== 'all' ) {
+                $filtered_tickets = array_filter( $today_tickets, function( $ticket ) use ( $active_tab ) {
+                    $status = get_post_meta( $ticket->ID, '_wphd_status', true );
+                    return $status === $active_tab;
+                } );
             }
+            ?>
 
-            // Validate and sanitize color
-            $color = isset( $status['color'] ) ? sanitize_hex_color( $status['color'] ) : '';
-            if ( empty( $color ) ) {
-                $color = '#999999'; // Default gray color
+            <?php if ( ! empty( $filtered_tickets ) ) : ?>
+                <div class="wphd-tickets-table-container">
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;"><?php esc_html_e( 'ID', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 30%;"><?php esc_html_e( 'Subject', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 12%;"><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 12%;"><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 15%;"><?php esc_html_e( 'Category', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 13%;"><?php esc_html_e( 'Assignee', 'wp-helpdesk' ); ?></th>
+                                <th style="width: 10%;"><?php esc_html_e( 'Date', 'wp-helpdesk' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $filtered_tickets as $ticket ) : ?>
+                                <?php
+                                $ticket_id = $ticket->ID;
+                                $status    = get_post_meta( $ticket_id, '_wphd_status', true );
+                                $priority  = get_post_meta( $ticket_id, '_wphd_priority', true );
+                                $category  = get_post_meta( $ticket_id, '_wphd_category', true );
+                                $assignee  = get_post_meta( $ticket_id, '_wphd_assignee', true );
+                                
+                                $assignee_name = __( 'Unassigned', 'wp-helpdesk' );
+                                if ( $assignee ) {
+                                    $assignee_user = get_userdata( $assignee );
+                                    if ( $assignee_user ) {
+                                        $assignee_name = $assignee_user->display_name;
+                                    }
+                                }
+                                ?>
+                                <tr>
+                                    <td><strong>#<?php echo esc_html( $ticket_id ); ?></strong></td>
+                                    <td>
+                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket_id ) ); ?>">
+                                            <?php echo esc_html( $ticket->post_title ); ?>
+                                        </a>
+                                    </td>
+                                    <td><?php echo wp_kses_post( $this->get_status_label( $status ) ); ?></td>
+                                    <td><?php echo wp_kses_post( $this->get_priority_label( $priority ) ); ?></td>
+                                    <td><?php echo esc_html( $this->get_category_label( $category ) ); ?></td>
+                                    <td>
+                                        <?php if ( $assignee ) : ?>
+                                            <?php echo get_avatar( $assignee, 24, '', '', array( 'class' => 'wphd-avatar' ) ); ?>
+                                        <?php endif; ?>
+                                        <?php echo esc_html( $assignee_name ); ?>
+                                    </td>
+                                    <td><?php echo esc_html( get_the_time( 'H:i', $ticket ) ); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else : ?>
+                <div class="wphd-empty-state">
+                    <p><?php esc_html_e( 'No tickets created today.', 'wp-helpdesk' ); ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Get urgent tickets (priority 1, open/in-progress).
+     *
+     * @since 1.0.0
+     * @return array Array of WP_Post objects
+     */
+    private function get_urgent_tickets() {
+        $args = array(
+            'post_type'      => 'wphd_ticket',
+            'post_status'    => 'publish',
+            'posts_per_page' => 20,
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+            'meta_query'     => array(
+                'relation' => 'AND',
+                array(
+                    'key'     => '_wphd_priority',
+                    'value'   => '1',
+                    'compare' => '=',
+                ),
+                array(
+                    'key'     => '_wphd_status',
+                    'value'   => array( 'open', 'in-progress' ),
+                    'compare' => 'IN',
+                ),
+            ),
+        );
+
+        $query = new WP_Query( $args );
+        return $query->posts;
+    }
+
+    /**
+     * Get all tickets created today.
+     *
+     * @since 1.0.0
+     * @return array Array of WP_Post objects
+     */
+    private function get_today_tickets() {
+        // Use transient caching for 5 minutes
+        $cache_key = 'wphd_today_tickets_' . get_current_user_id();
+        $cached    = get_transient( $cache_key );
+        
+        if ( false !== $cached ) {
+            return $cached;
+        }
+
+        $args = array(
+            'post_type'      => 'wphd_ticket',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'date_query'     => array(
+                array(
+                    'after'     => 'today',
+                    'inclusive' => true,
+                ),
+            ),
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+        );
+
+        $query   = new WP_Query( $args );
+        $tickets = $query->posts;
+        
+        set_transient( $cache_key, $tickets, 5 * MINUTE_IN_SECONDS );
+        
+        return $tickets;
+    }
+
+    /**
+     * Get today's tickets grouped by status.
+     *
+     * @since 1.0.0
+     * @return array Array with 'total' and 'by_status' keys
+     */
+    private function get_today_tickets_by_status() {
+        $tickets = $this->get_today_tickets();
+        $result  = array(
+            'total'     => count( $tickets ),
+            'by_status' => array(),
+        );
+
+        foreach ( $tickets as $ticket ) {
+            $status = get_post_meta( $ticket->ID, '_wphd_status', true );
+            if ( ! isset( $result['by_status'][ $status ] ) ) {
+                $result['by_status'][ $status ] = 0;
             }
+            $result['by_status'][ $status ]++;
+        }
 
-            $status_counts[ $status['slug'] ] = array(
-                'label' => $status['name'],
-                'count' => $this->count_tickets_by_status( $status['slug'] ),
-                'color' => $color
+        return $result;
+    }
+
+    /**
+     * Calculate SLA time remaining for a ticket.
+     *
+     * @since 1.0.0
+     * @param int $ticket_id Ticket ID
+     * @return array Array with 'time_display', 'status_class', and 'type' keys
+     */
+    private function calculate_sla_time_remaining( $ticket_id ) {
+        $sla = WPHD_Database::get_sla( $ticket_id );
+        
+        if ( ! $sla ) {
+            return array(
+                'time_display'  => __( 'No SLA', 'wp-helpdesk' ),
+                'status_class'  => 'no-sla',
+                'type'          => '',
             );
         }
+
+        $now = current_time( 'timestamp' );
         
-        // Get recent tickets
-        $recent_tickets = get_posts(
-            array(
-                'post_type'      => 'wphd_ticket',
-                'post_status'    => 'publish',
-                'posts_per_page' => 10,
-                'orderby'        => 'date',
-                'order'          => 'DESC',
-            )
+        // Determine which SLA to show (first response or resolution)
+        if ( ! $sla->first_response_at && $sla->first_response_due ) {
+            $deadline       = strtotime( $sla->first_response_due );
+            $type           = __( 'First Response', 'wp-helpdesk' );
+            $created        = strtotime( get_post_field( 'post_date', $ticket_id ) );
+            $total_duration = $deadline - $created;
+        } elseif ( $sla->resolution_due ) {
+            $deadline       = strtotime( $sla->resolution_due );
+            $type           = __( 'Resolution', 'wp-helpdesk' );
+            $created        = strtotime( get_post_field( 'post_date', $ticket_id ) );
+            $total_duration = $deadline - $created;
+        } else {
+            return array(
+                'time_display'  => __( 'No SLA', 'wp-helpdesk' ),
+                'status_class'  => 'no-sla',
+                'type'          => '',
+            );
+        }
+
+        $remaining = $deadline - $now;
+        
+        // Determine status and color
+        if ( $remaining < 0 ) {
+            $status_class = 'breached';
+            $time_display = sprintf( __( 'Overdue by %s', 'wp-helpdesk' ), human_time_diff( $now, $deadline ) );
+        } elseif ( $remaining < ( $total_duration * 0.25 ) ) {
+            $status_class = 'warning';
+            $time_display = human_time_diff( $now, $deadline );
+        } else {
+            $status_class = 'ok';
+            $time_display = human_time_diff( $now, $deadline );
+        }
+
+        return array(
+            'time_display'  => $time_display,
+            'status_class'  => $status_class,
+            'type'          => $type,
+            'remaining'     => $remaining,
         );
-        ?>
-        <div class="wp-helpdesk-widgets" style="display: flex; gap: 20px; margin-top: 20px;">
-            <div class="wp-helpdesk-widget" style="flex: 1; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h3><?php esc_html_e( 'Ticket Statistics', 'wp-helpdesk' ); ?></h3>
-                <ul style="list-style: none; padding: 0;">
-                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <?php esc_html_e( 'Total Tickets:', 'wp-helpdesk' ); ?> <strong><?php echo esc_html( $total_count ); ?></strong>
-                    </li>
-                    <?php
-                    $status_index = 0;
-                    $status_total = count( $status_counts );
-                    foreach ( $status_counts as $slug => $status_data ) :
-                        $status_index++;
-                        $border_style = ( $status_index < $status_total ) ? 'border-bottom: 1px solid #eee;' : '';
-                        ?>
-                        <li style="padding: 8px 0; <?php echo esc_attr( $border_style ); ?>">
-                            <span class="wphd-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: <?php echo esc_attr( $status_data['color'] ); ?>; margin-right: 5px;"></span>
-                            <?php echo esc_html( $status_data['label'] ); ?>: <strong><?php echo esc_html( $status_data['count'] ); ?></strong>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-            <div class="wp-helpdesk-widget" style="flex: 1; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h3><?php esc_html_e( 'Quick Actions', 'wp-helpdesk' ); ?></h3>
-                <p>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-add-ticket' ) ); ?>" class="button button-primary button-large" style="margin-right: 10px;">
-                        <?php esc_html_e( 'Create New Ticket', 'wp-helpdesk' ); ?>
-                    </a>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets' ) ); ?>" class="button button-large">
-                        <?php esc_html_e( 'View All Tickets', 'wp-helpdesk' ); ?>
-                    </a>
-                </p>
-            </div>
-        </div>
-        
-        <?php if ( ! empty( $recent_tickets ) ) : ?>
-        <div style="margin-top: 20px; background: #fff; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h3><?php esc_html_e( 'Recent Tickets', 'wp-helpdesk' ); ?></h3>
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <th><?php esc_html_e( 'ID', 'wp-helpdesk' ); ?></th>
-                        <th><?php esc_html_e( 'Subject', 'wp-helpdesk' ); ?></th>
-                        <th><?php esc_html_e( 'Status', 'wp-helpdesk' ); ?></th>
-                        <th><?php esc_html_e( 'Priority', 'wp-helpdesk' ); ?></th>
-                        <th><?php esc_html_e( 'Date', 'wp-helpdesk' ); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $recent_tickets as $ticket ) : ?>
-                        <?php
-                        $status   = get_post_meta( $ticket->ID, '_wphd_status', true );
-                        $priority = get_post_meta( $ticket->ID, '_wphd_priority', true );
-                        ?>
-                        <tr>
-                            <td><strong>#<?php echo esc_html( $ticket->ID ); ?></strong></td>
-                            <td>
-                                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $this->menu_slug . '-tickets&ticket_id=' . $ticket->ID ) ); ?>">
-                                    <?php echo esc_html( $ticket->post_title ); ?>
-                                </a>
-                            </td>
-                            <td><?php echo wp_kses_post( $this->get_status_label( $status ) ); ?></td>
-                            <td><?php echo wp_kses_post( $this->get_priority_label( $priority ) ); ?></td>
-                            <td><?php echo esc_html( get_the_date( '', $ticket ) ); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <?php endif; ?>
-        <?php
     }
 
     /**

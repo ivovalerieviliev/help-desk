@@ -66,6 +66,9 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
         add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
         add_action('wp_ajax_wphd_update_filter', array($this, 'update_filter'));
+        
+        // Dashboard AJAX
+        add_action('wp_ajax_wphd_refresh_urgent_tickets', array($this, 'refresh_urgent_tickets'));
     }
     
     private function verify_nonce() {
@@ -1400,5 +1403,55 @@ class WPHD_Ajax_Handler {
         }
         
         wp_send_json_error(array('message' => __('Failed to update filter', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Refresh urgent tickets for dashboard
+     * 
+     * @since 1.0.0
+     */
+    public function refresh_urgent_tickets() {
+        $this->verify_nonce();
+        
+        // Check dashboard access
+        if (!WPHD_Access_Control::can_access('dashboard')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
+        // Get urgent tickets
+        $args = array(
+            'post_type'      => 'wphd_ticket',
+            'post_status'    => 'publish',
+            'posts_per_page' => 20,
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+            'meta_query'     => array(
+                'relation' => 'AND',
+                array(
+                    'key'     => '_wphd_priority',
+                    'value'   => '1',
+                    'compare' => '=',
+                ),
+                array(
+                    'key'     => '_wphd_status',
+                    'value'   => array('open', 'in-progress'),
+                    'compare' => 'IN',
+                ),
+            ),
+        );
+        
+        $query = new WP_Query($args);
+        $urgent_tickets = $query->posts;
+        
+        // Generate HTML
+        ob_start();
+        include WPHD_PLUGIN_DIR . 'admin/partials/dashboard-urgent-tickets.php';
+        $html = ob_get_clean();
+        
+        wp_send_json_success(array(
+            'html' => $html,
+            'count' => count($urgent_tickets),
+            'timestamp' => current_time('H:i:s')
+        ));
     }
 }
