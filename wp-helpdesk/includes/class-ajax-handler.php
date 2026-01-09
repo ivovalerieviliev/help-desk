@@ -1022,7 +1022,7 @@ class WPHD_Ajax_Handler {
     public function search_users() {
         $this->verify_nonce();
         
-        $search = sanitize_text_field($_GET['search'] ?? '');
+        $search = sanitize_text_field($_POST['search'] ?? '');
         
         if (strlen($search) < 2) {
             wp_send_json_success(array('results' => array()));
@@ -1059,7 +1059,7 @@ class WPHD_Ajax_Handler {
         $name = sanitize_text_field($_POST['name'] ?? '');
         $description = sanitize_textarea_field($_POST['description'] ?? '');
         $filter_type = sanitize_text_field($_POST['filter_type'] ?? 'user');
-        $filter_config = $_POST['filter_config'] ?? array();
+        $filter_config = isset($_POST['filter_config']) && is_array($_POST['filter_config']) ? $_POST['filter_config'] : array();
         
         if (empty($name)) {
             wp_send_json_error(array('message' => __('Filter name is required', 'wp-helpdesk')));
@@ -1094,10 +1094,18 @@ class WPHD_Ajax_Handler {
             $sanitized_config['reporter'] = intval($filter_config['reporter']);
         }
         if (!empty($filter_config['date_from'])) {
-            $sanitized_config['date_from'] = sanitize_text_field($filter_config['date_from']);
+            $date_from = sanitize_text_field($filter_config['date_from']);
+            // Validate date format
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) {
+                $sanitized_config['date_from'] = $date_from;
+            }
         }
         if (!empty($filter_config['date_to'])) {
-            $sanitized_config['date_to'] = sanitize_text_field($filter_config['date_to']);
+            $date_to = sanitize_text_field($filter_config['date_to']);
+            // Validate date format
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
+                $sanitized_config['date_to'] = $date_to;
+            }
         }
         if (!empty($filter_config['search'])) {
             $sanitized_config['search'] = sanitize_text_field($filter_config['search']);
@@ -1215,7 +1223,6 @@ class WPHD_Ajax_Handler {
         if ($is_default !== null) {
             $data['is_default'] = $is_default;
         }
-        );
         
         $result = WPHD_Queue_Filters::update($filter_id, $data);
         

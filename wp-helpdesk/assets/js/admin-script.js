@@ -662,7 +662,7 @@
                 var filterType = $('input[name="filter_type"]:checked').val();
                 
                 if (!name) {
-                    alert('Please enter a filter name');
+                    $('#wphd-save-filter-message').html('<div class="notice notice-error"><p>Please enter a filter name</p></div>');
                     return;
                 }
                 
@@ -713,6 +713,7 @@
                 ajax: {
                     url: wpHelpDesk.ajaxUrl,
                     dataType: 'json',
+                    type: 'POST',
                     delay: 250,
                     data: function(params) {
                         return {
@@ -750,7 +751,7 @@
                 if (response.success) {
                     window.location.reload();
                 } else {
-                    alert(response.data.message || 'Failed to delete filter');
+                    WPHD.showNotice(response.data.message || 'Failed to delete filter', 'error');
                 }
             });
         },
@@ -765,7 +766,7 @@
                 if (response.success) {
                     window.location.reload();
                 } else {
-                    alert(response.data.message || 'Failed to set default filter');
+                    WPHD.showNotice(response.data.message || 'Failed to set default filter', 'error');
                 }
             });
         }
@@ -787,5 +788,4 @@
             WPHD.Filters.setDefaultFilter(filterId);
         });
     });
-})(jQuery);
 })(jQuery);

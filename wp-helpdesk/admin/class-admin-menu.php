@@ -850,7 +850,7 @@ class WPHD_Admin_Menu {
                             || ! empty( $date_from ) || ! empty( $date_to ) || ! empty( $search );
         ?>
         <form method="get" action="" class="wphd-filter-form">
-            <input type="hidden" name="page" value="<?php echo esc_attr( $_GET['page'] ?? '' ); ?>" />
+            <input type="hidden" name="page" value="<?php echo esc_attr( isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '' ); ?>" />
             
             <div class="tablenav top wphd-filter-ribbon">
                 <div class="alignleft actions">
@@ -918,7 +918,7 @@ class WPHD_Admin_Menu {
                     <button type="submit" class="button"><?php esc_html_e( 'Filter', 'wp-helpdesk' ); ?></button>
                     
                     <?php if ( $has_active_filters ) : ?>
-                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . ( $_GET['page'] ?? '' ) ) ); ?>" 
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . ( isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '' ) ) ); ?>" 
                            class="button"><?php esc_html_e( 'Clear Filters', 'wp-helpdesk' ); ?></a>
                     <?php endif; ?>
                 </div>
