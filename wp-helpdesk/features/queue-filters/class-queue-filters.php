@@ -490,7 +490,9 @@ class WPHD_Queue_Filters {
 		// Find "open" status.
 		$open_statuses = array();
 		foreach ( $statuses as $status ) {
-			if ( 'open' === $status['slug'] || stripos( $status['name'], 'open' ) !== false ) {
+			// Check for exact slug match or if the name is exactly 'Open' (case-insensitive).
+			if ( 'open' === $status['slug'] || 
+			     ( isset( $status['name'] ) && 'open' === strtolower( trim( $status['name'] ) ) ) ) {
 				$open_statuses[] = $status['slug'];
 			}
 		}
@@ -498,7 +500,9 @@ class WPHD_Queue_Filters {
 		// Find "in-progress" status.
 		$in_progress_statuses = array();
 		foreach ( $statuses as $status ) {
-			if ( 'in-progress' === $status['slug'] || stripos( $status['name'], 'progress' ) !== false ) {
+			// Check for exact slug match or specific name variations.
+			if ( in_array( $status['slug'], array( 'in-progress', 'in_progress', 'inprogress' ), true ) ||
+			     ( isset( $status['name'] ) && preg_match( '/^in[\s\-_]?progress$/i', trim( $status['name'] ) ) ) ) {
 				$in_progress_statuses[] = $status['slug'];
 			}
 		}

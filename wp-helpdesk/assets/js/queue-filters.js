@@ -63,7 +63,7 @@
 						data: function(params) {
 							return {
 								action: 'wphd_search_users_for_filter',
-								nonce: wpHelpDesk.queueFilterNonce || wpHelpDesk.nonce,
+								nonce: wpHelpDesk.queueFilterNonce,
 								search: params.term
 							};
 						},
