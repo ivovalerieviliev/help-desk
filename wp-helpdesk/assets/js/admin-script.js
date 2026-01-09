@@ -641,4 +641,151 @@
         });
     };
 
+    // Filter Enhancement - Save Filter functionality
+    WPHD.Filters = {
+        init: function() {
+            // Show/hide save filter form
+            $(document).on('click', '#wphd-show-save-filter', function() {
+                $('#wphd-save-filter-form').slideDown();
+                $(this).prop('disabled', true);
+            });
+            
+            $(document).on('click', '#wphd-cancel-save-filter', function() {
+                $('#wphd-save-filter-form').slideUp();
+                $('#wphd-show-save-filter').prop('disabled', false);
+            });
+            
+            // Save filter
+            $(document).on('click', '#wphd-save-filter-btn', function() {
+                var name = $('#wphd-filter-name').val().trim();
+                var description = $('#wphd-filter-description').val().trim();
+                var filterType = $('input[name="filter_type"]:checked').val();
+                
+                if (!name) {
+                    alert('Please enter a filter name');
+                    return;
+                }
+                
+                // Get current filter configuration from URL
+                var urlParams = new URLSearchParams(window.location.search);
+                var filterConfig = {};
+                
+                if (urlParams.get('status')) filterConfig.status = urlParams.get('status');
+                if (urlParams.get('priority')) filterConfig.priority = urlParams.get('priority');
+                if (urlParams.get('category')) filterConfig.category = urlParams.get('category');
+                if (urlParams.get('assignee')) filterConfig.assignee = urlParams.get('assignee');
+                if (urlParams.get('reporter')) filterConfig.reporter = urlParams.get('reporter');
+                if (urlParams.get('date_from')) filterConfig.date_from = urlParams.get('date_from');
+                if (urlParams.get('date_to')) filterConfig.date_to = urlParams.get('date_to');
+                if (urlParams.get('search')) filterConfig.search = urlParams.get('search');
+                
+                $.post(wpHelpDesk.ajaxUrl, {
+                    action: 'wphd_save_filter',
+                    nonce: wpHelpDesk.nonce,
+                    name: name,
+                    description: description,
+                    filter_type: filterType,
+                    filter_config: filterConfig
+                }, function(response) {
+                    if (response.success) {
+                        $('#wphd-save-filter-message').html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                        setTimeout(function() {
+                            $('#wphd-save-filter-form').slideUp();
+                            $('#wphd-show-save-filter').text('✅ Saved').prop('disabled', true);
+                        }, 2000);
+                    } else {
+                        $('#wphd-save-filter-message').html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
+                    }
+                });
+            });
+            
+            // Initialize Select2 for user fields
+            this.initSelect2();
+        },
+        
+        initSelect2: function() {
+            if (typeof $.fn.select2 === 'undefined') {
+                // Select2 not loaded, fall back to regular selects
+                return;
+            }
+            
+            $('.wphd-user-select').select2({
+                ajax: {
+                    url: wpHelpDesk.ajaxUrl,
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            action: 'wphd_search_users',
+                            nonce: wpHelpDesk.nonce,
+                            search: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        if (data.success) {
+                            return {
+                                results: data.data.results
+                            };
+                        }
+                        return { results: [] };
+                    },
+                    cache: true
+                },
+                minimumInputLength: 2,
+                placeholder: 'Search for a user...',
+                allowClear: true
+            });
+        },
+        
+        deleteFilter: function(filterId) {
+            if (!confirm('Are you sure you want to delete this filter?')) {
+                return;
+            }
+            
+            $.post(wpHelpDesk.ajaxUrl, {
+                action: 'wphd_delete_filter',
+                nonce: wpHelpDesk.nonce,
+                filter_id: filterId
+            }, function(response) {
+                if (response.success) {
+                    window.location.reload();
+                } else {
+                    alert(response.data.message || 'Failed to delete filter');
+                }
+            });
+        },
+        
+        setDefaultFilter: function(filterId) {
+            $.post(wpHelpDesk.ajaxUrl, {
+                action: 'wphd_update_filter',
+                nonce: wpHelpDesk.nonce,
+                filter_id: filterId,
+                is_default: 1
+            }, function(response) {
+                if (response.success) {
+                    window.location.reload();
+                } else {
+                    alert(response.data.message || 'Failed to set default filter');
+                }
+            });
+        }
+    };
+
+    $(document).ready(function() {
+        WPHD.init();
+        WPHD.ActionItems.init();
+        WPHD.Filters.init();
+        
+        // Queue page filter actions
+        $(document).on('click', '.wphd-delete-filter', function() {
+            var filterId = $(this).data('filter-id');
+            WPHD.Filters.deleteFilter(filterId);
+        });
+        
+        $(document).on('click', '.wphd-set-default-filter', function() {
+            var filterId = $(this).data('filter-id');
+            WPHD.Filters.setDefaultFilter(filterId);
+        });
+    });
+})(jQuery);
 })(jQuery);
