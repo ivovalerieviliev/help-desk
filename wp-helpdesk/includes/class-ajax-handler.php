@@ -55,6 +55,10 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_add_shift', array($this, 'add_shift'));
         add_action('wp_ajax_wphd_update_shift', array($this, 'update_shift'));
         add_action('wp_ajax_wphd_delete_shift', array($this, 'delete_shift'));
+        add_action('wp_ajax_wphd_search_users', array($this, 'search_users'));
+        add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
+        add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
+        add_action('wp_ajax_wphd_update_filter', array($this, 'update_filter'));
     }
     
     private function verify_nonce() {
@@ -1010,5 +1014,222 @@ class WPHD_Ajax_Handler {
         }
         
         wp_send_json_error(array('message' => __('Failed to delete shift', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Search users for autocomplete
+     */
+    public function search_users() {
+        $this->verify_nonce();
+        
+        $search = sanitize_text_field($_POST['search'] ?? '');
+        
+        if (strlen($search) < 2) {
+            wp_send_json_success(array('results' => array()));
+        }
+        
+        $args = array(
+            'search' => '*' . $search . '*',
+            'search_columns' => array('user_login', 'user_email', 'display_name'),
+            'number' => 20,
+            'orderby' => 'display_name',
+        );
+        
+        $users = get_users($args);
+        $results = array();
+        
+        foreach ($users as $user) {
+            $results[] = array(
+                'id' => $user->ID,
+                'text' => $user->display_name . ' (' . $user->user_email . ')',
+                'display_name' => $user->display_name,
+                'email' => $user->user_email,
+            );
+        }
+        
+        wp_send_json_success(array('results' => $results));
+    }
+    
+    /**
+     * Save a filter
+     */
+    public function save_filter() {
+        $this->verify_nonce();
+        
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $description = sanitize_textarea_field($_POST['description'] ?? '');
+        $filter_type = sanitize_text_field($_POST['filter_type'] ?? 'user');
+        $filter_config = isset($_POST['filter_config']) && is_array($_POST['filter_config']) ? $_POST['filter_config'] : array();
+        
+        if (empty($name)) {
+            wp_send_json_error(array('message' => __('Filter name is required', 'wp-helpdesk')));
+        }
+        
+        // Check permissions
+        if ($filter_type === 'organization') {
+            if (!WPHD_Access_Control::can_access('queue_filters_org_manage')) {
+                wp_send_json_error(array('message' => __('You do not have permission to create organization filters', 'wp-helpdesk')));
+            }
+        } else {
+            if (!WPHD_Access_Control::can_access('queue_filters_user_create')) {
+                wp_send_json_error(array('message' => __('You do not have permission to create filters', 'wp-helpdesk')));
+            }
+        }
+        
+        // Sanitize filter config
+        $sanitized_config = array();
+        if (!empty($filter_config['status'])) {
+            $sanitized_config['status'] = sanitize_text_field($filter_config['status']);
+        }
+        if (!empty($filter_config['priority'])) {
+            $sanitized_config['priority'] = sanitize_text_field($filter_config['priority']);
+        }
+        if (!empty($filter_config['category'])) {
+            $sanitized_config['category'] = sanitize_text_field($filter_config['category']);
+        }
+        if (!empty($filter_config['assignee'])) {
+            $sanitized_config['assignee'] = intval($filter_config['assignee']);
+        }
+        if (!empty($filter_config['reporter'])) {
+            $sanitized_config['reporter'] = intval($filter_config['reporter']);
+        }
+        if (!empty($filter_config['date_from'])) {
+            $date_from = sanitize_text_field($filter_config['date_from']);
+            // Validate date format
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) {
+                $sanitized_config['date_from'] = $date_from;
+            }
+        }
+        if (!empty($filter_config['date_to'])) {
+            $date_to = sanitize_text_field($filter_config['date_to']);
+            // Validate date format
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
+                $sanitized_config['date_to'] = $date_to;
+            }
+        }
+        if (!empty($filter_config['search'])) {
+            $sanitized_config['search'] = sanitize_text_field($filter_config['search']);
+        }
+        
+        $data = array(
+            'name' => $name,
+            'description' => $description,
+            'filter_type' => $filter_type,
+            'filter_config' => wp_json_encode($sanitized_config),
+        );
+        
+        // Get organization if applicable
+        if ($filter_type === 'organization' && class_exists('WPHD_Organizations')) {
+            $user_org = WPHD_Organizations::get_user_organization(get_current_user_id());
+            if ($user_org) {
+                $data['organization_id'] = $user_org->id;
+            }
+        }
+        
+        $filter_id = WPHD_Queue_Filters::create($data);
+        
+        if ($filter_id) {
+            wp_send_json_success(array(
+                'message' => __('Filter saved successfully', 'wp-helpdesk'),
+                'filter_id' => $filter_id,
+            ));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to save filter', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Delete a filter
+     */
+    public function delete_filter() {
+        $this->verify_nonce();
+        
+        $filter_id = intval($_POST['filter_id'] ?? 0);
+        
+        if (!$filter_id) {
+            wp_send_json_error(array('message' => __('Invalid filter ID', 'wp-helpdesk')));
+        }
+        
+        $filter = WPHD_Queue_Filters::get($filter_id);
+        
+        if (!$filter) {
+            wp_send_json_error(array('message' => __('Filter not found', 'wp-helpdesk')));
+        }
+        
+        // Check permissions
+        $current_user_id = get_current_user_id();
+        if ($filter->filter_type === 'organization') {
+            if (!WPHD_Access_Control::can_access('queue_filters_org_manage')) {
+                wp_send_json_error(array('message' => __('You do not have permission to delete organization filters', 'wp-helpdesk')));
+            }
+        } else {
+            if ($filter->user_id != $current_user_id && !WPHD_Access_Control::can_access('queue_filters_user_manage')) {
+                wp_send_json_error(array('message' => __('You do not have permission to delete this filter', 'wp-helpdesk')));
+            }
+        }
+        
+        $result = WPHD_Queue_Filters::delete($filter_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Filter deleted successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to delete filter', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Update a filter
+     */
+    public function update_filter() {
+        $this->verify_nonce();
+        
+        $filter_id = intval($_POST['filter_id'] ?? 0);
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $description = sanitize_textarea_field($_POST['description'] ?? '');
+        $is_default = isset($_POST['is_default']) ? intval($_POST['is_default']) : null;
+        
+        if (!$filter_id) {
+            wp_send_json_error(array('message' => __('Invalid filter ID', 'wp-helpdesk')));
+        }
+        
+        $filter = WPHD_Queue_Filters::get($filter_id);
+        
+        if (!$filter) {
+            wp_send_json_error(array('message' => __('Filter not found', 'wp-helpdesk')));
+        }
+        
+        // Check permissions
+        $current_user_id = get_current_user_id();
+        if ($filter->filter_type === 'organization') {
+            if (!WPHD_Access_Control::can_access('queue_filters_org_manage')) {
+                wp_send_json_error(array('message' => __('You do not have permission to update organization filters', 'wp-helpdesk')));
+            }
+        } else {
+            if ($filter->user_id != $current_user_id && !WPHD_Access_Control::can_access('queue_filters_user_manage')) {
+                wp_send_json_error(array('message' => __('You do not have permission to update this filter', 'wp-helpdesk')));
+            }
+        }
+        
+        $data = array();
+        
+        if (!empty($name)) {
+            $data['name'] = $name;
+        }
+        
+        if (isset($_POST['description'])) {
+            $data['description'] = $description;
+        }
+        
+        if ($is_default !== null) {
+            $data['is_default'] = $is_default;
+        }
+        
+        $result = WPHD_Queue_Filters::update($filter_id, $data);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Filter updated successfully', 'wp-helpdesk')));
+        }
+        
+        wp_send_json_error(array('message' => __('Failed to update filter', 'wp-helpdesk')));
     }
 }
