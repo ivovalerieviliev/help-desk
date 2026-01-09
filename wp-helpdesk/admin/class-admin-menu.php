@@ -417,6 +417,22 @@ class WPHD_Admin_Menu {
                 WPHD_VERSION,
                 true
             );
+            
+            // Enqueue advanced filters
+            wp_enqueue_style(
+                'wp-helpdesk-advanced-filters',
+                WPHD_PLUGIN_URL . 'assets/css/advanced-filters.css',
+                array( 'wp-helpdesk-admin' ),
+                WPHD_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wp-helpdesk-advanced-filters',
+                WPHD_PLUGIN_URL . 'assets/js/advanced-filters.js',
+                array( 'jquery', 'select2', 'wp-helpdesk-admin' ),
+                WPHD_VERSION,
+                true
+            );
         }
 
         // Localize script with data.
@@ -443,6 +459,7 @@ class WPHD_Admin_Menu {
                     'export_csv'     => __( 'Export to CSV', 'wp-helpdesk' ),
                     'team_avg'       => __( 'team average', 'wp-helpdesk' ),
                     'select_placeholder' => __( 'Select...', 'wp-helpdesk' ),
+                    'confirm_delete_filter' => __( 'Are you sure you want to delete this filter?', 'wp-helpdesk' ),
                     'error_loading_filter' => __( 'Failed to load filter.', 'wp-helpdesk' ),
                     'error_deleting_filter' => __( 'Failed to delete filter.', 'wp-helpdesk' ),
                     'error_setting_default' => __( 'Failed to set default filter.', 'wp-helpdesk' ),

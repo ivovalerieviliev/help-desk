@@ -55,6 +55,13 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_add_shift', array($this, 'add_shift'));
         add_action('wp_ajax_wphd_update_shift', array($this, 'update_shift'));
         add_action('wp_ajax_wphd_delete_shift', array($this, 'delete_shift'));
+        
+        // Advanced Filters
+        add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
+        add_action('wp_ajax_wphd_update_filter', array($this, 'update_filter'));
+        add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
+        add_action('wp_ajax_wphd_preview_filter', array($this, 'preview_filter'));
+        add_action('wp_ajax_wphd_set_default_filter', array($this, 'set_default_filter'));
         add_action('wp_ajax_wphd_search_users', array($this, 'search_users'));
         add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
         add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
@@ -1017,6 +1024,99 @@ class WPHD_Ajax_Handler {
     }
     
     /**
+     * Save a new filter.
+     *
+     * @since 1.0.0
+     */
+    public function save_filter() {
+        $this->verify_nonce();
+        
+        $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
+        $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
+        $filter_config = isset($_POST['filter_config']) ? wp_unslash($_POST['filter_config']) : '';
+        $filter_type = isset($_POST['filter_type']) ? sanitize_text_field($_POST['filter_type']) : 'user';
+        $is_default = isset($_POST['is_default']) ? (bool) $_POST['is_default'] : false;
+        
+        if (empty($name) || empty($filter_config)) {
+            wp_send_json_error(array('message' => __('Filter name and configuration are required.', 'wp-helpdesk')));
+        }
+        
+        // Decode and validate filter config
+        $config_array = json_decode($filter_config, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error(array('message' => __('Invalid filter configuration format.', 'wp-helpdesk')));
+        }
+        
+        $data = array(
+            'name' => $name,
+            'description' => $description,
+            'filter_config' => $config_array,
+            'filter_type' => $filter_type,
+            'is_default' => $is_default ? 1 : 0,
+        );
+        
+        $result = WPHD_Filter_Manager::create($data);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Filter saved successfully.', 'wp-helpdesk'),
+            'filter_id' => $result
+        ));
+    }
+    
+    /**
+     * Update an existing filter.
+     *
+     * @since 1.0.0
+     */
+    public function update_filter() {
+        $this->verify_nonce();
+        
+        $filter_id = isset($_POST['filter_id']) ? intval($_POST['filter_id']) : 0;
+        
+        if (!$filter_id) {
+            wp_send_json_error(array('message' => __('Invalid filter ID.', 'wp-helpdesk')));
+        }
+        
+        $data = array();
+        
+        if (isset($_POST['name'])) {
+            $data['name'] = sanitize_text_field($_POST['name']);
+        }
+        
+        if (isset($_POST['description'])) {
+            $data['description'] = sanitize_textarea_field($_POST['description']);
+        }
+        
+        if (isset($_POST['filter_config'])) {
+            $filter_config = wp_unslash($_POST['filter_config']);
+            $config_array = json_decode($filter_config, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                wp_send_json_error(array('message' => __('Invalid filter configuration format.', 'wp-helpdesk')));
+            }
+            $data['filter_config'] = $config_array;
+        }
+        
+        if (isset($_POST['is_default'])) {
+            $data['is_default'] = (bool) $_POST['is_default'] ? 1 : 0;
+        }
+        
+        $result = WPHD_Filter_Manager::update($filter_id, $data);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success(array('message' => __('Filter updated successfully.', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Delete a filter.
+     *
+     * @since 1.0.0
      * Search users for autocomplete
      */
     public function search_users() {
@@ -1144,6 +1244,75 @@ class WPHD_Ajax_Handler {
     public function delete_filter() {
         $this->verify_nonce();
         
+        $filter_id = isset($_POST['filter_id']) ? intval($_POST['filter_id']) : 0;
+        
+        if (!$filter_id) {
+            wp_send_json_error(array('message' => __('Invalid filter ID.', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Filter_Manager::delete($filter_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success(array('message' => __('Filter deleted successfully.', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Preview filter results.
+     *
+     * @since 1.0.0
+     */
+    public function preview_filter() {
+        $this->verify_nonce();
+        
+        $filter_config = isset($_POST['filter_config']) ? wp_unslash($_POST['filter_config']) : '';
+        
+        if (empty($filter_config)) {
+            wp_send_json_error(array('message' => __('Filter configuration is required.', 'wp-helpdesk')));
+        }
+        
+        // Decode filter config
+        $config_array = json_decode($filter_config, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error(array('message' => __('Invalid filter configuration format.', 'wp-helpdesk')));
+        }
+        
+        // Get count only for preview
+        $count = WPHD_Advanced_Filter_Builder::execute_filter($config_array, 20, 1, true);
+        
+        wp_send_json_success(array(
+            'count' => $count,
+            'message' => sprintf(
+                /* translators: %d: number of tickets */
+                _n('%d ticket matches', '%d tickets match', $count, 'wp-helpdesk'),
+                $count
+            )
+        ));
+    }
+    
+    /**
+     * Set filter as default.
+     *
+     * @since 1.0.0
+     */
+    public function set_default_filter() {
+        $this->verify_nonce();
+        
+        $filter_id = isset($_POST['filter_id']) ? intval($_POST['filter_id']) : 0;
+        
+        if (!$filter_id) {
+            wp_send_json_error(array('message' => __('Invalid filter ID.', 'wp-helpdesk')));
+        }
+        
+        $result = WPHD_Filter_Manager::update($filter_id, array('is_default' => 1));
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success(array('message' => __('Default filter set successfully.', 'wp-helpdesk')));
         $filter_id = intval($_POST['filter_id'] ?? 0);
         
         if (!$filter_id) {

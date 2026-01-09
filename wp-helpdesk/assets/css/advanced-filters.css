@@ -1,0 +1,323 @@
+/**
+ * Advanced Filters CSS
+ *
+ * Styles for the advanced filter interface
+ *
+ * @package WP_HelpDesk
+ * @since   1.0.0
+ */
+
+/* Filter Panel */
+.wphd-filter-panel {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin: 20px 0;
+    padding: 20px;
+}
+
+.wphd-filter-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.wphd-filter-panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.wphd-filter-panel-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Filter Groups */
+.wphd-filter-groups {
+    margin: 20px 0;
+}
+
+.wphd-filter-group {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.wphd-filter-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.wphd-group-logic {
+    min-width: 100px;
+}
+
+.wphd-remove-group-btn {
+    color: #b32d2e;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.wphd-remove-group-btn:hover {
+    color: #d63638;
+}
+
+/* Filter Conditions */
+.wphd-filter-conditions {
+    margin: 10px 0;
+}
+
+.wphd-filter-condition {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    align-items: center;
+}
+
+.wphd-condition-field,
+.wphd-condition-operator,
+.wphd-condition-value {
+    flex: 1;
+    min-width: 150px;
+}
+
+.wphd-condition-value {
+    flex: 2;
+}
+
+.wphd-remove-condition-btn {
+    color: #b32d2e;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 5px 10px;
+}
+
+.wphd-remove-condition-btn:hover {
+    color: #d63638;
+}
+
+.wphd-add-condition-btn {
+    margin-top: 10px;
+}
+
+/* Filter Preview */
+.wphd-filter-preview {
+    background: #f0f6fc;
+    border: 1px solid #a7c2de;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin: 15px 0;
+}
+
+.wphd-preview-count {
+    font-weight: 600;
+    color: #0073aa;
+}
+
+.wphd-preview-error {
+    color: #d63638;
+}
+
+/* Filter Chips */
+.wphd-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+.wphd-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #2271b1;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.wphd-filter-chip-remove {
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.wphd-filter-chip-remove:hover {
+    color: #f0f0f0;
+}
+
+/* Filter List */
+.wphd-filters-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.wphd-filter-item {
+    border-bottom: 1px solid #dcdcde;
+    padding: 15px;
+}
+
+.wphd-filter-item:last-child {
+    border-bottom: none;
+}
+
+.wphd-filter-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.wphd-filter-item-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.wphd-filter-item-meta {
+    font-size: 12px;
+    color: #646970;
+}
+
+.wphd-filter-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wphd-filter-badge {
+    background: #007cba;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.wphd-filter-badge.default {
+    background: #007cba;
+}
+
+.wphd-filter-badge.organization {
+    background: #f0ad4e;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .wphd-filter-condition {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .wphd-condition-field,
+    .wphd-condition-operator,
+    .wphd-condition-value {
+        width: 100%;
+        min-width: 100%;
+    }
+    
+    .wphd-filter-panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .wphd-filter-panel-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .wphd-filter-panel-actions .button {
+        width: 100%;
+    }
+}
+
+/* Loading State */
+.wphd-filter-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.wphd-filter-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #2271b1;
+    border-radius: 50%;
+    animation: wphd-spin 1s linear infinite;
+}
+
+@keyframes wphd-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Sort Controls */
+.wphd-filter-sort {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.wphd-filter-sort label {
+    margin: 0 5px 0 0;
+    font-weight: 600;
+}
+
+#wphd-filter-sort-field,
+#wphd-filter-sort-order {
+    max-width: 200px;
+}
+
+/* Filter Count Badge */
+.wphd-filter-count-badge {
+    background: #2271b1;
+    color: #fff;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 5px;
+}
+
+/* Collapsible Filter Panel */
+.wphd-filter-panel.collapsed .wphd-filter-panel-body {
+    display: none;
+}
+
+.wphd-filter-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.wphd-filter-toggle::before {
+    content: '▼';
+    display: inline-block;
+    margin-right: 5px;
+    transition: transform 0.3s;
+}
+
+.wphd-filter-panel.collapsed .wphd-filter-toggle::before {
+    transform: rotate(-90deg);
+}
