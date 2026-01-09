@@ -63,9 +63,9 @@ class WPHD_Ajax_Handler {
         add_action('wp_ajax_wphd_preview_filter', array($this, 'preview_filter'));
         add_action('wp_ajax_wphd_set_default_filter', array($this, 'set_default_filter'));
         add_action('wp_ajax_wphd_search_users', array($this, 'search_users'));
-        add_action('wp_ajax_wphd_save_filter', array($this, 'save_filter'));
-        add_action('wp_ajax_wphd_delete_filter', array($this, 'delete_filter'));
-        add_action('wp_ajax_wphd_update_filter', array($this, 'update_filter'));
+        
+        // Dashboard AJAX
+        add_action('wp_ajax_wphd_refresh_urgent_tickets', array($this, 'refresh_urgent_tickets'));
     }
     
     private function verify_nonce() {
@@ -1024,99 +1024,6 @@ class WPHD_Ajax_Handler {
     }
     
     /**
-     * Save a new filter.
-     *
-     * @since 1.0.0
-     */
-    public function save_filter() {
-        $this->verify_nonce();
-        
-        $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
-        $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
-        $filter_config = isset($_POST['filter_config']) ? wp_unslash($_POST['filter_config']) : '';
-        $filter_type = isset($_POST['filter_type']) ? sanitize_text_field($_POST['filter_type']) : 'user';
-        $is_default = isset($_POST['is_default']) ? (bool) $_POST['is_default'] : false;
-        
-        if (empty($name) || empty($filter_config)) {
-            wp_send_json_error(array('message' => __('Filter name and configuration are required.', 'wp-helpdesk')));
-        }
-        
-        // Decode and validate filter config
-        $config_array = json_decode($filter_config, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            wp_send_json_error(array('message' => __('Invalid filter configuration format.', 'wp-helpdesk')));
-        }
-        
-        $data = array(
-            'name' => $name,
-            'description' => $description,
-            'filter_config' => $config_array,
-            'filter_type' => $filter_type,
-            'is_default' => $is_default ? 1 : 0,
-        );
-        
-        $result = WPHD_Filter_Manager::create($data);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
-        }
-        
-        wp_send_json_success(array(
-            'message' => __('Filter saved successfully.', 'wp-helpdesk'),
-            'filter_id' => $result
-        ));
-    }
-    
-    /**
-     * Update an existing filter.
-     *
-     * @since 1.0.0
-     */
-    public function update_filter() {
-        $this->verify_nonce();
-        
-        $filter_id = isset($_POST['filter_id']) ? intval($_POST['filter_id']) : 0;
-        
-        if (!$filter_id) {
-            wp_send_json_error(array('message' => __('Invalid filter ID.', 'wp-helpdesk')));
-        }
-        
-        $data = array();
-        
-        if (isset($_POST['name'])) {
-            $data['name'] = sanitize_text_field($_POST['name']);
-        }
-        
-        if (isset($_POST['description'])) {
-            $data['description'] = sanitize_textarea_field($_POST['description']);
-        }
-        
-        if (isset($_POST['filter_config'])) {
-            $filter_config = wp_unslash($_POST['filter_config']);
-            $config_array = json_decode($filter_config, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                wp_send_json_error(array('message' => __('Invalid filter configuration format.', 'wp-helpdesk')));
-            }
-            $data['filter_config'] = $config_array;
-        }
-        
-        if (isset($_POST['is_default'])) {
-            $data['is_default'] = (bool) $_POST['is_default'] ? 1 : 0;
-        }
-        
-        $result = WPHD_Filter_Manager::update($filter_id, $data);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
-        }
-        
-        wp_send_json_success(array('message' => __('Filter updated successfully.', 'wp-helpdesk')));
-    }
-    
-    /**
-     * Delete a filter.
-     *
-     * @since 1.0.0
      * Search users for autocomplete
      */
     public function search_users() {
@@ -1400,5 +1307,55 @@ class WPHD_Ajax_Handler {
         }
         
         wp_send_json_error(array('message' => __('Failed to update filter', 'wp-helpdesk')));
+    }
+    
+    /**
+     * Refresh urgent tickets for dashboard
+     * 
+     * @since 1.0.0
+     */
+    public function refresh_urgent_tickets() {
+        $this->verify_nonce();
+        
+        // Check dashboard access
+        if (!WPHD_Access_Control::can_access('dashboard')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'wp-helpdesk')));
+        }
+        
+        // Get urgent tickets
+        $args = array(
+            'post_type'      => 'wphd_ticket',
+            'post_status'    => 'publish',
+            'posts_per_page' => 20,
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+            'meta_query'     => array(
+                'relation' => 'AND',
+                array(
+                    'key'     => '_wphd_priority',
+                    'value'   => '1',
+                    'compare' => '=',
+                ),
+                array(
+                    'key'     => '_wphd_status',
+                    'value'   => array('open', 'in-progress'),
+                    'compare' => 'IN',
+                ),
+            ),
+        );
+        
+        $query = new WP_Query($args);
+        $urgent_tickets = $query->posts;
+        
+        // Generate HTML
+        ob_start();
+        include WPHD_PLUGIN_DIR . 'admin/partials/dashboard-urgent-tickets.php';
+        $html = ob_get_clean();
+        
+        wp_send_json_success(array(
+            'html' => $html,
+            'count' => count($urgent_tickets),
+            'timestamp' => current_time('H:i:s')
+        ));
     }
 }

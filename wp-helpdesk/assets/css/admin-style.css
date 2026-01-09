@@ -864,3 +864,285 @@
 .wphd-filter-actions .button {
     margin-right: 5px;
 }
+
+/* Dashboard Redesign Styles */
+
+/* Take Action Section */
+.wphd-take-action-section {
+    background: #FFF9E6;
+    border: 2px solid #FFA500;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.15);
+}
+
+.wphd-take-action-section .wphd-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #FFA500;
+}
+
+.wphd-take-action-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #D97706;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wphd-take-action-section h2 .dashicons {
+    color: #FFA500;
+    font-size: 24px;
+}
+
+.wphd-last-updated {
+    font-size: 12px;
+    color: #666;
+}
+
+.wphd-urgent-table-container {
+    background: #fff;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.wphd-urgent-table {
+    margin: 0;
+}
+
+.wphd-urgent-table th {
+    background: #f9f9f9;
+    font-weight: 600;
+}
+
+.wphd-looking-placeholder {
+    font-size: 18px;
+    opacity: 0.3;
+    cursor: help;
+}
+
+/* SLA Time Remaining Styles */
+.wphd-time-remaining {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 12px;
+    min-width: 100px;
+}
+
+.wphd-time-remaining.breached {
+    background-color: #F8D7DA;
+    color: #721C24;
+    border-left: 4px solid #D63638;
+}
+
+.wphd-time-remaining.warning {
+    background-color: #FFF3CD;
+    color: #856404;
+    border-left: 4px solid #FFA500;
+}
+
+.wphd-time-remaining.ok {
+    background-color: #D4EDDA;
+    color: #155724;
+    border-left: 4px solid #00A32A;
+}
+
+.wphd-time-remaining.no-sla {
+    background-color: #E2E3E5;
+    color: #6C757D;
+}
+
+/* Real-time Metrics Section */
+.wphd-realtime-metrics {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wphd-realtime-metrics h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: #1d2327;
+}
+
+.wphd-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.wphd-metric-card {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wphd-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.wphd-metric-card.wphd-metric-urgent {
+    background-color: #FFEBEE;
+    border-color: #D63638;
+    border-width: 2px;
+}
+
+.wphd-metric-number {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2271b1;
+    line-height: 1;
+}
+
+.wphd-metric-card.wphd-metric-urgent .wphd-metric-number {
+    color: #D63638;
+}
+
+.wphd-metric-label {
+    font-size: 13px;
+    color: #646970;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+/* Created Tickets Today Section */
+.wphd-created-tickets-today {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.wphd-created-tickets-today h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: #1d2327;
+}
+
+/* Status Tabs */
+.wphd-status-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #ddd;
+    flex-wrap: wrap;
+    overflow-x: auto;
+}
+
+.wphd-status-tab {
+    padding: 10px 16px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    text-decoration: none;
+    color: #2c3338;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.wphd-status-tab:hover {
+    background: #e8e8e8;
+    color: #2271b1;
+}
+
+.wphd-status-tab.active {
+    background: #fff;
+    color: #2271b1;
+    border-color: #2271b1;
+    border-bottom-color: #fff;
+    margin-bottom: -2px;
+    padding-bottom: 12px;
+    font-weight: 600;
+}
+
+/* Tickets Table Container */
+.wphd-tickets-table-container {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+/* Empty State */
+.wphd-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+    background: #f9f9f9;
+    border-radius: 4px;
+    border: 2px dashed #ddd;
+}
+
+.wphd-empty-state p {
+    font-size: 16px;
+    margin: 0;
+}
+
+/* Avatar in tables */
+.wphd-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+    .wphd-metrics-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+    }
+    
+    .wphd-metric-card {
+        padding: 12px;
+    }
+    
+    .wphd-metric-number {
+        font-size: 24px;
+    }
+    
+    .wphd-metric-label {
+        font-size: 11px;
+    }
+    
+    .wphd-status-tabs {
+        overflow-x: scroll;
+        scrollbar-width: thin;
+    }
+    
+    .wphd-status-tab {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    .wphd-take-action-section .wphd-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .wphd-urgent-table-container {
+        overflow-x: scroll;
+    }
+}
