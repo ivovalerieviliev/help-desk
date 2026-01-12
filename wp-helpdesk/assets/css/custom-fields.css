@@ -1,0 +1,124 @@
+/**
+ * Custom Fields Admin Page Styles
+ *
+ * @package WP_HelpDesk
+ * @since 1.0.0
+ */
+
+/* Custom Fields Table */
+#wphd-custom-fields-table {
+	margin-top: 20px;
+}
+
+#wphd-custom-fields-table th.wphd-drag-handle {
+	width: 40px;
+	text-align: center;
+}
+
+.wphd-drag-handle {
+	cursor: move;
+	user-select: none;
+}
+
+.wphd-drag-handle .dashicons {
+	color: #999;
+}
+
+.wphd-field-row.ui-sortable-helper {
+	background: #f9f9f9;
+	border: 1px solid #ddd;
+}
+
+.wphd-field-row.ui-sortable-placeholder {
+	visibility: visible !important;
+	background: #f0f0f1;
+	border: 2px dashed #c3c4c7;
+}
+
+/* Field Inputs */
+.wphd-field-label,
+.wphd-field-key {
+	width: 100%;
+}
+
+.wphd-field-key[readonly] {
+	background: #f0f0f1;
+	color: #666;
+	cursor: not-allowed;
+}
+
+/* Required indicator */
+.required {
+	color: #d63638;
+	font-weight: bold;
+}
+
+/* Dropdown Options */
+.wphd-field-options-row {
+	background: #f9f9f9;
+}
+
+.wphd-dropdown-options {
+	margin: 10px 0;
+}
+
+.wphd-dropdown-option {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 10px;
+	align-items: center;
+}
+
+.wphd-dropdown-option input[type="text"] {
+	flex: 1;
+}
+
+.wphd-dropdown-option input[type="text"]:first-of-type {
+	flex: 2;
+}
+
+/* Buttons */
+.wphd-add-option-btn {
+	margin-top: 10px;
+}
+
+.wphd-delete-field-btn {
+	color: #d63638;
+}
+
+.wphd-delete-field-btn:hover {
+	color: #d63638;
+	border-color: #d63638;
+}
+
+/* No fields message */
+.wphd-no-fields-row td {
+	color: #666;
+	font-style: italic;
+}
+
+/* Action buttons column */
+#wphd-custom-fields-table td:last-child {
+	white-space: nowrap;
+}
+
+#wphd-custom-fields-table .button-small {
+	margin: 2px;
+}
+
+/* Sortable handle hover */
+.wphd-field-row:hover .wphd-drag-handle .dashicons {
+	color: #2271b1;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+	.wphd-dropdown-option {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	
+	.wphd-dropdown-option input[type="text"] {
+		width: 100%;
+	}
+}

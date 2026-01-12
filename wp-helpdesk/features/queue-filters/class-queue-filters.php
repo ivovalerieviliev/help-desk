@@ -640,14 +640,25 @@ class WPHD_Queue_Filters {
 
 		$user_id = get_current_user_id();
 
+		// Check if default filters have already been initialized for this user
+		$user_meta_key = 'wphd_default_filters_initialized';
+		if ( get_user_meta( $user_id, $user_meta_key, true ) ) {
+			return; // Default filters already initialized, don't recreate
+		}
+
 		// Check if user already has filters
 		$existing = self::get_user_filters( $user_id );
 		if ( ! empty( $existing ) ) {
+			// User has filters, mark as initialized
+			update_user_meta( $user_id, $user_meta_key, 1 );
 			return;
 		}
 
 		// Create default filters
 		self::create_default_filters( $user_id );
+		
+		// Mark as initialized so they won't be recreated if deleted
+		update_user_meta( $user_id, $user_meta_key, 1 );
 	}
 
 	/**
