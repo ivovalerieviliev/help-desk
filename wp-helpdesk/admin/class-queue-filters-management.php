@@ -578,16 +578,24 @@ class WPHD_Queue_Filters_Management {
 			wp_send_json_error( array( 'message' => __( 'Invalid filter ID.', 'wp-helpdesk' ) ) );
 		}
 
+		// Check if filter exists first
+		$filter = WPHD_Queue_Filters::get( $filter_id );
+		if ( ! $filter ) {
+			wp_send_json_error( array( 'message' => __( 'Filter not found.', 'wp-helpdesk' ) ) );
+		}
+
+		// Check permissions
 		if ( ! WPHD_Queue_Filters::can_delete_filter( $filter_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to delete this filter.', 'wp-helpdesk' ) ) );
 		}
 
+		// Delete the filter
 		$result = WPHD_Queue_Filters::delete( $filter_id );
 
 		if ( $result ) {
 			wp_send_json_success( array( 'message' => __( 'Filter deleted successfully.', 'wp-helpdesk' ) ) );
 		} else {
-			wp_send_json_error( array( 'message' => __( 'Failed to delete filter.', 'wp-helpdesk' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Failed to delete filter. Please try again.', 'wp-helpdesk' ) ) );
 		}
 	}
 
