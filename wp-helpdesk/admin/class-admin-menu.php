@@ -206,6 +206,16 @@ class WPHD_Admin_Menu {
             array( $this, 'render_priorities_page' )
         );
 
+        // Custom Fields submenu (Admin only).
+        add_submenu_page(
+            $this->menu_slug,
+            __( 'Custom Fields', 'wp-helpdesk' ),
+            __( 'Custom Fields', 'wp-helpdesk' ),
+            $this->admin_capability,
+            $this->menu_slug . '-custom-fields',
+            array( $this, 'render_custom_fields_page' )
+        );
+
         // Organizations submenu (Admin only).
         add_submenu_page(
             $this->menu_slug,
@@ -4737,6 +4747,16 @@ class WPHD_Admin_Menu {
 
     /**
      * Render the organizations page.
+     *
+     * @since 1.0.0
+     */
+    public function render_custom_fields_page() {
+        $custom_fields_page = WPHD_Custom_Fields_Page::instance();
+        $custom_fields_page->render();
+    }
+
+    /**
+     * Render the organizations management page.
      *
      * @since 1.0.0
      */
